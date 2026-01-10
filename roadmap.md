@@ -81,12 +81,16 @@
 
 ## Recording
 
+- [ ] **Pause/resume recording** (not just start/stop - pause mid-recording)
+- [ ] **Microphone test/level meter** (visual feedback before and during recording)
+- [ ] **Recording quality selector** (choose sample rate / bitrate)
 - [ ] **Always-on background mode** (run as menu bar app, always listening)
 - [ ] **Rewind mode** (continuously record last X hours, retroactively save important moments)
 - [ ] **Auto-detect meeting start** (detect Zoom, Meet, Teams, Slack huddles)
 - [ ] **Calendar-triggered recording** (auto-start when calendar event begins)
 - [ ] **Voice activity detection** to auto-start recording when conversation detected
 - [ ] **Wake word bookmarking** ("Hey Transcript, bookmark this" - hands-free during recording)
+- [ ] **Quick notes during recording** (add text annotations with auto-timestamps)
 - [ ] System audio capture (record meetings, videos, not just microphone)
 - [ ] Multiple audio input selection (choose which microphone)
 - [ ] Noise reduction / audio enhancement (RNNoise, DeepFilterNet)
@@ -97,7 +101,6 @@
 - [ ] Drag and drop audio file import
 - [ ] Waveform visualization during recording
 - [ ] Voice journaling mode with mood tracking
-- [ ] **Quick notes during recording** (add text annotations with auto-timestamps)
 
 ## Transcription Quality
 
@@ -127,8 +130,13 @@
 
 - [ ] **Audio-transcript sync playback** (click text → jump to audio position)
 - [ ] **Playback speed control** (0.5x, 1x, 1.5x, 2x playback)
+- [ ] **Search within transcript** (Ctrl+F style find in current session)
+- [ ] **Bookmarks/highlights** (mark important moments during review)
 - [ ] **Notification when transcription done** (system notification)
 - [ ] **Privacy/blur mode** (hide transcript while reviewing in public)
+- [ ] **Onboarding wizard** (guide new users through setup)
+- [ ] **Recent files quick access** (quick list of recent sessions)
+- [ ] **Hotkey customization** (let users set their own shortcuts)
 - [ ] Dark/light theme toggle (CSS already supports it)
 - [ ] Search and filter sessions by date/status/content
 - [ ] Keyboard shortcuts for common actions
@@ -149,6 +157,7 @@
 
 ## Session Management
 
+- [ ] **Pin/star sessions** (keep important sessions at top)
 - [ ] Folder editing and deletion
 - [ ] Bulk actions (delete multiple, export multiple)
 - [ ] Session tagging and categorization
