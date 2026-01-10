@@ -130,8 +130,48 @@
 ## Platform
 
 - [ ] iOS companion app
+- [ ] Android companion app
 - [ ] Windows/Linux builds
 - [ ] Menu bar mode (minimal UI)
+- [ ] Mobile-to-desktop local sync (WiFi/Bluetooth)
+- [ ] Apple Watch quick-record
+
+## Video Support
+
+- [ ] Screen recording with audio
+- [ ] Camera + screen picture-in-picture
+- [ ] Video transcription (extract audio track)
+- [ ] Slide/presentation change detection
+- [ ] Video clip export with burned-in captions
+- [ ] Meeting recording with participant video grid
+
+## Team & Collaboration
+
+- [ ] Shared workspaces (local network sync)
+- [ ] User roles and permissions
+- [ ] Comments and annotations on transcripts
+- [ ] @mentions and notifications (local)
+- [ ] Transcript version control (who changed what)
+- [ ] Conflict resolution for simultaneous edits
+- [ ] Team activity dashboard
+- [ ] Admin controls for workspace settings
+
+## Developer & Integrations
+
+- [ ] REST API for local automation
+- [ ] CLI tool for scripting (transcribe, export, query)
+- [ ] Webhook support (trigger actions on events)
+- [ ] Zoom plugin (native integration)
+- [ ] Google Meet extension
+- [ ] Microsoft Teams add-in
+- [ ] Slack bot for notifications
+- [ ] Zapier/n8n local connector
+- [ ] Apple Shortcuts support
+- [ ] Raycast extension
+- [ ] Alfred workflow
+- [ ] Plugin/extension system for community add-ons
+- [ ] Python SDK for custom integrations
+- [ ] JavaScript SDK for web integrations
 
 ## Technical
 
