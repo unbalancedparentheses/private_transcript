@@ -1,5 +1,38 @@
 # Private Transcript Roadmap
 
+## Feature Overview (Value / Effort)
+
+| Feature | Value | Effort | Status | Category |
+|---------|-------|--------|--------|----------|
+| Local RAG / Semantic Search | 🔥🔥🔥 | Medium | Pending | AI |
+| Obsidian/Logseq sync | 🔥🔥🔥 | Low | Pending | Export |
+| Real-time caption overlay | 🔥🔥🔥 | High | Pending | Accessibility |
+| System audio capture | 🔥🔥🔥 | High | Pending | Recording |
+| Real-time transcription | 🔥🔥🔥 | High | Pending | Recording |
+| AI summaries (Ollama/OpenRouter) | 🔥🔥🔥 | Medium | Pending | AI |
+| Cross-meeting insights | 🔥🔥 | Medium | Pending | AI |
+| Rewind mode | 🔥🔥 | Medium | Pending | Recording |
+| Speaker identification | 🔥🔥 | High | Pending | Transcription |
+| Chat with your meetings | 🔥🔥 | Medium | Pending | AI |
+| Wake word bookmarking | 🔥🔥 | Low | Pending | Recording |
+| Auto-generate email draft | 🔥🔥 | Low | Pending | AI |
+| Windows/Linux builds | 🔥🔥 | Medium | Pending | Platform |
+| Settings UI with model selection | 🔥🔥 | Low | Pending | UI |
+| Bundle whisper.cpp | 🔥🔥 | Medium | Pending | Technical |
+| OpenRouter integration | 🔥🔥 | Low | Pending | AI |
+| Meeting type auto-detection | 🔥 | Low | Pending | AI |
+| Podcaster tools | 🔥 | Low | Pending | Niche |
+| Voice journaling + mood | 🔥 | Medium | Pending | Niche |
+| Translation support | 🔥 | Low | Pending | Transcription |
+| Markdown export | 🔥 | Low | Pending | Export |
+| Editable transcripts | 🔥 | Low | Pending | UI |
+| Auto-detect meetings | 🔥 | Medium | Pending | Recording |
+| Advanced exports (PDF, DOCX) | 🔥 | Medium | Pending | Export |
+| Custom summary templates | 🔥 | Low | Pending | AI |
+| Calendar integration (local) | 🔥 | Medium | Pending | Workflow |
+
+---
+
 ## Priority Features
 
 | # | Feature | Status | Notes |
@@ -13,10 +46,10 @@
 | 7 | Translation support | Pending | Translate non-English audio to English via whisper --translate |
 | 8 | Markdown export | Pending | Export transcripts and summaries as Markdown files |
 | 9 | Editable transcripts | Pending | Users can fix transcription errors inline |
-| 10 | Multiple LLM options | Pending | Support Claude API, Groq, Ollama, and local models |
+| 10 | Multiple LLM options | Pending | Support Ollama, local models (llama.cpp, MLX), and OpenRouter |
 | 11 | **Auto-detect meetings** | Pending | Automatically start recording when Zoom/Meet/Teams opens |
 | 12 | **Advanced exports** | Pending | Export as PDF, DOCX, not just Markdown/TXT |
-| 13 | **Custom AI model connector** | Pending | Let users connect any OpenAI-compatible API endpoint |
+| 13 | **Custom AI model connector** | Pending | Connect OpenRouter or any OpenAI-compatible endpoint |
 | 14 | **Larger/more accurate models** | Pending | Support large-v3-turbo, distil-whisper for better accuracy |
 | 15 | **Speaker identification** | Pending | Identify and label different speakers in transcript |
 | 16 | **Custom summary templates** | Pending | User-defined templates for different meeting types |
@@ -26,9 +59,11 @@
 ## Recording
 
 - [ ] **Always-on background mode** (run as menu bar app, always listening)
+- [ ] **Rewind mode** (continuously record last X hours, retroactively save important moments)
 - [ ] **Auto-detect meeting start** (detect Zoom, Meet, Teams, Slack huddles)
 - [ ] **Calendar-triggered recording** (auto-start when calendar event begins)
 - [ ] **Voice activity detection** to auto-start recording when conversation detected
+- [ ] **Wake word bookmarking** ("Hey Transcript, bookmark this" - hands-free during recording)
 - [ ] System audio capture (record meetings, videos, not just microphone)
 - [ ] Multiple audio input selection (choose which microphone)
 - [ ] Noise reduction / audio enhancement (RNNoise, DeepFilterNet)
@@ -38,6 +73,7 @@
 - [ ] Audio playback preview before saving
 - [ ] Drag and drop audio file import
 - [ ] Waveform visualization during recording
+- [ ] Voice journaling mode with mood tracking
 
 ## Transcription Quality
 
@@ -76,6 +112,12 @@
 - [ ] Reaction emojis on timeline
 - [ ] Slash commands for formatting
 
+## Accessibility
+
+- [ ] **Real-time caption overlay** (system-wide live captions for deaf/HoH users)
+- [ ] High contrast mode for transcripts
+- [ ] Text-to-speech for reading transcripts aloud
+
 ## Session Management
 
 - [ ] Folder editing and deletion
@@ -85,18 +127,27 @@
 - [ ] Undo/redo for edits
 - [ ] Quick actions menu
 - [ ] Auto-generate meeting title from content (local LLM)
+- [ ] **Word count / talk time stats** (display duration, word count per session)
+- [ ] **Filler word counter** (count "um", "uh", "like" - useful self-feedback)
 
 ## Export & Sharing
 
+- [ ] **Obsidian/Logseq sync** (auto-export transcripts and summaries to vault)
 - [ ] Export transcripts as PDF
 - [ ] Export as plain text or Markdown
 - [ ] Copy transcript to clipboard
+- [ ] **Copy summary to clipboard** (one-click share)
+- [ ] **Copy as Markdown** (formatted for pasting into notes apps)
 - [ ] Print-friendly view
 - [ ] Quote extraction with timestamps
 - [ ] Highlight reels of key moments
 
-## AI Features (Ollama - 100% Local)
+## AI Features (Ollama / Local Models / OpenRouter)
 
+- [ ] **Local RAG / Semantic search** (chat with all your meetings using local embeddings)
+- [ ] **Cross-meeting insights** (find patterns: "You discussed X with John 4 times this month")
+- [ ] **Meeting type auto-detection** (standup, 1:1, interview → auto-apply templates)
+- [ ] **Auto-generate follow-up email drafts** (LLM drafts post-meeting emails)
 - [ ] Generate session summaries
 - [ ] Extract action items automatically
 - [ ] Custom templates per workspace type
@@ -165,7 +216,7 @@
 - [ ] Google Meet extension
 - [ ] Microsoft Teams add-in
 - [ ] Slack bot for notifications
-- [ ] Zapier/n8n local connector
+- [ ] Zapier/n8n connector
 - [ ] Apple Shortcuts support
 - [ ] Raycast extension
 - [ ] Alfred workflow
@@ -183,6 +234,16 @@
 ---
 
 # Niche-Specific Features
+
+## Podcasters / Content Creators
+
+- [ ] **Show notes generation** (auto-generate episode summaries)
+- [ ] **Chapter markers** (auto-detect topic changes, generate timestamps)
+- [ ] Episode planning assistant
+- [ ] Guest research integration (pull context before recording)
+- [ ] Sponsorship read detection and timestamps
+- [ ] Pull-quote extraction for social media
+- [ ] Audiogram generator (waveform + captions for social clips)
 
 ## Psychologists / Therapists
 
