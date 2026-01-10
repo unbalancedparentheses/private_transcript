@@ -53,6 +53,29 @@
 | Pin/star sessions | 🔥 | Very Low | Pending | Session |
 | Onboarding wizard | 🔥 | Medium | Pending | UI |
 | Recording quality selector | 🔥 | Low | Pending | Recording |
+| Rename speakers | 🔥🔥🔥 | Low | Pending | Transcription |
+| External mic support (USB/Bluetooth) | 🔥🔥 | Low | Pending | Recording |
+| Automatic gain control | 🔥🔥 | Medium | Pending | Recording |
+| Echo cancellation | 🔥🔥 | Medium | Pending | Recording |
+| Handle very long recordings | 🔥🔥 | Medium | Pending | Recording |
+| Merge/split speaker segments | 🔥🔥 | Medium | Pending | Transcription |
+| Grammar/punctuation cleanup | 🔥🔥 | Low | Pending | AI |
+| Notion export | 🔥🔥 | Low | Pending | Export |
+| Email transcript | 🔥🔥 | Low | Pending | Export |
+| Attach to calendar event | 🔥🔥 | Medium | Pending | Workflow |
+| Battery optimization | 🔥🔥 | Medium | Pending | Technical |
+| Home screen widget (mobile) | 🔥🔥 | Medium | Pending | Platform |
+| Siri Shortcuts | 🔥🔥 | Low | Pending | Platform |
+| Background recording (mobile) | 🔥🔥 | Medium | Pending | Platform |
+| Low disk space warning | 🔥 | Very Low | Pending | UI |
+| Timestamp format options | 🔥 | Low | Pending | UI |
+| Paragraph/formatting controls | 🔥 | Low | Pending | UI |
+| Tone analysis | 🔥 | Medium | Pending | AI |
+| Meeting effectiveness score | 🔥 | Medium | Pending | AI |
+| Offline mode indicator | 🔥 | Very Low | Pending | UI |
+| Duplicate detection | 🔥 | Low | Pending | Session |
+| Transcript diff/compare | 🔥 | Medium | Pending | UI |
+| Apple Notes sync | 🔥 | Low | Pending | Export |
 
 ---
 
@@ -93,6 +116,11 @@
 - [ ] **Quick notes during recording** (add text annotations with auto-timestamps)
 - [ ] System audio capture (record meetings, videos, not just microphone)
 - [ ] Multiple audio input selection (choose which microphone)
+- [ ] **External mic support** (USB, Bluetooth microphones)
+- [ ] **Automatic gain control** (normalize volume levels)
+- [ ] **Echo cancellation** (for speaker playback scenarios)
+- [ ] **Handle very long recordings** (3+ hours with chunking/progress)
+- [ ] **Low disk space warning** (prevent failed recordings)
 - [ ] Noise reduction / audio enhancement (RNNoise, DeepFilterNet)
 - [ ] Live transcription (real-time as you speak)
 - [ ] Global hotkey to start/stop recording
@@ -104,10 +132,14 @@
 
 ## Transcription Quality
 
+- [ ] **Rename speakers** (change "Speaker 1" to "John" - essential for diarization)
+- [ ] **Merge/split speaker segments** (fix diarization errors)
 - [ ] **Auto-language detection** (detect language automatically, no manual selection)
 - [ ] Real-time transcription progress feedback via Tauri events
 - [ ] Speaker diarization (pyannote-audio or whisper-diarize)
 - [ ] Timestamp support in transcripts
+- [ ] **Timestamp format options** (HH:MM:SS vs MM:SS vs seconds)
+- [ ] **Paragraph/formatting controls** (control line breaks, spacing)
 - [ ] Batch transcription for multiple files
 - [ ] Custom vocabulary (medical, legal, technical terms)
 - [ ] Word-level confidence scores (highlight uncertain words)
@@ -148,6 +180,8 @@
 - [ ] Highlight key moments with one tap
 - [ ] Reaction emojis on timeline
 - [ ] Slash commands for formatting
+- [ ] **Offline mode indicator** (show when features need network)
+- [ ] **Transcript diff/compare** (compare two versions side-by-side)
 
 ## Accessibility
 
@@ -167,10 +201,14 @@
 - [ ] Auto-generate meeting title from content (local LLM)
 - [ ] **Word count / talk time stats** (display duration, word count per session)
 - [ ] **Filler word counter** (count "um", "uh", "like" - useful self-feedback)
+- [ ] **Duplicate detection** (warn if importing same audio twice)
 
 ## Export & Sharing
 
 - [ ] **Obsidian/Logseq sync** (auto-export transcripts and summaries to vault)
+- [ ] **Notion export** (export to Notion pages)
+- [ ] **Apple Notes sync** (native macOS integration)
+- [ ] **Email transcript** (send to self or others)
 - [ ] Export transcripts as PDF
 - [ ] Export as plain text or Markdown
 - [ ] Copy transcript to clipboard
@@ -188,6 +226,9 @@
 - [ ] **Meeting type auto-detection** (standup, 1:1, interview → auto-apply templates)
 - [ ] **Auto-generate follow-up email drafts** (LLM drafts post-meeting emails)
 - [ ] **Transcript correction learning** (learn from user fixes to improve future transcriptions)
+- [ ] **Grammar/punctuation cleanup** (polish raw transcripts with AI)
+- [ ] **Tone analysis** (formal vs casual, sentiment detection)
+- [ ] **Meeting effectiveness score** (gamify better meetings)
 - [ ] Generate session summaries
 - [ ] Extract action items automatically
 - [ ] Custom templates per workspace type
@@ -214,6 +255,7 @@
 ## Workflow & Automation
 
 - [ ] **Import from other services** (import transcripts from Otter, Rev, Descript)
+- [ ] **Attach transcript to calendar event** (link back to the meeting)
 - [ ] File watcher (auto-transcribe new files in a folder)
 - [ ] CLI interface for scripting/automation
 - [ ] Calendar integration for meeting context
@@ -228,6 +270,9 @@
 - [ ] Menu bar mode (minimal UI)
 - [ ] Mobile-to-desktop local sync (WiFi/Bluetooth)
 - [ ] Apple Watch quick-record
+- [ ] **Home screen widget** (quick-record without opening app)
+- [ ] **Siri Shortcuts** ("Hey Siri, start transcribing")
+- [ ] **Background recording** (keep recording when app minimized on mobile)
 
 ## Video Support
 
@@ -268,6 +313,7 @@
 
 ## Technical
 
+- [ ] **Battery optimization** (efficient for long recordings)
 - [ ] Reduce app bundle size
 - [ ] Improve startup time
 - [ ] Auto-update mechanism
