@@ -30,6 +30,29 @@
 | Advanced exports (PDF, DOCX) | 🔥 | Medium | Pending | Export |
 | Custom summary templates | 🔥 | Low | Pending | AI |
 | Calendar integration (local) | 🔥 | Medium | Pending | Workflow |
+| Copy summary to clipboard | 🔥 | Very Low | Pending | Export |
+| Copy as Markdown | 🔥 | Very Low | Pending | Export |
+| Word count / talk time stats | 🔥 | Low | Pending | UI |
+| Filler word counter | 🔥 | Low | Pending | UI |
+| Audio-transcript sync playback | 🔥🔥🔥 | Medium | Pending | UI |
+| Playback speed control | 🔥🔥 | Low | Pending | UI |
+| Auto-language detection | 🔥🔥 | Low | Pending | Transcription |
+| Transcript correction learning | 🔥🔥 | Medium | Pending | AI |
+| Quick notes during recording | 🔥🔥 | Low | Pending | Recording |
+| Import from other services | 🔥🔥 | Medium | Pending | Workflow |
+| Notification when done | 🔥🔥 | Very Low | Pending | UI |
+| Storage cleanup wizard | 🔥 | Low | Pending | Data |
+| Privacy/blur mode | 🔥 | Low | Pending | UI |
+| Export audio clip from selection | 🔥🔥 | Medium | Pending | Export |
+| Pause/resume recording | 🔥🔥 | Low | Pending | Recording |
+| Microphone test/level meter | 🔥🔥 | Low | Pending | Recording |
+| Search within transcript | 🔥🔥 | Very Low | Pending | UI |
+| Bookmarks/highlights | 🔥🔥 | Low | Pending | UI |
+| Hotkey customization | 🔥 | Low | Pending | UI |
+| Recent files quick access | 🔥 | Very Low | Pending | UI |
+| Pin/star sessions | 🔥 | Very Low | Pending | Session |
+| Onboarding wizard | 🔥 | Medium | Pending | UI |
+| Recording quality selector | 🔥 | Low | Pending | Recording |
 
 ---
 
@@ -74,9 +97,11 @@
 - [ ] Drag and drop audio file import
 - [ ] Waveform visualization during recording
 - [ ] Voice journaling mode with mood tracking
+- [ ] **Quick notes during recording** (add text annotations with auto-timestamps)
 
 ## Transcription Quality
 
+- [ ] **Auto-language detection** (detect language automatically, no manual selection)
 - [ ] Real-time transcription progress feedback via Tauri events
 - [ ] Speaker diarization (pyannote-audio or whisper-diarize)
 - [ ] Timestamp support in transcripts
@@ -100,6 +125,10 @@
 
 ## User Interface
 
+- [ ] **Audio-transcript sync playback** (click text → jump to audio position)
+- [ ] **Playback speed control** (0.5x, 1x, 1.5x, 2x playback)
+- [ ] **Notification when transcription done** (system notification)
+- [ ] **Privacy/blur mode** (hide transcript while reviewing in public)
 - [ ] Dark/light theme toggle (CSS already supports it)
 - [ ] Search and filter sessions by date/status/content
 - [ ] Keyboard shortcuts for common actions
@@ -138,6 +167,7 @@
 - [ ] Copy transcript to clipboard
 - [ ] **Copy summary to clipboard** (one-click share)
 - [ ] **Copy as Markdown** (formatted for pasting into notes apps)
+- [ ] **Export audio clip from selection** (select text range → export that audio segment)
 - [ ] Print-friendly view
 - [ ] Quote extraction with timestamps
 - [ ] Highlight reels of key moments
@@ -148,6 +178,7 @@
 - [ ] **Cross-meeting insights** (find patterns: "You discussed X with John 4 times this month")
 - [ ] **Meeting type auto-detection** (standup, 1:1, interview → auto-apply templates)
 - [ ] **Auto-generate follow-up email drafts** (LLM drafts post-meeting emails)
+- [ ] **Transcript correction learning** (learn from user fixes to improve future transcriptions)
 - [ ] Generate session summaries
 - [ ] Extract action items automatically
 - [ ] Custom templates per workspace type
@@ -161,6 +192,7 @@
 
 ## Data & Security
 
+- [ ] **Storage cleanup wizard** (delete old audio but keep transcripts to save space)
 - [ ] Encrypted storage option (AES-256)
 - [ ] PIN/password protection for app
 - [ ] Auto-lock after inactivity
@@ -172,6 +204,7 @@
 
 ## Workflow & Automation
 
+- [ ] **Import from other services** (import transcripts from Otter, Rev, Descript)
 - [ ] File watcher (auto-transcribe new files in a folder)
 - [ ] CLI interface for scripting/automation
 - [ ] Calendar integration for meeting context
