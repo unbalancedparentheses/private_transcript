@@ -41,18 +41,18 @@ fn get_app_data_dir() -> Option<&'static PathBuf> {
 }
 
 /// Get the path where embedding models are stored
-pub fn get_embedding_model_dir(app_data_dir: &PathBuf) -> PathBuf {
+pub fn get_embedding_model_dir(app_data_dir: &std::path::Path) -> PathBuf {
     app_data_dir.join("models").join("embedding")
 }
 
 /// Check if the embedding model is downloaded
-pub fn is_embedding_model_available(app_data_dir: &PathBuf) -> bool {
+pub fn is_embedding_model_available(app_data_dir: &std::path::Path) -> bool {
     let model_path = get_embedding_model_dir(app_data_dir).join(EMBEDDING_MODEL_FILENAME);
     model_path.exists()
 }
 
 /// Load the embedding model into memory
-pub fn load_embedding_model(app_data_dir: &PathBuf) -> Result<()> {
+pub fn load_embedding_model(app_data_dir: &std::path::Path) -> Result<()> {
     let mut state = get_embedding_state().lock();
 
     if state.is_some() {

@@ -239,7 +239,7 @@ fn generate_sync(
     let mut n_cur = batch.n_tokens();
     // Track the index for sampling - after initial decode it's the last token,
     // after subsequent single-token decodes it's always 0
-    let mut logits_idx = (batch.n_tokens() - 1) as i32;
+    let mut logits_idx = batch.n_tokens() - 1;
 
     for _ in 0..max_tokens {
         let new_token = sampler.sample(&ctx, logits_idx);
