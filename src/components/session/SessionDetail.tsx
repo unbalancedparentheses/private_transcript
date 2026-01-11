@@ -54,8 +54,8 @@ export function SessionDetail() {
   const [audioSrc, setAudioSrc] = useState<string | null>(null);
   const [audioError, setAudioError] = useState<string | null>(null);
 
-  // Speaker labels state
-  const [showSpeakerView, setShowSpeakerView] = useState(false);
+  // Speaker labels state (enabled by default)
+  const [showSpeakerView, setShowSpeakerView] = useState(true);
   const [speakerSegments, setSpeakerSegments] = useState<TranscriptSegment[]>([]);
   const [editingSpeaker, setEditingSpeaker] = useState<string | null>(null);
   const [newSpeakerName, setNewSpeakerName] = useState('');

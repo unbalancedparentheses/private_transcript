@@ -210,6 +210,10 @@ describe('SessionDetail', () => {
     it('should highlight search matches in transcript', async () => {
       render(<SessionDetail />);
 
+      // Switch to plain text mode (speaker view is on by default)
+      const speakerToggle = screen.getByTitle(/plain text/i);
+      fireEvent.click(speakerToggle);
+
       // Open search and type query
       fireEvent.click(screen.getByTitle('Search (Cmd+F)'));
       const searchInput = await screen.findByPlaceholderText('Search...');
@@ -223,6 +227,10 @@ describe('SessionDetail', () => {
 
     it('should highlight current match differently', async () => {
       render(<SessionDetail />);
+
+      // Switch to plain text mode (speaker view is on by default)
+      const speakerToggle = screen.getByTitle(/plain text/i);
+      fireEvent.click(speakerToggle);
 
       // Open search and type query
       fireEvent.click(screen.getByTitle('Search (Cmd+F)'));
@@ -451,7 +459,11 @@ describe('SessionDetail', () => {
       fireEvent.click(copyButtons[0]);
 
       await waitFor(() => {
-        expect(mockClipboard.writeText).toHaveBeenCalledWith(mockSession.transcript);
+        // With speaker view enabled by default, it copies speaker-formatted text
+        // The text should contain the transcript content
+        expect(mockClipboard.writeText).toHaveBeenCalled();
+        const copiedText = mockClipboard.writeText.mock.calls[0][0];
+        expect(copiedText).toContain('test transcript');
       });
     });
   });
@@ -509,47 +521,49 @@ describe('SessionDetail - Speaker Labels', () => {
 
   it('should show speaker toggle button', () => {
     render(<SessionDetail />);
-    const speakerButton = screen.getByTitle(/speaker labels/i);
+    // When speaker view is on (default), title is "Show plain text"
+    const speakerButton = screen.getByTitle(/plain text/i);
     expect(speakerButton).toBeInTheDocument();
   });
 
-  it('should show plain text by default', () => {
+  it('should show speaker view by default', () => {
     render(<SessionDetail />);
+    const speakerButton = screen.getByTitle(/plain text/i);
 
-    // Plain text should be visible
-    expect(screen.getByText(/This is a test transcript/)).toBeInTheDocument();
+    // Speaker view button should be active by default
+    expect(speakerButton.className).toContain('bg-[var(--primary)]');
   });
 
-  it('should toggle button appearance when speaker view is active', async () => {
+  it('should toggle to plain text view when clicked', async () => {
     render(<SessionDetail />);
-    const speakerButton = screen.getByTitle(/speaker labels/i);
+    const speakerButton = screen.getByTitle(/plain text/i);
 
-    // Initially not active
-    expect(speakerButton.className).not.toContain('bg-[var(--primary)]');
+    // Initially active (speaker view on)
+    expect(speakerButton.className).toContain('bg-[var(--primary)]');
 
-    // Click to enable speaker view
+    // Click to disable speaker view
     fireEvent.click(speakerButton);
 
-    // Button should now have primary color
+    // Button should no longer have primary color
     await waitFor(() => {
-      expect(speakerButton.className).toContain('bg-[var(--primary)]');
+      expect(speakerButton.className).not.toContain('bg-[var(--primary)]');
     });
   });
 
-  it('should toggle back to plain text view', async () => {
+  it('should toggle back to speaker view', async () => {
     render(<SessionDetail />);
-    const speakerButton = screen.getByTitle(/speaker labels/i);
-
-    // Enable speaker view
-    fireEvent.click(speakerButton);
-    await waitFor(() => {
-      expect(speakerButton.className).toContain('bg-[var(--primary)]');
-    });
+    const speakerButton = screen.getByTitle(/plain text/i);
 
     // Disable speaker view
     fireEvent.click(speakerButton);
     await waitFor(() => {
       expect(speakerButton.className).not.toContain('bg-[var(--primary)]');
+    });
+
+    // Re-enable speaker view
+    fireEvent.click(speakerButton);
+    await waitFor(() => {
+      expect(speakerButton.className).toContain('bg-[var(--primary)]');
     });
   });
 });
