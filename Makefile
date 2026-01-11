@@ -21,7 +21,7 @@ clean:
 
 # Build WhisperKit worker
 build-whisperkit:
-	cd whisperkit-worker && swift build -c release
+	nix develop --command bash -c "cd whisperkit-worker && swift build -c release"
 	@echo "WhisperKit worker built at whisperkit-worker/.build/release/whisperkit-worker"
 
 # Build all workers and copy to binaries folder
