@@ -93,69 +93,135 @@ pub fn get_loaded_model() -> Option<String> {
 
 /// Transcribe audio file using whisper-rs native bindings
 pub async fn transcribe(_app: &AppHandle, _session_id: &str, audio_path: &str) -> Result<String> {
+    println!("[Whisper] transcribe() called for: {}", audio_path);
+
     // First check if model is loaded
     if !is_model_loaded() {
+        println!("[Whisper] ERROR: Model not loaded!");
         return Err(anyhow!(
             "Whisper model not loaded. Please select and load a model first."
         ));
     }
+    println!("[Whisper] Model is loaded, proceeding with transcription");
 
     let audio_path_owned = audio_path.to_string();
 
     // Decode audio to f32 samples at 16kHz mono (blocking operation)
+    println!("[Whisper] Decoding audio file to 16kHz mono f32...");
     let audio_data = tokio::task::spawn_blocking(move || {
-        decode_audio_to_whisper_format(&audio_path_owned)
+        println!("[Whisper] Starting audio decode in blocking task");
+        let result = decode_audio_to_whisper_format(&audio_path_owned);
+        match &result {
+            Ok(data) => println!("[Whisper] Audio decoded successfully: {} samples ({:.2} seconds)",
+                data.len(), data.len() as f32 / 16000.0),
+            Err(e) => println!("[Whisper] Audio decode failed: {}", e),
+        }
+        result
     })
     .await
     .map_err(|e| anyhow!("Task join error: {}", e))??;
 
     if audio_data.is_empty() {
+        println!("[Whisper] ERROR: No audio data decoded from file");
         return Err(anyhow!("No audio data decoded from file"));
     }
 
-    // Run transcription (blocking operation)
+    println!("[Whisper] Audio data ready: {} samples", audio_data.len());
+
+    // Run transcription (blocking operation with panic catching)
+    println!("[Whisper] Starting whisper inference...");
     let transcript = tokio::task::spawn_blocking(move || {
-        transcribe_sync(&audio_data)
+        println!("[Whisper] Running transcribe_sync with {} samples", audio_data.len());
+
+        // Catch panics to prevent app crash
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            transcribe_sync(&audio_data)
+        }));
+
+        match result {
+            Ok(Ok(text)) => {
+                println!("[Whisper] Transcription complete: {} chars", text.len());
+                Ok(text)
+            }
+            Ok(Err(e)) => {
+                println!("[Whisper] Transcription error: {}", e);
+                Err(e)
+            }
+            Err(panic_info) => {
+                let panic_msg = if let Some(s) = panic_info.downcast_ref::<&str>() {
+                    s.to_string()
+                } else if let Some(s) = panic_info.downcast_ref::<String>() {
+                    s.clone()
+                } else {
+                    "Unknown panic".to_string()
+                };
+                println!("[Whisper] PANIC during transcription: {}", panic_msg);
+                Err(anyhow!("Whisper crashed: {}", panic_msg))
+            }
+        }
     })
     .await
     .map_err(|e| anyhow!("Task join error: {}", e))??;
 
+    println!("[Whisper] Returning transcript: {} chars", transcript.len());
     Ok(transcript)
 }
 
 /// Synchronous transcription (called from blocking task)
 fn transcribe_sync(audio_data: &[f32]) -> Result<String> {
+    println!("[Whisper] transcribe_sync: acquiring context lock...");
     let ctx_lock = get_whisper_context().lock();
     let ctx = ctx_lock
         .as_ref()
         .ok_or_else(|| anyhow!("Whisper model not loaded"))?;
+    println!("[Whisper] transcribe_sync: context acquired");
 
     // Create transcription parameters
+    println!("[Whisper] transcribe_sync: creating params...");
     let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
 
     // Configure for best quality
-    params.set_language(Some("auto"));
+    params.set_language(Some("en")); // Use English explicitly to avoid auto-detect issues
     params.set_translate(false);
     params.set_no_timestamps(true);
     params.set_print_special(false);
-    params.set_print_progress(false);
+    params.set_print_progress(true); // Enable progress printing for debugging
     params.set_print_realtime(false);
     params.set_print_timestamps(false);
     params.set_single_segment(false);
+    params.set_n_threads(4); // Limit threads to avoid issues
 
+    println!("[Whisper] transcribe_sync: creating state...");
     // Create state and run transcription
     let mut state = ctx
         .create_state()
-        .map_err(|e| anyhow!("Failed to create whisper state: {}", e))?;
+        .map_err(|e| {
+            println!("[Whisper] ERROR: Failed to create state: {}", e);
+            anyhow!("Failed to create whisper state: {}", e)
+        })?;
+    println!("[Whisper] transcribe_sync: state created, running inference on {} samples...", audio_data.len());
 
+    // Ensure audio data is valid
+    let min_val = audio_data.iter().cloned().fold(f32::INFINITY, f32::min);
+    let max_val = audio_data.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
+    println!("[Whisper] Audio data range: min={:.4}, max={:.4}", min_val, max_val);
+
+    // Run the actual transcription
+    println!("[Whisper] transcribe_sync: calling state.full()...");
     state
         .full(params, audio_data)
-        .map_err(|e| anyhow!("Transcription failed: {}", e))?;
+        .map_err(|e| {
+            println!("[Whisper] ERROR: Transcription failed: {}", e);
+            anyhow!("Transcription failed: {}", e)
+        })?;
+    println!("[Whisper] transcribe_sync: inference complete");
 
     // Extract segments
+    println!("[Whisper] transcribe_sync: getting segments...");
     let num_segments = state
         .full_n_segments()
         .map_err(|e| anyhow!("Failed to get segments: {}", e))?;
+    println!("[Whisper] transcribe_sync: found {} segments", num_segments);
 
     let mut transcript = String::new();
 
@@ -172,8 +238,10 @@ fn transcribe_sync(audio_data: &[f32]) -> Result<String> {
     }
 
     let result = transcript.trim().to_string();
+    println!("[Whisper] transcribe_sync: result = '{}'", result);
 
     if result.is_empty() {
+        println!("[Whisper] WARNING: Transcription produced no output");
         return Err(anyhow!("Transcription produced no output"));
     }
 

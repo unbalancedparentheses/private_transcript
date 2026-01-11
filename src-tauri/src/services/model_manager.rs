@@ -370,6 +370,33 @@ impl ModelManager {
             return Err(anyhow!(error_msg));
         }
 
+        // Load the model to verify it works and keep it loaded
+        println!("[ModelManager] Loading freshly downloaded model: {}", model_info.id);
+        let load_result = match model_info.model_type {
+            ModelType::Whisper => whisper::load_model(app, &model_info.id).await,
+            ModelType::Llm => local_llm::load_model(app, &model_info.id).await,
+        };
+
+        if let Err(e) = load_result {
+            let _ = tokio::fs::remove_file(&target_path).await;
+            let error_msg = format!("Downloaded model failed to load: {}", e);
+            println!("[ModelManager] Load verification failed: {}", error_msg);
+            let _ = app.emit(
+                "model-download-progress",
+                DownloadProgress {
+                    model_id: model_info.id.clone(),
+                    downloaded_bytes: actual_size,
+                    total_bytes: model_info.size_bytes,
+                    percent: 0.0,
+                    status: DownloadStatus::Error,
+                    error_message: Some(error_msg.clone()),
+                },
+            );
+            return Err(anyhow!(error_msg));
+        }
+
+        println!("[ModelManager] Model {} loaded and verified successfully", model_info.id);
+
         // Emit completion
         println!("[ModelManager] Emitting complete status for: {}", model_info.id);
         let _ = app.emit(

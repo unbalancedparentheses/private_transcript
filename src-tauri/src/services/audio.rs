@@ -43,8 +43,8 @@ pub async fn save_audio_file(
 pub async fn get_audio_path(app: &AppHandle, session_id: &str) -> Result<String> {
     let audio_dir = get_audio_dir(app)?;
 
-    // Try common formats
-    for ext in &["webm", "wav", "mp3", "m4a", "ogg", "flac", "aac"] {
+    // Try common formats (prioritize formats Symphonia supports well)
+    for ext in &["m4a", "ogg", "wav", "mp3", "flac", "aac", "webm"] {
         let path = audio_dir.join(format!("{}.{}", session_id, ext));
         if path.exists() {
             return Ok(path.to_string_lossy().to_string());
@@ -57,74 +57,115 @@ pub async fn get_audio_path(app: &AppHandle, session_id: &str) -> Result<String>
 /// Decode any audio file and convert to f32 samples at 16kHz mono
 /// This replaces ffmpeg for audio conversion - pure Rust implementation
 pub fn decode_audio_to_whisper_format(audio_path: &str) -> Result<Vec<f32>> {
+    println!("[Audio] decode_audio_to_whisper_format() called for: {}", audio_path);
+
     let file = std::fs::File::open(audio_path)
-        .map_err(|e| anyhow!("Failed to open audio file: {}", e))?;
+        .map_err(|e| {
+            println!("[Audio] ERROR: Failed to open audio file: {}", e);
+            anyhow!("Failed to open audio file: {}", e)
+        })?;
+
+    let file_size = file.metadata().map(|m| m.len()).unwrap_or(0);
+    println!("[Audio] File opened, size: {} bytes", file_size);
+
     let mss = MediaSourceStream::new(Box::new(file), Default::default());
 
     // Create a hint to help format detection
     let mut hint = Hint::new();
     if let Some(ext) = std::path::Path::new(audio_path).extension() {
-        hint.with_extension(ext.to_str().unwrap_or(""));
+        let ext_str = ext.to_str().unwrap_or("");
+        println!("[Audio] File extension: {}", ext_str);
+        hint.with_extension(ext_str);
     }
 
     // Probe the format
+    println!("[Audio] Probing audio format...");
     let format_opts = FormatOptions::default();
     let metadata_opts = MetadataOptions::default();
     let probed = symphonia::default::get_probe()
         .format(&hint, mss, &format_opts, &metadata_opts)
-        .map_err(|e| anyhow!("Failed to probe audio format: {}", e))?;
+        .map_err(|e| {
+            println!("[Audio] ERROR: Failed to probe audio format: {}", e);
+            anyhow!("Failed to probe audio format: {}", e)
+        })?;
 
     let mut format = probed.format;
+    println!("[Audio] Format probed successfully, tracks: {}", format.tracks().len());
 
     // Select the first audio track
     let track = format
         .tracks()
         .iter()
         .find(|t| t.codec_params.codec != symphonia::core::codecs::CODEC_TYPE_NULL)
-        .ok_or_else(|| anyhow!("No audio track found"))?;
+        .ok_or_else(|| {
+            println!("[Audio] ERROR: No audio track found");
+            anyhow!("No audio track found")
+        })?;
 
     let track_id = track.id;
     let codec_params = track.codec_params.clone();
     let source_sample_rate = codec_params.sample_rate.unwrap_or(44100);
     let source_channels = codec_params.channels.map(|c| c.count()).unwrap_or(2);
 
+    println!("[Audio] Track found - sample rate: {} Hz, channels: {}", source_sample_rate, source_channels);
+
     // Create decoder
+    println!("[Audio] Creating decoder...");
     let decoder_opts = DecoderOptions::default();
     let mut decoder = symphonia::default::get_codecs()
         .make(&codec_params, &decoder_opts)
-        .map_err(|e| anyhow!("Failed to create decoder: {}", e))?;
+        .map_err(|e| {
+            println!("[Audio] ERROR: Failed to create decoder: {}", e);
+            anyhow!("Failed to create decoder: {}", e)
+        })?;
+    println!("[Audio] Decoder created successfully");
 
     // Decode all packets
     let mut all_samples: Vec<f32> = Vec::new();
+    let mut packet_count = 0;
+    let mut decode_errors = 0;
 
+    println!("[Audio] Starting packet decode loop...");
     loop {
         let packet = match format.next_packet() {
             Ok(p) => p,
             Err(symphonia::core::errors::Error::IoError(e))
                 if e.kind() == std::io::ErrorKind::UnexpectedEof =>
             {
+                println!("[Audio] Reached end of file");
                 break;
             }
             Err(symphonia::core::errors::Error::ResetRequired) => {
-                // Handle format reset (e.g., seeking)
+                println!("[Audio] Reset required, resetting decoder");
                 decoder.reset();
                 continue;
             }
-            Err(e) => return Err(anyhow!("Error reading packet: {}", e)),
+            Err(e) => {
+                println!("[Audio] ERROR reading packet: {}", e);
+                return Err(anyhow!("Error reading packet: {}", e));
+            }
         };
 
         if packet.track_id() != track_id {
             continue;
         }
 
+        packet_count += 1;
+
         let decoded = match decoder.decode(&packet) {
             Ok(d) => d,
             Err(symphonia::core::errors::Error::DecodeError(e)) => {
-                eprintln!("Decode error (skipping packet): {}", e);
+                decode_errors += 1;
+                if decode_errors <= 5 {
+                    println!("[Audio] Decode error (skipping packet {}): {}", packet_count, e);
+                }
                 continue;
             }
             Err(e) => {
-                eprintln!("Decode error (skipping): {}", e);
+                decode_errors += 1;
+                if decode_errors <= 5 {
+                    println!("[Audio] Decode error (skipping packet {}): {}", packet_count, e);
+                }
                 continue;
             }
         };
@@ -148,18 +189,28 @@ pub fn decode_audio_to_whisper_format(audio_path: &str) -> Result<Vec<f32>> {
         }
     }
 
+    println!("[Audio] Decoded {} packets, {} decode errors, {} total samples",
+        packet_count, decode_errors, all_samples.len());
+
     if all_samples.is_empty() {
+        println!("[Audio] ERROR: No audio samples decoded");
         return Err(anyhow!("No audio samples decoded"));
     }
 
     // Resample to 16kHz if necessary
     if source_sample_rate != TARGET_SAMPLE_RATE {
+        println!("[Audio] Resampling from {} Hz to {} Hz...", source_sample_rate, TARGET_SAMPLE_RATE);
         all_samples = resample_audio(
             &all_samples,
             source_sample_rate as usize,
             TARGET_SAMPLE_RATE as usize,
         )?;
+        println!("[Audio] Resampling complete, {} samples after resampling", all_samples.len());
     }
+
+    let duration_secs = all_samples.len() as f32 / TARGET_SAMPLE_RATE as f32;
+    println!("[Audio] Audio decode complete: {} samples ({:.2} seconds at 16kHz)",
+        all_samples.len(), duration_secs);
 
     Ok(all_samples)
 }

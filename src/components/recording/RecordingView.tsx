@@ -25,18 +25,23 @@ export function RecordingView() {
   }, []);
 
   const getSupportedMimeType = () => {
+    // Prefer formats that Symphonia can decode (no Opus support)
+    // Priority: MP4/AAC > OGG/Vorbis > WAV > WebM (fallback, may not work)
     const types = [
-      'audio/webm;codecs=opus',
-      'audio/webm',
-      'audio/mp4',
-      'audio/ogg;codecs=opus',
-      'audio/wav',
+      'audio/mp4',                    // AAC codec - supported by Symphonia
+      'audio/ogg;codecs=vorbis',      // Vorbis codec - supported by Symphonia
+      'audio/ogg',                    // Vorbis codec - supported by Symphonia
+      'audio/wav',                    // PCM - supported by Symphonia
+      'audio/webm;codecs=opus',       // Opus - NOT supported, last resort
+      'audio/webm',                   // Opus - NOT supported, last resort
     ];
     for (const type of types) {
       if (MediaRecorder.isTypeSupported(type)) {
+        console.log('[Recording] Using audio format:', type);
         return type;
       }
     }
+    console.warn('[Recording] No supported audio format found');
     return '';
   };
 
@@ -101,9 +106,10 @@ export function RecordingView() {
 
       const mimeType = audioBlob.type;
       let format = 'webm';
-      if (mimeType.includes('mp4')) format = 'mp4';
+      if (mimeType.includes('mp4')) format = 'm4a';
       else if (mimeType.includes('ogg')) format = 'ogg';
       else if (mimeType.includes('wav')) format = 'wav';
+      console.log('[Recording] Saving with format:', format, 'mimeType:', mimeType);
 
       const audioPath = await invoke<string>('save_audio_file', {
         sessionId: tempId,
