@@ -1,5 +1,5 @@
 use crate::models::{CreateSessionRequest, Session, UpdateSessionRequest};
-use crate::services::database;
+use crate::services::{database, rag};
 use crate::utils::IntoTauriResult;
 use tauri::AppHandle;
 
@@ -30,9 +30,25 @@ pub async fn update_session(
     app: AppHandle,
     request: UpdateSessionRequest,
 ) -> Result<Session, String> {
-    database::update_session(&app, request)
+    let session_id = request.id.clone();
+    let has_transcript_update = request.transcript.is_some();
+
+    let session = database::update_session(&app, request)
         .await
-        .into_tauri_result()
+        .into_tauri_result()?;
+
+    // Auto-index for RAG when transcript is updated
+    if has_transcript_update {
+        let pool = database::get_pool().into_tauri_result()?;
+        if let Err(e) = rag::index_session(pool, &session_id).await {
+            // Non-fatal - don't fail the update if indexing fails
+            println!("[Session] Failed to index session for RAG: {}", e);
+        } else {
+            println!("[Session] Session indexed for RAG: {}", session_id);
+        }
+    }
+
+    Ok(session)
 }
 
 #[tauri::command]

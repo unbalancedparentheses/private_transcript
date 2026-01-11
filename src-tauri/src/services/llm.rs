@@ -160,6 +160,61 @@ pub async fn generate_note_streaming(
     result
 }
 
+/// Generate text using current LLM provider with streaming (for RAG chat)
+pub async fn generate_with_current_provider(
+    app: &AppHandle,
+    session_id: &str,
+    prompt: &str,
+    max_tokens: u32,
+) -> Result<String> {
+    let settings = database::get_settings(app).await?;
+
+    let result = match settings.llm_provider.as_str() {
+        "bundled" => local_llm::generate_streaming(app, session_id, prompt, max_tokens as usize).await,
+        "local" => {
+            let model = if settings.llm_model.is_empty() {
+                let status = check_ollama_status().await?;
+                if !status.connected {
+                    return Err(anyhow::anyhow!("Ollama is not running"));
+                }
+                if status.models.is_empty() {
+                    return Err(anyhow::anyhow!("No models available in Ollama"));
+                }
+                status.models[0].clone()
+            } else {
+                settings.llm_model.clone()
+            };
+            generate_with_ollama_streaming(app, session_id, &settings.ollama_endpoint, &model, prompt)
+                .await
+        }
+        "cloud" => {
+            if let (Some(api_key), Some(model)) =
+                (&settings.openrouter_api_key, &settings.openrouter_model)
+            {
+                generate_with_openrouter_streaming(app, session_id, api_key, model, prompt).await
+            } else {
+                Err(anyhow::anyhow!("OpenRouter not configured"))
+            }
+        }
+        _ => Err(anyhow::anyhow!("No LLM provider configured")),
+    };
+
+    // Emit error event if generation failed
+    if let Err(ref e) = result {
+        let _ = app.emit(
+            "llm-stream",
+            LlmStreamEvent {
+                session_id: session_id.to_string(),
+                token: String::new(),
+                done: true,
+                error: Some(e.to_string()),
+            },
+        );
+    }
+
+    result
+}
+
 /// Generate text using local Ollama (non-streaming)
 async fn generate_with_ollama(endpoint: &str, model: &str, prompt: &str) -> Result<String> {
     let client = Client::new();

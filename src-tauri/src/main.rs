@@ -119,6 +119,7 @@ fn main() {
             commands::chat::delete_chat_conversation,
             commands::chat::build_context_from_chunks,
             commands::chat::format_rag_chat_prompt,
+            commands::chat::send_rag_chat_message,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

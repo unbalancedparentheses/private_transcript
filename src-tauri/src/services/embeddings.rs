@@ -11,7 +11,7 @@ use std::sync::Arc;
 /// Embedding model info
 #[allow(dead_code)]
 pub const EMBEDDING_MODEL_ID: &str = "all-minilm-l6-v2";
-pub const EMBEDDING_MODEL_FILENAME: &str = "all-MiniLM-L6-v2-Q4_K_M.gguf";
+pub const EMBEDDING_MODEL_FILENAME: &str = "all-MiniLM-L6-v2.Q4_K_M.gguf";
 #[allow(dead_code)]
 pub const EMBEDDING_MODEL_URL: &str = "https://huggingface.co/leliuga/all-MiniLM-L6-v2-GGUF/resolve/main/all-MiniLM-L6-v2.Q4_K_M.gguf";
 pub const EMBEDDING_DIM: usize = 384;

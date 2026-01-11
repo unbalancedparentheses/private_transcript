@@ -3,10 +3,12 @@ use crate::services::embeddings::{
     bytes_to_embedding, cosine_similarity, embedding_to_bytes,
     generate_embedding, EMBEDDING_DIM,
 };
+use crate::services::llm;
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use sqlx::sqlite::SqlitePool;
 use sqlx::Row;
+use tauri::AppHandle;
 use uuid::Uuid;
 
 /// A retrieved chunk with similarity score
@@ -428,6 +430,20 @@ User question: {}
 Answer:"#,
         context, user_question
     )
+}
+
+/// Generate a RAG response using the configured LLM
+pub async fn generate_rag_response(
+    app: &AppHandle,
+    conversation_id: &str,
+    query: &str,
+    chunks: &[RetrievedChunk],
+) -> Result<String> {
+    let context = build_rag_context(chunks);
+    let prompt = format_rag_prompt(&context, query);
+
+    // Use current LLM provider with streaming (emits llm-stream events)
+    llm::generate_with_current_provider(app, conversation_id, &prompt, 1024).await
 }
 
 #[cfg(test)]

@@ -1,6 +1,14 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import { invoke } from '@tauri-apps/api/core';
+import { listen, UnlistenFn } from '@tauri-apps/api/event';
+
+interface LlmStreamEvent {
+  session_id: string;
+  token: string;
+  done: boolean;
+  error: string | null;
+}
 
 export interface ChatMessage {
   id: string;
@@ -127,62 +135,68 @@ export const useChatStore = create<ChatState>()(
     },
 
     sendMessage: async (content) => {
-      set({ error: null });
+      set({ error: null, streamingContent: '' });
+
+      let unlisten: UnlistenFn | null = null;
 
       try {
         const { currentConversationId } = get();
-        if (!currentConversationId) {
+        let conversationId = currentConversationId;
+
+        if (!conversationId) {
           // Create a new conversation if none exists
-          const id = await get().createConversation('New Chat');
-          set({ currentConversationId: id });
+          conversationId = await get().createConversation('New Chat');
+          set({ currentConversationId: conversationId });
         }
 
-        const conversationId = get().currentConversationId!;
         set({ isLoading: true });
 
-        // Add user message
-        const userMessage = await invoke<ChatMessage>('add_chat_message', {
+        // Add user message to UI immediately (optimistic update)
+        const userMessage: ChatMessage = {
+          id: crypto.randomUUID(),
           conversationId,
           role: 'user',
           content,
-          sourceChunks: null,
-        });
-
+          createdAt: Date.now() / 1000,
+        };
         set((state) => ({
           messages: [...state.messages, userMessage],
         }));
 
-        // Search for relevant chunks
-        const chunks = await get().searchChunks(content, 5);
-        set({ lastRetrievedChunks: chunks });
-
-        // Build context for response
-        const context = await invoke<string>('build_context_from_chunks', { chunks });
-
-        // For now, store the prompt as the assistant response
-        // In a full implementation, this would call the LLM for generation
-        const assistantMessage = await invoke<ChatMessage>('add_chat_message', {
-          conversationId,
-          role: 'assistant',
-          content: context
-            ? `Based on your transcripts:\n\n${chunks
-                .map(
-                  (c) =>
-                    `**[${c.sessionTitle || 'Session'}]** ${c.speaker ? `(${c.speaker})` : ''}: "${c.text.substring(0, 200)}${c.text.length > 200 ? '...' : ''}"`
-                )
-                .join('\n\n')}`
-            : 'No relevant information found in your transcripts. Try indexing your sessions first.',
-          sourceChunks: chunks.map((c) => c.chunkId),
+        // Set up streaming listener BEFORE making the request
+        unlisten = await listen<LlmStreamEvent>('llm-stream', (event) => {
+          if (event.payload.session_id === conversationId) {
+            if (event.payload.error) {
+              set({ error: event.payload.error });
+            } else if (!event.payload.done) {
+              set((state) => ({
+                streamingContent: state.streamingContent + event.payload.token,
+              }));
+            }
+          }
         });
 
+        // Call the unified RAG chat command (searches, generates, saves)
+        const assistantMessage = await invoke<ChatMessage>('send_rag_chat_message', {
+          conversationId,
+          message: content,
+        });
+
+        // Add the final assistant message
         set((state) => ({
           messages: [...state.messages, assistantMessage],
+          streamingContent: '',
+          lastRetrievedChunks: [], // Clear after response
         }));
+
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err);
         console.error('Chat error:', errorMessage);
-        set({ error: errorMessage });
+        set({ error: errorMessage, streamingContent: '' });
       } finally {
+        if (unlisten) {
+          unlisten();
+        }
         set({ isLoading: false });
       }
     },

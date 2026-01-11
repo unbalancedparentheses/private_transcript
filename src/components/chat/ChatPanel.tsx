@@ -43,14 +43,6 @@ const PlusIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-const DatabaseIcon = ({ className }: { className?: string }) => (
-  <svg className={className} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <ellipse cx="12" cy="5" rx="9" ry="3" />
-    <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
-    <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
-  </svg>
-);
-
 const ChevronLeftIcon = ({ className }: { className?: string }) => (
   <svg className={className} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <polyline points="15 18 9 12 15 6" />
@@ -71,17 +63,16 @@ export function ChatPanel() {
     toggle,
     messages,
     isLoading,
+    streamingContent,
     error,
     conversations,
     currentConversationId,
     lastRetrievedChunks,
-    isIndexing,
     loadConversations,
     createConversation,
     selectConversation,
     deleteConversation,
     sendMessage,
-    indexAllSessions,
   } = useChatStore();
 
   const [input, setInput] = useState('');
@@ -96,7 +87,7 @@ export function ChatPanel() {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, streamingContent]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -151,20 +142,6 @@ export function ChatPanel() {
             title="Conversations"
           >
             <MessageSquareIcon className="w-4 h-4" />
-          </button>
-          <button
-            onClick={async () => {
-              await indexAllSessions();
-            }}
-            disabled={isIndexing}
-            className="p-1.5 hover:bg-[var(--muted)] rounded text-[var(--muted-foreground)] disabled:opacity-50"
-            title="Index all sessions"
-          >
-            {isIndexing ? (
-              <LoaderIcon className="w-4 h-4 animate-spin" />
-            ) : (
-              <DatabaseIcon className="w-4 h-4" />
-            )}
           </button>
           <button
             onClick={toggle}
@@ -228,7 +205,7 @@ export function ChatPanel() {
                 <MessageSquareIcon className="w-12 h-12 mb-3 opacity-50" />
                 <p className="text-sm">Ask questions about your transcripts</p>
                 <p className="text-xs mt-1">
-                  Make sure to index your sessions first
+                  Your sessions are automatically indexed for search
                 </p>
               </div>
             ) : (
@@ -254,7 +231,16 @@ export function ChatPanel() {
                 </div>
               ))
             )}
-            {isLoading && (
+            {/* Streaming content display */}
+            {streamingContent && (
+              <div className="flex justify-start">
+                <div className="max-w-[85%] p-2.5 rounded-lg text-sm bg-[var(--muted)]">
+                  <div className="whitespace-pre-wrap">{streamingContent}</div>
+                </div>
+              </div>
+            )}
+            {/* Loading indicator (only show if no streaming content) */}
+            {isLoading && !streamingContent && (
               <div className="flex justify-start">
                 <div className="bg-[var(--muted)] p-2.5 rounded-lg">
                   <LoaderIcon className="w-4 h-4 animate-spin" />

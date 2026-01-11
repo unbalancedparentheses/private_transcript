@@ -2,9 +2,9 @@ use crate::services::database;
 use crate::services::embeddings;
 use crate::services::rag::{
     add_message, build_rag_context, create_conversation, delete_conversation,
-    format_rag_prompt, get_conversation_messages, get_conversations, index_all_pending_sessions,
-    index_session, is_session_indexed, search_chunks, ChatConversation, ChatMessage,
-    RetrievedChunk,
+    format_rag_prompt, generate_rag_response, get_conversation_messages, get_conversations,
+    index_all_pending_sessions, index_session, is_session_indexed, search_chunks,
+    ChatConversation, ChatMessage, RetrievedChunk,
 };
 use crate::utils::IntoTauriResult;
 use std::path::PathBuf;
@@ -149,4 +149,43 @@ pub fn build_context_from_chunks(chunks: Vec<RetrievedChunk>) -> String {
 #[tauri::command]
 pub fn format_rag_chat_prompt(context: String, user_question: String) -> String {
     format_rag_prompt(&context, &user_question)
+}
+
+/// Send a RAG chat message - searches, generates response with LLM, and saves messages
+#[tauri::command]
+pub async fn send_rag_chat_message(
+    app: AppHandle,
+    conversation_id: String,
+    message: String,
+) -> Result<ChatMessage, String> {
+    let pool = database::get_pool().into_tauri_result()?;
+
+    // 1. Save user message
+    add_message(pool, &conversation_id, "user", &message, None)
+        .await
+        .into_tauri_result()?;
+
+    // 2. Search for relevant chunks
+    let chunks = search_chunks(pool, &message, 5, 0.3)
+        .await
+        .into_tauri_result()?;
+
+    // 3. Generate response with LLM (streams via llm-stream event using conversation_id)
+    let response = generate_rag_response(&app, &conversation_id, &message, &chunks)
+        .await
+        .into_tauri_result()?;
+
+    // 4. Save assistant message with source references
+    let chunk_ids: Vec<String> = chunks.iter().map(|c| c.chunk_id.clone()).collect();
+    let source_chunks = if chunk_ids.is_empty() {
+        None
+    } else {
+        Some(chunk_ids)
+    };
+
+    let assistant_msg = add_message(pool, &conversation_id, "assistant", &response, source_chunks)
+        .await
+        .into_tauri_result()?;
+
+    Ok(assistant_msg)
 }
