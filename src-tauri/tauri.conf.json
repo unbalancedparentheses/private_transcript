@@ -37,7 +37,8 @@
     "active": true,
     "targets": "all",
     "externalBin": [
-      "binaries/whisperkit-worker"
+      "binaries/whisperkit-worker",
+      "binaries/audio-capture-worker"
     ],
     "icon": [
       "icons/32x32.png",
@@ -50,7 +51,7 @@
     "shortDescription": "Privacy-first transcription and notes",
     "longDescription": "Private Transcript is a privacy-first, offline transcription application that converts conversations into structured professional notes. 100% local processing - your data never leaves your device.",
     "macOS": {
-      "minimumSystemVersion": "12.0"
+      "minimumSystemVersion": "13.0"
     },
     "windows": {
       "wix": {}

@@ -137,3 +137,40 @@ export const WORKSPACE_CONFIG: Record<WorkspaceType, {
     description: 'For meetings, consultants, and general use',
   },
 };
+
+// System audio types
+export interface AudioDevice {
+  id: string;
+  name: string;
+  isDefault: boolean;
+}
+
+export interface RecordingConfig {
+  micDeviceId?: string;
+  captureSystemAudio: boolean;
+  sampleRate: number;
+  micVolume: number;
+  systemVolume: number;
+}
+
+export type RecordingState = 'idle' | 'recording' | 'stopping';
+
+export interface RecordingStatus {
+  state: RecordingState;
+  durationMs: number;
+  micLevel: number;
+  systemLevel: number;
+}
+
+export interface RecordingProgressEvent {
+  sessionId: string;
+  state: string;
+  durationMs: number;
+  micLevel: number;
+  systemLevel: number;
+}
+
+export interface AudioPermissions {
+  microphone: boolean;
+  screenRecording: boolean;
+}

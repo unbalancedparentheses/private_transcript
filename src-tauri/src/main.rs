@@ -50,6 +50,12 @@ fn main() {
             // Audio commands
             commands::audio::save_audio_file,
             commands::audio::get_audio_path,
+            // System audio commands
+            commands::system_audio::get_audio_devices,
+            commands::system_audio::start_system_recording,
+            commands::system_audio::stop_system_recording,
+            commands::system_audio::get_recording_status,
+            commands::system_audio::check_audio_permissions,
             // Export commands
             commands::export::export_markdown,
             commands::export::export_pdf,

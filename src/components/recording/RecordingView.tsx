@@ -5,6 +5,7 @@ import { useAppStore } from '../../stores/appStore';
 import { Button } from '../ui/Button';
 import { Progress } from '../ui/Progress';
 import { useToast } from '../ui/Toast';
+import type { AudioDevice, RecordingConfig, RecordingProgressEvent } from '../../types';
 
 interface TranscriptionProgress {
   sessionId: string;
@@ -24,6 +25,13 @@ export function RecordingView() {
   const [transcriptionProgress, setTranscriptionProgress] = useState<TranscriptionProgress | null>(null);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [audioLevel, setAudioLevel] = useState(0);
+  // System audio capture state
+  const [captureSystemAudio, setCaptureSystemAudio] = useState(false);
+  const [audioDevices, setAudioDevices] = useState<AudioDevice[]>([]);
+  const [selectedMicId, setSelectedMicId] = useState<string | undefined>();
+  const [isNativeRecording, setIsNativeRecording] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [nativeSessionId, setNativeSessionId] = useState<string | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<number | null>(null);
@@ -54,6 +62,56 @@ export function RecordingView() {
       }
     };
   }, []);
+
+  // Load audio devices on mount
+  useEffect(() => {
+    const loadDevices = async () => {
+      try {
+        const devices = await invoke<AudioDevice[]>('get_audio_devices');
+        setAudioDevices(devices);
+        // Set default device
+        const defaultDevice = devices.find(d => d.isDefault);
+        if (defaultDevice) {
+          setSelectedMicId(defaultDevice.id);
+        }
+      } catch (e) {
+        console.error('Failed to load audio devices:', e);
+      }
+    };
+    loadDevices();
+  }, []);
+
+  // Listen for native recording progress
+  useEffect(() => {
+    let unlisten: UnlistenFn | null = null;
+
+    const setupListener = async () => {
+      unlisten = await listen<RecordingProgressEvent>('recording-progress', (event) => {
+        if (event.payload.state === 'recording') {
+          setDuration(Math.floor(event.payload.durationMs / 1000));
+          setAudioLevel(event.payload.micLevel * 100);
+        } else if (event.payload.state === 'complete') {
+          // Recording completed - don't set audioBlob since file is already on disk
+          setIsRecording(false);
+          setIsNativeRecording(false);
+        } else if (event.payload.state === 'error') {
+          addToast('Recording failed. Please check permissions.', 'error');
+          setIsRecording(false);
+          setIsNativeRecording(false);
+        }
+      });
+    };
+
+    if (isNativeRecording) {
+      setupListener();
+    }
+
+    return () => {
+      if (unlisten) {
+        unlisten();
+      }
+    };
+  }, [isNativeRecording, addToast]);
 
   useEffect(() => {
     return () => {
@@ -141,6 +199,13 @@ export function RecordingView() {
   };
 
   const startRecording = async () => {
+    // Use native recording if system audio is enabled
+    if (captureSystemAudio) {
+      await startNativeRecording();
+      return;
+    }
+
+    // Use browser MediaRecorder for mic-only recording
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
@@ -182,7 +247,39 @@ export function RecordingView() {
     }
   };
 
-  const stopRecording = () => {
+  const startNativeRecording = async () => {
+    try {
+      const sessionId = crypto.randomUUID();
+      setNativeSessionId(sessionId);
+
+      const config: RecordingConfig = {
+        micDeviceId: selectedMicId,
+        captureSystemAudio: true,
+        sampleRate: 16000,
+        micVolume: 1.0,
+        systemVolume: 0.7,
+      };
+
+      await invoke('start_system_recording', {
+        sessionId,
+        config,
+      });
+
+      setIsRecording(true);
+      setIsNativeRecording(true);
+      setDuration(0);
+    } catch (error) {
+      console.error('Failed to start native recording:', error);
+      addToast('Failed to start recording. Please check microphone and screen recording permissions.', 'error');
+    }
+  };
+
+  const stopRecording = async () => {
+    if (isNativeRecording) {
+      await stopNativeRecording();
+      return;
+    }
+
     if (mediaRecorderRef.current && (mediaRecorderRef.current.state === 'recording' || mediaRecorderRef.current.state === 'paused')) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
@@ -191,6 +288,62 @@ export function RecordingView() {
         clearInterval(timerRef.current);
         timerRef.current = null;
       }
+    }
+  };
+
+  const stopNativeRecording = async () => {
+    try {
+      const audioPath = await invoke<string>('stop_system_recording');
+      setIsRecording(false);
+      setIsNativeRecording(false);
+
+      // Immediately save and transcribe the native recording
+      await saveNativeRecording(audioPath);
+    } catch (error) {
+      console.error('Failed to stop native recording:', error);
+      addToast('Failed to stop recording.', 'error');
+      setIsRecording(false);
+      setIsNativeRecording(false);
+    }
+  };
+
+  const saveNativeRecording = async (audioPath: string) => {
+    if (!currentFolder) return;
+
+    setIsSaving(true);
+    setIsTranscribing(true);
+    setTranscriptionProgress(null);
+
+    try {
+      const session = await createSession(audioPath, `Recording ${new Date().toLocaleString()}`);
+      await updateSession(session.id, { status: 'transcribing' });
+
+      try {
+        const transcript = await invoke<string>('transcribe_audio', {
+          sessionId: session.id,
+          audioPath,
+        });
+
+        await updateSession(session.id, {
+          transcript,
+          status: 'complete',
+        });
+      } catch (error) {
+        console.error('Transcription failed:', error);
+        await updateSession(session.id, {
+          status: 'error',
+          errorMessage: String(error),
+        });
+      }
+
+      setView('list');
+    } catch (error) {
+      console.error('Failed to save recording:', error);
+      addToast('Failed to save recording. Please try again.', 'error');
+    } finally {
+      setIsSaving(false);
+      setIsTranscribing(false);
+      setNativeSessionId(null);
     }
   };
 
@@ -504,12 +657,66 @@ export function RecordingView() {
             )}
           </div>
 
+          {/* System Audio Toggle - shown before recording starts */}
+          {!isRecording && !audioBlob && !isTranscribing && (
+            <div className="mt-8 p-4 rounded-xl border border-[var(--border)] bg-[var(--card)]/50 max-w-sm mx-auto">
+              <div className="flex items-center justify-between mb-4">
+                <div className="text-left">
+                  <label className="text-sm font-medium text-[var(--foreground)]">Capture System Audio</label>
+                  <p className="text-xs text-[var(--muted-foreground)] mt-0.5">
+                    Record audio from other apps (meetings, videos)
+                  </p>
+                </div>
+                <button
+                  onClick={() => setCaptureSystemAudio(!captureSystemAudio)}
+                  className={`relative w-11 h-6 rounded-full transition-colors ${
+                    captureSystemAudio ? 'bg-[var(--primary)]' : 'bg-[var(--muted)]'
+                  }`}
+                  role="switch"
+                  aria-checked={captureSystemAudio}
+                >
+                  <div
+                    className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-transform ${
+                      captureSystemAudio ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Microphone Selection */}
+              {audioDevices.length > 0 && (
+                <div>
+                  <label className="text-xs font-medium text-[var(--muted-foreground)] mb-1.5 block">Microphone</label>
+                  <select
+                    value={selectedMicId || ''}
+                    onChange={(e) => setSelectedMicId(e.target.value || undefined)}
+                    className="w-full h-9 px-3 text-sm rounded-lg border border-[var(--border)] bg-[var(--background)] text-[var(--foreground)]"
+                  >
+                    {audioDevices.map(device => (
+                      <option key={device.id} value={device.id}>
+                        {device.name} {device.isDefault ? '(Default)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {captureSystemAudio && (
+                <p className="text-xs text-amber-500 mt-3">
+                  Screen Recording permission required for system audio
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Instructions */}
-          <p className="mt-10 text-[var(--muted-foreground)] text-sm max-w-xs mx-auto leading-relaxed">
+          <p className="mt-6 text-[var(--muted-foreground)] text-sm max-w-xs mx-auto leading-relaxed">
             {isRecording && isPaused
               ? 'Recording paused. Click play to resume or stop to finish.'
               : isRecording
-              ? 'Recording... Pause or stop when finished.'
+              ? captureSystemAudio
+                ? 'Recording mic + system audio... Stop when finished.'
+                : 'Recording... Pause or stop when finished.'
               : isTranscribing
               ? 'Transcribing locally. This may take a moment...'
               : audioBlob

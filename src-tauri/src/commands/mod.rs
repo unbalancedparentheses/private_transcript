@@ -5,6 +5,7 @@ pub mod generation;
 pub mod models;
 pub mod session;
 pub mod settings;
+pub mod system_audio;
 pub mod template;
 pub mod transcription;
 pub mod workspace;
