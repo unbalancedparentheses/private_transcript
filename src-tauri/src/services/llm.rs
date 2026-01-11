@@ -170,7 +170,19 @@ pub async fn generate_with_current_provider(
     let settings = database::get_settings(app).await?;
 
     let result = match settings.llm_provider.as_str() {
-        "bundled" => local_llm::generate_streaming(app, session_id, prompt, max_tokens as usize).await,
+        "bundled" => {
+            // Auto-load bundled LLM if not loaded
+            if !local_llm::is_model_loaded() {
+                let model_id = settings
+                    .bundled_llm_model
+                    .as_ref()
+                    .map(|s| s.as_str())
+                    .unwrap_or("llama-3.2-3b");
+                println!("[LLM] Auto-loading bundled model: {}", model_id);
+                local_llm::load_model(app, model_id).await?;
+            }
+            local_llm::generate_streaming(app, session_id, prompt, max_tokens as usize).await
+        }
         "local" => {
             let model = if settings.llm_model.is_empty() {
                 let status = check_ollama_status().await?;
