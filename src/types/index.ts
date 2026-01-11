@@ -182,3 +182,34 @@ export interface LlmStreamEvent {
   done: boolean;
   error?: string;
 }
+
+// Live transcription types
+export interface LiveTranscriptionConfig {
+  model?: string;
+  language?: string;
+  useVad?: boolean;
+  confirmationThreshold?: number;
+}
+
+export interface LiveTranscriptionEvent {
+  sessionId: string;
+  text: string;
+  isFinal: boolean;
+  timestamp: number;
+}
+
+export interface TranscriptionCompleteEvent {
+  sessionId: string;
+  fullText: string;
+}
+
+export interface TranscriptionErrorEvent {
+  sessionId: string | null;
+  message: string;
+  code: string;
+}
+
+export interface WorkerReadyEvent {
+  model: string;
+  modelPath: string | null;
+}

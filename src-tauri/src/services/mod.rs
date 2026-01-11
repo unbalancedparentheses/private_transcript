@@ -7,5 +7,6 @@ pub mod llm;
 pub mod local_llm;
 pub mod model_manager;
 pub mod rag;
+pub mod streaming_transcription;
 pub mod system_audio;
 pub mod whisper;

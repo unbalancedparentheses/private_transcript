@@ -17,7 +17,10 @@ let package = Package(
                 .product(name: "WhisperKit", package: "WhisperKit"),
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
             ],
-            path: "Sources"
+            path: "Sources",
+            swiftSettings: [
+                .unsafeFlags(["-parse-as-library"])
+            ]
         ),
     ]
 )

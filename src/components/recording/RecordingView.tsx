@@ -1,11 +1,12 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
 import { useAppStore } from '../../stores/appStore';
 import { Button } from '../ui/Button';
 import { Progress } from '../ui/Progress';
 import { useToast } from '../ui/Toast';
-import type { AudioDevice, RecordingConfig, RecordingProgressEvent } from '../../types';
+import { LiveTranscriptionDisplay } from './LiveTranscriptionDisplay';
+import type { AudioDevice, RecordingConfig, RecordingProgressEvent, LiveTranscriptionConfig, TranscriptionCompleteEvent } from '../../types';
 
 interface TranscriptionProgress {
   sessionId: string;
@@ -32,6 +33,12 @@ export function RecordingView() {
   const [isNativeRecording, setIsNativeRecording] = useState(false);
   const [_nativeSessionId, setNativeSessionId] = useState<string | null>(null);
   const [hasScreenRecordingPermission, setHasScreenRecordingPermission] = useState<boolean | null>(null);
+  // Live transcription state
+  const [enableLiveTranscription, setEnableLiveTranscription] = useState(true);
+  const [_isLiveTranscribing, setIsLiveTranscribing] = useState(false);
+  const [liveSessionId, setLiveSessionId] = useState<string | null>(null);
+  const [_liveTranscriptText, setLiveTranscriptText] = useState<string>('');
+  // Refs
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<number | null>(null);
@@ -39,6 +46,8 @@ export function RecordingView() {
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const audioWorkletRef = useRef<AudioWorkletNode | null>(null);
+  const liveTranscriptionContextRef = useRef<AudioContext | null>(null);
 
   // Listen for transcription progress events
   useEffect(() => {
@@ -62,6 +71,114 @@ export function RecordingView() {
       }
     };
   }, []);
+
+  // Listen for live transcription complete events
+  useEffect(() => {
+    let unlisten: UnlistenFn | null = null;
+
+    const setupListener = async () => {
+      unlisten = await listen<TranscriptionCompleteEvent>('transcription-complete', (event) => {
+        if (event.payload.sessionId === liveSessionId) {
+          setLiveTranscriptText(event.payload.fullText);
+          setIsLiveTranscribing(false);
+        }
+      });
+    };
+
+    setupListener();
+
+    return () => {
+      if (unlisten) {
+        unlisten();
+      }
+    };
+  }, [liveSessionId]);
+
+  // Start live transcription with AudioWorklet
+  const startLiveTranscription = useCallback(async (stream: MediaStream, sessionId: string) => {
+    try {
+      // Create a separate AudioContext for live transcription at 16kHz
+      const audioContext = new AudioContext({ sampleRate: 16000 });
+      liveTranscriptionContextRef.current = audioContext;
+
+      // Load the AudioWorklet module
+      await audioContext.audioWorklet.addModule('/audio-processor.js');
+
+      // Create source from stream
+      const source = audioContext.createMediaStreamSource(stream);
+
+      // Create the worklet node
+      const workletNode = new AudioWorkletNode(audioContext, 'audio-sample-processor');
+      audioWorkletRef.current = workletNode;
+
+      // Handle messages from the worklet (audio samples)
+      workletNode.port.onmessage = async (event) => {
+        if (event.data.type === 'samples') {
+          const samples = Array.from(event.data.samples as Float32Array);
+          try {
+            await invoke('feed_live_audio', {
+              sessionId,
+              samples,
+            });
+          } catch (e) {
+            console.error('Failed to feed audio:', e);
+          }
+        }
+      };
+
+      // Connect the audio pipeline
+      source.connect(workletNode);
+      // Note: We don't connect to destination - we don't want to hear the audio
+
+      // Start the live transcription session
+      const config: LiveTranscriptionConfig = {
+        model: undefined, // Use default
+        language: undefined, // Auto-detect
+        useVad: true,
+        confirmationThreshold: 2,
+      };
+
+      await invoke('start_live_transcription', {
+        sessionId,
+        config,
+      });
+
+      setIsLiveTranscribing(true);
+      console.log('[LiveTranscription] Started for session:', sessionId);
+    } catch (error) {
+      console.error('Failed to start live transcription:', error);
+      addToast('Live transcription unavailable. Recording will continue.', 'warning');
+    }
+  }, [addToast]);
+
+  // Stop live transcription
+  const stopLiveTranscription = useCallback(async () => {
+    if (!liveSessionId) return;
+
+    try {
+      // Stop the worklet
+      if (audioWorkletRef.current) {
+        audioWorkletRef.current.port.postMessage({ command: 'stop' });
+        audioWorkletRef.current.disconnect();
+        audioWorkletRef.current = null;
+      }
+
+      // Close the audio context
+      if (liveTranscriptionContextRef.current) {
+        await liveTranscriptionContextRef.current.close();
+        liveTranscriptionContextRef.current = null;
+      }
+
+      // Stop the transcription session
+      await invoke('stop_live_transcription', {
+        sessionId: liveSessionId,
+      });
+
+      console.log('[LiveTranscription] Stopped for session:', liveSessionId);
+    } catch (error) {
+      console.error('Failed to stop live transcription:', error);
+    }
+  }, [liveSessionId]);
 
   // Load audio devices on mount
   useEffect(() => {
@@ -226,6 +343,11 @@ export function RecordingView() {
   };
 
   const startRecording = async () => {
+    // Generate a session ID for live transcription
+    const sessionId = crypto.randomUUID();
+    setLiveSessionId(sessionId);
+    setLiveTranscriptText('');
+
     // Use native recording if system audio is enabled
     if (captureSystemAudio) {
       await startNativeRecording();
@@ -248,17 +370,27 @@ export function RecordingView() {
 
       startAudioAnalysis(stream);
 
+      // Start live transcription if enabled
+      if (enableLiveTranscription) {
+        await startLiveTranscription(stream, sessionId);
+      }
+
       mediaRecorder.ondataavailable = (e) => {
         if (e.data.size > 0) {
           chunksRef.current.push(e.data);
         }
       };
 
-      mediaRecorder.onstop = () => {
+      mediaRecorder.onstop = async () => {
         const blob = new Blob(chunksRef.current, { type: actualMimeType });
         setAudioBlob(blob);
         stream.getTracks().forEach((track) => track.stop());
         stopAudioAnalysis();
+
+        // Stop live transcription
+        if (enableLiveTranscription) {
+          await stopLiveTranscription();
+        }
       };
 
       mediaRecorder.start(1000);
@@ -276,8 +408,11 @@ export function RecordingView() {
 
   const startNativeRecording = async () => {
     try {
-      const sessionId = crypto.randomUUID();
-      setNativeSessionId(sessionId);
+      const nativeSessionId = crypto.randomUUID();
+      setNativeSessionId(nativeSessionId);
+
+      // Use the same session ID for live transcription that we set in startRecording
+      const transcriptionSessionId = liveSessionId || nativeSessionId;
 
       const config: RecordingConfig = {
         micDeviceId: selectedMicId,
@@ -288,9 +423,23 @@ export function RecordingView() {
       };
 
       await invoke('start_system_recording', {
-        sessionId,
+        sessionId: nativeSessionId,
         config,
       });
+
+      // Start live transcription from mic if enabled
+      // We capture mic audio via browser API for live transcription
+      // while native recording captures both mic + system audio to file
+      if (enableLiveTranscription) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          streamRef.current = stream;
+          await startLiveTranscription(stream, transcriptionSessionId);
+        } catch (e) {
+          console.warn('Could not start live transcription during system audio recording:', e);
+          // Continue without live transcription - native recording will still work
+        }
+      }
 
       setIsRecording(true);
       setIsNativeRecording(true);
@@ -320,6 +469,16 @@ export function RecordingView() {
 
   const stopNativeRecording = async () => {
     try {
+      // Stop live transcription if it was running
+      if (enableLiveTranscription) {
+        await stopLiveTranscription();
+        // Also stop the browser mic stream
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach((track) => track.stop());
+          streamRef.current = null;
+        }
+      }
+
       const audioPath = await invoke<string>('stop_system_recording');
       setIsRecording(false);
       setIsNativeRecording(false);
@@ -588,6 +747,17 @@ export function RecordingView() {
             )}
           </div>
 
+          {/* Live Transcription Display */}
+          {isRecording && enableLiveTranscription && liveSessionId && (
+            <LiveTranscriptionDisplay
+              sessionId={liveSessionId}
+              isActive={isRecording && !isPaused}
+              onError={(error) => {
+                console.error('[LiveTranscription] Error:', error);
+              }}
+            />
+          )}
+
           {/* Duration */}
           <div className="text-5xl font-light tracking-tight mb-8 font-mono text-[var(--foreground)] tabular-nums">
             {formatDuration(duration)}
@@ -756,6 +926,32 @@ export function RecordingView() {
                   Checking permission...
                 </p>
               )}
+
+              {/* Live Transcription Toggle */}
+              <div className="mt-4 pt-4 border-t border-[var(--border)]">
+                <div className="flex items-center justify-between">
+                  <div className="text-left">
+                    <label className="text-sm font-medium text-[var(--foreground)]">Live Transcription</label>
+                    <p className="text-xs text-[var(--muted-foreground)] mt-0.5">
+                      See text as you speak (requires WhisperKit)
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setEnableLiveTranscription(!enableLiveTranscription)}
+                    className={`relative w-11 h-6 rounded-full transition-colors ${
+                      enableLiveTranscription ? 'bg-[var(--primary)]' : 'bg-[var(--muted)]'
+                    }`}
+                    role="switch"
+                    aria-checked={enableLiveTranscription}
+                  >
+                    <div
+                      className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-transform ${
+                        enableLiveTranscription ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 

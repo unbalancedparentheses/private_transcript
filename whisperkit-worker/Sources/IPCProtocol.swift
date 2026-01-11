@@ -141,61 +141,65 @@ enum ErrorCode: String {
 
 // MARK: - IPC Helper Functions
 
-/// Send an event to stdout as NDJSON
-func emit(_ event: Event) {
-    let encoder = JSONEncoder()
-    encoder.keyEncodingStrategy = .convertToSnakeCase
+/// Namespace for IPC helper functions
+enum IPC {
+    /// Send an event to stdout as NDJSON
+    static func emit(_ event: Event) {
+        let encoder = JSONEncoder()
+        encoder.keyEncodingStrategy = .convertToSnakeCase
 
-    do {
-        let data = try encoder.encode(event)
-        if let json = String(data: data, encoding: .utf8) {
-            print(json)
+        do {
+            let data = try encoder.encode(event)
+            if let json = String(data: data, encoding: .utf8) {
+                print(json)
+                fflush(stdout)
+            }
+        } catch {
+            // Fallback error emission
+            fputs("{\"type\":\"error\",\"message\":\"Failed to encode event: \(error.localizedDescription)\",\"code\":\"INTERNAL_ERROR\"}\n", stdout)
             fflush(stdout)
         }
-    } catch {
-        // Fallback error emission
-        fputs("{\"type\":\"error\",\"message\":\"Failed to encode event: \(error.localizedDescription)\",\"code\":\"INTERNAL_ERROR\"}\n", stdout)
-        fflush(stdout)
+    }
+
+    /// Read a command from stdin as NDJSON
+    static func readCommand() -> Command? {
+        guard let line = readLine() else {
+            return nil
+        }
+
+        guard !line.isEmpty else {
+            return nil
+        }
+
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+
+        do {
+            let data = Data(line.utf8)
+            return try decoder.decode(Command.self, from: data)
+        } catch {
+            emit(.error(sessionId: nil, message: "Failed to parse command: \(error.localizedDescription)", code: ErrorCode.invalidCommand.rawValue))
+            return nil
+        }
+    }
+
+    /// Decode base64-encoded float32 samples
+    static func decodeSamples(base64: String, expectedCount: Int) -> [Float]? {
+        guard let data = Data(base64Encoded: base64) else {
+            return nil
+        }
+
+        // Each float32 is 4 bytes
+        guard data.count == expectedCount * 4 else {
+            return nil
+        }
+
+        var samples = [Float](repeating: 0, count: expectedCount)
+        _ = samples.withUnsafeMutableBytes { buffer in
+            data.copyBytes(to: buffer)
+        }
+
+        return samples
     }
 }
 
-/// Read a command from stdin as NDJSON
-func readCommand() -> Command? {
-    guard let line = readLine() else {
-        return nil
-    }
-
-    guard !line.isEmpty else {
-        return nil
-    }
-
-    let decoder = JSONDecoder()
-    decoder.keyDecodingStrategy = .convertFromSnakeCase
-
-    do {
-        let data = Data(line.utf8)
-        return try decoder.decode(Command.self, from: data)
-    } catch {
-        emit(.error(sessionId: nil, message: "Failed to parse command: \(error.localizedDescription)", code: ErrorCode.invalidCommand.rawValue))
-        return nil
-    }
-}
-
-/// Decode base64-encoded float32 samples
-func decodeSamples(base64: String, expectedCount: Int) -> [Float]? {
-    guard let data = Data(base64Encoded: base64) else {
-        return nil
-    }
-
-    // Each float32 is 4 bytes
-    guard data.count == expectedCount * 4 else {
-        return nil
-    }
-
-    var samples = [Float](repeating: 0, count: expectedCount)
-    _ = samples.withUnsafeMutableBytes { buffer in
-        data.copyBytes(to: buffer)
-    }
-
-    return samples
-}

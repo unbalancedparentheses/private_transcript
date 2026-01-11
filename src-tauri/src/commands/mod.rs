@@ -6,6 +6,7 @@ pub mod generation;
 pub mod models;
 pub mod session;
 pub mod settings;
+pub mod streaming_transcription;
 pub mod system_audio;
 pub mod template;
 pub mod transcription;

@@ -66,6 +66,16 @@ fn main() {
             commands::system_audio::get_recording_status,
             commands::system_audio::check_audio_permissions,
             commands::system_audio::open_screen_recording_settings,
+            // Streaming transcription commands
+            commands::streaming_transcription::start_streaming_worker,
+            commands::streaming_transcription::initialize_streaming_worker,
+            commands::streaming_transcription::start_live_transcription,
+            commands::streaming_transcription::feed_live_audio,
+            commands::streaming_transcription::stop_live_transcription,
+            commands::streaming_transcription::shutdown_streaming_worker,
+            commands::streaming_transcription::is_streaming_worker_running,
+            commands::streaming_transcription::get_streaming_worker_state,
+            commands::streaming_transcription::ensure_streaming_worker_running,
             // Export commands
             commands::export::export_markdown,
             commands::export::export_pdf,

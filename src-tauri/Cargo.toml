@@ -58,6 +58,7 @@ futures = "0.3"
 # Document export
 printpdf = "0.7"
 docx-rs = "0.4"
+base64 = "0.22.1"
 
 # Note: whisper-worker binary removed - now using WhisperKit Swift subprocess
 

@@ -39,13 +39,37 @@ fn test_whisperkit_worker_usage() {
         .output()
         .expect("Failed to execute whisperkit-worker");
 
-    // Should exit with error code when no args provided
+    // Should exit with error code when no args provided (missing audio path for default transcribe command)
     assert!(!output.status.success(), "Should fail without arguments");
 
-    // Should show usage message
+    // Should show error about missing argument or usage message
     let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(stderr.contains("Usage:") || stderr.contains("audio_path"),
-        "Should show usage message, got: {}", stderr);
+    assert!(stderr.contains("USAGE:") || stderr.contains("audio-path") || stderr.contains("Missing expected argument"),
+        "Should show usage or missing argument message, got: {}", stderr);
+}
+
+/// Test whisperkit-worker help shows subcommands
+#[test]
+fn test_whisperkit_worker_help() {
+    let worker_path = get_worker_path();
+
+    if !worker_path.exists() {
+        eprintln!("Skipping test: whisperkit-worker not built");
+        return;
+    }
+
+    let output = Command::new(&worker_path)
+        .arg("--help")
+        .output()
+        .expect("Failed to execute whisperkit-worker");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let combined = format!("{}{}", stdout, stderr);
+
+    // Should show available subcommands
+    assert!(combined.contains("transcribe") && combined.contains("stream"),
+        "Should show transcribe and stream subcommands, got: {}", combined);
 }
 
 /// Test whisperkit-worker with non-existent file
