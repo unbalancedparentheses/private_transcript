@@ -30,13 +30,29 @@ pub async fn save_audio_file(
     audio_data: &[u8],
     format: &str,
 ) -> Result<String> {
+    println!("[Audio] save_audio_file called:");
+    println!("[Audio]   session_id: {}", session_id);
+    println!("[Audio]   format: {}", format);
+    println!("[Audio]   data size: {} bytes", audio_data.len());
+
     let audio_dir = get_audio_dir(app)?;
+    println!("[Audio]   audio_dir: {:?}", audio_dir);
+
     let filename = format!("{}.{}", session_id, format);
     let file_path = audio_dir.join(&filename);
+    println!("[Audio]   file_path: {:?}", file_path);
 
     tokio::fs::write(&file_path, audio_data).await?;
 
-    Ok(file_path.to_string_lossy().to_string())
+    let saved_path = file_path.to_string_lossy().to_string();
+    println!("[Audio]   saved to: {}", saved_path);
+
+    // Verify file was saved correctly
+    if let Ok(metadata) = tokio::fs::metadata(&file_path).await {
+        println!("[Audio]   verified file size: {} bytes", metadata.len());
+    }
+
+    Ok(saved_path)
 }
 
 /// Get the path to an audio file for a session

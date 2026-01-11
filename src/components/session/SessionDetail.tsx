@@ -32,17 +32,26 @@ export function SessionDetail() {
   // Convert file path to audio source
   useEffect(() => {
     if (currentSession?.audioPath) {
+      console.log('[Audio] Session audioPath:', currentSession.audioPath);
+      console.log('[Audio] Session ID:', currentSession.id);
+      console.log('[Audio] Session status:', currentSession.status);
+
       try {
         const src = convertFileSrc(currentSession.audioPath);
         console.log('[Audio] Converted path:', currentSession.audioPath, '→', src);
         setAudioSrc(src);
         setAudioError(null);
       } catch (err) {
-        setAudioError('Failed to load audio file');
+        const errorMsg = `Failed to convert audio path: ${err}`;
         console.error('[Audio] Conversion error:', err);
+        console.error('[Audio] Original path:', currentSession.audioPath);
+        setAudioError(errorMsg);
       }
+    } else {
+      console.log('[Audio] No audioPath in session');
+      setAudioSrc(null);
     }
-  }, [currentSession?.audioPath]);
+  }, [currentSession?.audioPath, currentSession?.id, currentSession?.status]);
 
   const togglePlayPause = () => {
     if (audioRef.current) {
@@ -203,7 +212,7 @@ export function SessionDetail() {
       </header>
 
       {/* Audio Player */}
-      {audioSrc && (
+      {audioSrc ? (
         <div className="px-6 py-4 border-b border-border bg-muted/30">
           <audio
             ref={audioRef}
@@ -217,8 +226,20 @@ export function SessionDetail() {
               const audio = e.currentTarget;
               const errorCode = audio.error?.code;
               const errorMessage = audio.error?.message || 'Unknown error';
-              console.error('[Audio] Playback error:', errorCode, errorMessage, audio.src);
-              setAudioError(`Failed to play audio: ${errorMessage}`);
+              const errorTypes: Record<number, string> = {
+                1: 'MEDIA_ERR_ABORTED - Fetching process aborted',
+                2: 'MEDIA_ERR_NETWORK - Network error occurred',
+                3: 'MEDIA_ERR_DECODE - Error decoding media',
+                4: 'MEDIA_ERR_SRC_NOT_SUPPORTED - Format not supported'
+              };
+              const errorType = errorCode ? errorTypes[errorCode] || `Unknown error code: ${errorCode}` : 'No error code';
+              console.error('[Audio] Playback error:');
+              console.error('[Audio]   Error code:', errorCode, '-', errorType);
+              console.error('[Audio]   Error message:', errorMessage);
+              console.error('[Audio]   Audio src:', audio.src);
+              console.error('[Audio]   Ready state:', audio.readyState);
+              console.error('[Audio]   Network state:', audio.networkState);
+              setAudioError(`Audio playback failed: ${errorType}`);
             }}
           />
           <div className="flex items-center gap-4">
@@ -292,6 +313,27 @@ export function SessionDetail() {
           {audioError && (
             <p className="text-xs text-red-500 mt-2">{audioError}</p>
           )}
+        </div>
+      ) : currentSession?.audioPath ? (
+        <div className="px-6 py-4 border-b border-border bg-muted/30">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 6v6l4 2" />
+            </svg>
+            <span className="text-sm">Loading audio...</span>
+          </div>
+        </div>
+      ) : (
+        <div className="px-6 py-4 border-b border-border bg-muted/30">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M9 18V5l12-2v13" />
+              <circle cx="6" cy="18" r="3" />
+              <circle cx="18" cy="16" r="3" />
+            </svg>
+            <span className="text-sm">No audio file available for this session</span>
+          </div>
         </div>
       )}
 
