@@ -59,7 +59,7 @@ describe('RecordingView', () => {
 
   it('should show instructions to start recording', () => {
     render(<RecordingView />);
-    expect(screen.getByText(/Click the button to start recording/i)).toBeInTheDocument();
+    expect(screen.getByText(/Tap to start recording/i)).toBeInTheDocument();
   });
 
   it('should show duration as 00:00 initially', () => {

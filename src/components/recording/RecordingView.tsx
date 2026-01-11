@@ -75,15 +75,13 @@ export function RecordingView() {
   }, []);
 
   const getSupportedMimeType = () => {
-    // Prefer formats that Symphonia can decode (no Opus support)
-    // Priority: MP4/AAC > OGG/Vorbis > WAV > WebM (fallback, may not work)
     const types = [
-      'audio/mp4',                    // AAC codec - supported by Symphonia
-      'audio/ogg;codecs=vorbis',      // Vorbis codec - supported by Symphonia
-      'audio/ogg',                    // Vorbis codec - supported by Symphonia
-      'audio/wav',                    // PCM - supported by Symphonia
-      'audio/webm;codecs=opus',       // Opus - NOT supported, last resort
-      'audio/webm',                   // Opus - NOT supported, last resort
+      'audio/mp4',
+      'audio/ogg;codecs=vorbis',
+      'audio/ogg',
+      'audio/wav',
+      'audio/webm;codecs=opus',
+      'audio/webm',
     ];
     for (const type of types) {
       if (MediaRecorder.isTypeSupported(type)) {
@@ -116,7 +114,6 @@ export function RecordingView() {
 
       analyserRef.current.getByteFrequencyData(dataArray);
 
-      // Calculate RMS level
       let sum = 0;
       for (let i = 0; i < dataArray.length; i++) {
         sum += dataArray[i] * dataArray[i];
@@ -159,7 +156,6 @@ export function RecordingView() {
       mediaRecorderRef.current = mediaRecorder;
       chunksRef.current = [];
 
-      // Start audio level analysis
       startAudioAnalysis(stream);
 
       mediaRecorder.ondataavailable = (e) => {
@@ -273,7 +269,7 @@ export function RecordingView() {
   if (!currentFolder) {
     return (
       <main className="flex-1 flex items-center justify-center bg-[var(--background)]">
-        <div className="text-center">
+        <div className="text-center animate-fade-in">
           <p className="text-[var(--muted-foreground)] mb-4">Please select a folder first</p>
           <Button variant="ghost" onClick={() => setView('list')}>
             Go Back
@@ -286,49 +282,45 @@ export function RecordingView() {
   return (
     <main className="flex-1 flex flex-col bg-[var(--background)]">
       {/* Header */}
-      <header className="h-16 px-8 flex items-center justify-between border-b border-[var(--border)] bg-[var(--card)]">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={handleCancel}
-            className="flex items-center gap-2 text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors"
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M19 12H5M12 19l-7-7 7-7" />
-            </svg>
-            <span className="text-sm font-medium">Back</span>
-          </button>
-        </div>
-        <h1 className="text-lg font-semibold text-[var(--foreground)]">New Recording</h1>
-        <div className="w-20" />
+      <header className="h-14 px-6 flex items-center justify-between border-b border-[var(--border)] bg-[var(--card)]/50 backdrop-blur-sm">
+        <button
+          onClick={handleCancel}
+          className="flex items-center gap-2 text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors group"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+               className="group-hover:-translate-x-0.5 transition-transform">
+            <path d="M19 12H5M12 19l-7-7 7-7" />
+          </svg>
+          <span className="text-sm font-medium">Back</span>
+        </button>
+        <h1 className="text-sm font-semibold text-[var(--foreground)]">New Recording</h1>
+        <div className="w-16" />
       </header>
 
       {/* Recording Area */}
-      <div className="flex-1 flex items-center justify-center p-8">
-        <div className="text-center max-w-md">
+      <div className="flex-1 flex items-center justify-center p-8 animate-fade-in">
+        <div className="text-center max-w-md w-full">
           {/* Recording Indicator */}
-          <div className="mb-10">
+          <div className="mb-8">
             <div
-              className={`relative w-40 h-40 rounded-full mx-auto flex items-center justify-center transition-all ${
+              className={`relative w-32 h-32 rounded-full mx-auto flex items-center justify-center transition-all duration-300 ${
                 isRecording
-                  ? 'bg-red-500 shadow-lg shadow-red-500/30'
+                  ? 'bg-gradient-to-br from-red-500 to-red-600 recording-pulse shadow-2xl'
                   : audioBlob
-                  ? 'bg-[var(--success)] shadow-lg shadow-green-500/30'
+                  ? 'bg-gradient-to-br from-[var(--success)] to-emerald-600 shadow-lg shadow-[var(--success)]/30'
                   : 'bg-[var(--muted)]'
               }`}
             >
-              {isRecording && (
-                <div className="absolute inset-0 rounded-full bg-red-500 animate-ping opacity-20" />
-              )}
               {isRecording ? (
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="white">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="white">
                   <rect x="6" y="6" width="12" height="12" rx="2" />
                 </svg>
               ) : audioBlob ? (
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
                   <path d="M20 6L9 17l-5-5" />
                 </svg>
               ) : (
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--muted-foreground)" strokeWidth="1.5">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--muted-foreground)" strokeWidth="1.5">
                   <path d="M12 2a3 3 0 00-3 3v7a3 3 0 006 0V5a3 3 0 00-3-3z" />
                   <path d="M19 10v2a7 7 0 01-14 0v-2" />
                   <line x1="12" y1="19" x2="12" y2="22" />
@@ -338,27 +330,27 @@ export function RecordingView() {
 
             {/* Audio Level Meter */}
             {isRecording && (
-              <div className="mt-4 flex items-center justify-center gap-1">
-                {[...Array(20)].map((_, i) => {
-                  const threshold = (i / 20) * 100;
+              <div className="mt-6 flex items-end justify-center gap-0.5 h-10">
+                {[...Array(24)].map((_, i) => {
+                  const threshold = (i / 24) * 100;
                   const isActive = audioLevel > threshold;
-                  const isHigh = i >= 16; // Last 4 bars are "high" level (red)
-                  const isMedium = i >= 10 && i < 16; // Middle bars are "medium" (yellow)
+                  const isHigh = i >= 18;
+                  const isMedium = i >= 12 && i < 18;
 
                   return (
                     <div
                       key={i}
-                      className={`w-2 rounded-sm transition-all duration-75 ${
+                      className={`w-1.5 rounded-full transition-all duration-75 ${
                         isActive
                           ? isHigh
                             ? 'bg-red-500'
                             : isMedium
                             ? 'bg-yellow-500'
-                            : 'bg-green-500'
-                          : 'bg-muted'
+                            : 'bg-[var(--success)]'
+                          : 'bg-[var(--muted)]'
                       }`}
                       style={{
-                        height: `${8 + i * 1.5}px`,
+                        height: `${8 + i * 1.2}px`,
                       }}
                     />
                   );
@@ -368,7 +360,7 @@ export function RecordingView() {
           </div>
 
           {/* Duration */}
-          <div className="text-5xl font-light tracking-tight mb-10 font-mono text-[var(--foreground)]">
+          <div className="text-5xl font-light tracking-tight mb-8 font-mono text-[var(--foreground)] tabular-nums">
             {formatDuration(duration)}
           </div>
 
@@ -379,8 +371,8 @@ export function RecordingView() {
                 onClick={isRecording ? stopRecording : startRecording}
                 className={`w-16 h-16 rounded-full flex items-center justify-center transition-all btn-press ${
                   isRecording
-                    ? 'bg-red-500 hover:bg-red-600 shadow-lg shadow-red-500/30'
-                    : 'bg-[var(--primary)] hover:bg-[var(--primary-hover)] shadow-lg shadow-[var(--primary)]/30'
+                    ? 'bg-gradient-to-br from-red-500 to-red-600 shadow-lg shadow-red-500/30 hover:shadow-xl'
+                    : 'bg-gradient-to-br from-[var(--primary)] to-[var(--gradient-end)] shadow-lg shadow-[var(--primary)]/30 hover:shadow-xl'
                 }`}
               >
                 {isRecording ? (
@@ -389,18 +381,18 @@ export function RecordingView() {
                   </svg>
                 ) : (
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
-                    <circle cx="12" cy="12" r="8" />
+                    <circle cx="12" cy="12" r="6" />
                   </svg>
                 )}
               </button>
             ) : isTranscribing ? (
-              <div className="w-full max-w-xs">
+              <div className="w-full max-w-xs animate-fade-in">
                 <Progress
                   value={transcriptionProgress?.progress ?? 0}
                   showLabel
                   label={transcriptionProgress?.message || 'Transcribing...'}
                 />
-                <p className="text-sm text-muted-foreground mt-2 text-center">
+                <p className="text-xs text-[var(--muted-foreground)] mt-3 text-center">
                   {transcriptionProgress?.status === 'starting' && 'Preparing...'}
                   {transcriptionProgress?.status === 'transcribing' && 'Processing audio...'}
                   {transcriptionProgress?.status === 'processing' && 'Almost done...'}
@@ -408,52 +400,43 @@ export function RecordingView() {
                 </p>
               </div>
             ) : (
-              <>
+              <div className="flex gap-3 animate-scale-in">
                 <Button
-                  size="lg"
                   variant="ghost"
                   onClick={() => {
                     setAudioBlob(null);
                     setDuration(0);
                   }}
-                  className="px-6"
+                  className="px-5"
                 >
                   Discard
                 </Button>
                 <Button
-                  size="lg"
+                  variant="gradient"
                   onClick={handleSave}
                   disabled={isSaving}
-                  className="px-8 gap-2"
+                  loading={isSaving}
+                  className="px-6 gap-2"
                 >
-                  {isSaving ? (
-                    <>
-                      <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    <>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M12 2a3 3 0 00-3 3v7a3 3 0 006 0V5a3 3 0 00-3-3z" />
-                        <path d="M19 10v2a7 7 0 01-14 0v-2" />
-                      </svg>
-                      Save & Transcribe
-                    </>
-                  )}
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M12 2a3 3 0 00-3 3v7a3 3 0 006 0V5a3 3 0 00-3-3z" />
+                    <path d="M19 10v2a7 7 0 01-14 0v-2" />
+                  </svg>
+                  Save & Transcribe
                 </Button>
-              </>
+              </div>
             )}
           </div>
 
           {/* Instructions */}
-          <p className="mt-10 text-[var(--muted-foreground)] text-sm max-w-sm mx-auto leading-relaxed">
+          <p className="mt-10 text-[var(--muted-foreground)] text-sm max-w-xs mx-auto leading-relaxed">
             {isRecording
-              ? 'Recording in progress. Click the stop button when finished.'
+              ? 'Recording... Click the stop button when finished.'
               : isTranscribing
-              ? 'Transcribing your audio locally. This may take a moment...'
+              ? 'Transcribing locally. This may take a moment...'
               : audioBlob
-              ? 'Recording complete! Save to transcribe your audio locally.'
-              : 'Click the button to start recording. All audio is processed locally on your device.'}
+              ? 'Recording complete! Save to transcribe.'
+              : 'Tap to start recording. All processing is local.'}
           </p>
         </div>
       </div>

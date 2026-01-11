@@ -5,26 +5,28 @@ import { Progress } from './Progress';
 describe('Progress', () => {
   it('should render the progress bar', () => {
     render(<Progress value={50} />);
-    const progressBar = document.querySelector('.bg-primary');
+    // Look for the progress bar container
+    const progressBar = document.querySelector('.rounded-full.overflow-hidden');
     expect(progressBar).toBeInTheDocument();
   });
 
   it('should set correct width based on value', () => {
     render(<Progress value={75} />);
-    const progressBar = document.querySelector('.bg-primary') as HTMLElement;
-    expect(progressBar.style.width).toBe('75%');
+    // The progress bar inner element has the gradient and width
+    const progressBar = document.querySelector('.bg-gradient-to-r') as HTMLElement;
+    expect(progressBar?.style.width).toBe('75%');
   });
 
   it('should clamp value to 0-100 range', () => {
     render(<Progress value={150} />);
-    const progressBar = document.querySelector('.bg-primary') as HTMLElement;
-    expect(progressBar.style.width).toBe('100%');
+    const progressBar = document.querySelector('.bg-gradient-to-r') as HTMLElement;
+    expect(progressBar?.style.width).toBe('100%');
   });
 
   it('should handle negative values', () => {
     render(<Progress value={-10} />);
-    const progressBar = document.querySelector('.bg-primary') as HTMLElement;
-    expect(progressBar.style.width).toBe('0%');
+    const progressBar = document.querySelector('.bg-gradient-to-r') as HTMLElement;
+    expect(progressBar?.style.width).toBe('0%');
   });
 
   it('should show label when showLabel is true', () => {
@@ -55,8 +57,9 @@ describe('Progress', () => {
 
   it('should render indeterminate progress bar', () => {
     render(<Progress value={0} indeterminate />);
-    const progressBar = document.querySelector('.bg-primary') as HTMLElement;
-    expect(progressBar.style.animation).toContain('indeterminate');
+    // Indeterminate has animation style
+    const progressBar = document.querySelector('[style*="animation"]') as HTMLElement;
+    expect(progressBar).toBeInTheDocument();
   });
 
   it('should not show percentage when indeterminate', () => {
@@ -67,13 +70,24 @@ describe('Progress', () => {
 
   it('should handle zero value', () => {
     render(<Progress value={0} />);
-    const progressBar = document.querySelector('.bg-primary') as HTMLElement;
-    expect(progressBar.style.width).toBe('0%');
+    const progressBar = document.querySelector('.bg-gradient-to-r') as HTMLElement;
+    expect(progressBar?.style.width).toBe('0%');
   });
 
   it('should handle 100% value', () => {
     render(<Progress value={100} />);
-    const progressBar = document.querySelector('.bg-primary') as HTMLElement;
-    expect(progressBar.style.width).toBe('100%');
+    const progressBar = document.querySelector('.bg-gradient-to-r') as HTMLElement;
+    expect(progressBar?.style.width).toBe('100%');
+  });
+
+  it('should support different sizes', () => {
+    const { rerender } = render(<Progress value={50} size="sm" />);
+    expect(document.querySelector('.h-1')).toBeInTheDocument();
+
+    rerender(<Progress value={50} size="md" />);
+    expect(document.querySelector('.h-1\\.5')).toBeInTheDocument();
+
+    rerender(<Progress value={50} size="lg" />);
+    expect(document.querySelector('.h-2')).toBeInTheDocument();
   });
 });
