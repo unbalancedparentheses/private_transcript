@@ -373,7 +373,16 @@ export function SessionDetail() {
   }
 
   const handleGenerateNote = async () => {
-    if (!selectedTemplate || !currentSession.transcript) return;
+    if (!selectedTemplate || !currentSession.transcript) {
+      addToast('No template or transcript available', 'error');
+      return;
+    }
+
+    console.log('[Generate] Starting note generation...', {
+      sessionId: currentSession.id,
+      templateId: selectedTemplate,
+      transcriptLength: currentSession.transcript.length,
+    });
 
     setGenerating(true);
     setStreamingNote('');
@@ -387,12 +396,14 @@ export function SessionDetail() {
       // Set up listener for streaming tokens
       unlisten = await listen<LlmStreamEvent>('llm-stream', (event) => {
         const { sessionId, token, done, error } = event.payload;
+        console.log('[Generate] Stream event:', { sessionId, tokenLength: token?.length, done, error });
 
         // Only process events for this session
         if (sessionId !== currentSession.id) return;
 
         if (error) {
           console.error('LLM stream error:', error);
+          addToast(`LLM error: ${error}`, 'error');
           return;
         }
 
@@ -402,12 +413,16 @@ export function SessionDetail() {
         }
       });
 
+      console.log('[Generate] Calling generate_note_streaming...');
+
       // Call the streaming endpoint - it will emit events and return the full text
       const note = await invoke<string>('generate_note_streaming', {
         sessionId: currentSession.id,
         transcript: currentSession.transcript,
         templateId: selectedTemplate,
       });
+
+      console.log('[Generate] Generation complete, note length:', note?.length);
 
       await updateSession(currentSession.id, {
         generatedNote: note,
@@ -416,8 +431,10 @@ export function SessionDetail() {
       });
       setNoteText(note);
       setStreamingNote('');
+      addToast('Note generated successfully', 'success');
     } catch (error) {
       console.error('Failed to generate note:', error);
+      addToast(`Failed to generate note: ${error}`, 'error');
       await updateSession(currentSession.id, {
         status: 'error',
         errorMessage: String(error),

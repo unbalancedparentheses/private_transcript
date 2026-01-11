@@ -145,9 +145,9 @@ pub async fn generate_streaming(
         generate_sync(&prompt_owned, max_tokens, Some(tx))
     });
 
-    // Spawn a task to forward tokens as events
+    // Spawn a task to forward tokens as events and wait for it
     let session_id_for_events = session_id_owned.clone();
-    tokio::spawn(async move {
+    let forward_handle = tokio::task::spawn_blocking(move || {
         while let Ok(token) = rx.recv() {
             let _ = app_clone.emit(
                 "llm-stream",
@@ -165,6 +165,9 @@ pub async fn generate_streaming(
     let result = generate_handle
         .await
         .map_err(|e| anyhow!("Task join error: {}", e))??;
+
+    // Wait for all tokens to be forwarded
+    let _ = forward_handle.await;
 
     // Emit done event
     let _ = app.emit(
