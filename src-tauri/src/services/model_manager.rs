@@ -142,7 +142,7 @@ pub fn get_embedding_models() -> Vec<ModelInfo> {
         model_type: ModelType::Embedding,
         repo_id: "leliuga/all-MiniLM-L6-v2-GGUF".into(),
         filename: embeddings::EMBEDDING_MODEL_FILENAME.into(),
-        size_bytes: 23_000_000, // ~23MB
+        size_bytes: 20_999_104, // ~21MB (actual size from HuggingFace)
         description: "Fast embedding model for semantic search".into(),
     }]
 }
