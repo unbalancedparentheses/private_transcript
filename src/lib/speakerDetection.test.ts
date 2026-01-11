@@ -644,4 +644,372 @@ Guest: Thank you for having me.`;
       });
     });
   });
+
+  describe('Multi-Speaker Detection', () => {
+    describe('Interview Format (Q&A)', () => {
+      it('should detect two speakers in simple Q&A', () => {
+        const transcript = `What inspired you to start this company?
+
+I was always passionate about technology and saw a gap in the market.
+
+How long did it take to build the first prototype?
+
+About six months of intense work with a small team.`;
+
+        const segments = parseTranscriptIntoSegments(transcript);
+        const speakers = getUniqueSpeakers(segments);
+
+        expect(speakers.length).toBe(2);
+        expect(speakers).toContain('Speaker 1');
+        expect(speakers).toContain('Speaker 2');
+      });
+
+      it('should detect interviewer and interviewee from labeled transcript', () => {
+        const transcript = `Interviewer: Can you tell us about your background?
+Interviewee: I have over ten years of experience in software development.
+Interviewer: What's your greatest achievement?
+Interviewee: Leading the team that launched our flagship product.`;
+
+        const segments = parseInlineSpeakerLabels(transcript);
+        const speakers = getUniqueSpeakers(segments);
+
+        expect(speakers.length).toBe(2);
+        expect(speakers).toContain('Interviewer');
+        expect(speakers).toContain('Interviewee');
+        expect(segments).toHaveLength(4);
+      });
+
+      it('should alternate speakers on question-answer pattern', () => {
+        const transcript = `Why did you choose this career path?
+
+It felt like a natural fit given my interests.
+
+What challenges have you faced?
+
+Many, but they've all been learning opportunities.`;
+
+        const segments = parseTranscriptIntoSegments(transcript);
+
+        // Questions should be Speaker 1, answers should be Speaker 2
+        expect(segments[0].speaker).toBe('Speaker 1');
+        expect(segments[1].speaker).toBe('Speaker 2');
+        expect(segments[2].speaker).toBe('Speaker 1');
+        expect(segments[3].speaker).toBe('Speaker 2');
+      });
+    });
+
+    describe('Podcast/Conversation Format', () => {
+      it('should detect multiple speakers in podcast format', () => {
+        const transcript = `Host: Welcome to the show everyone.
+Guest: Thanks for having me, it's great to be here.
+Host: So let's dive right in. What's your latest project about?
+Guest: Well, it's focused on making AI more accessible to small businesses.`;
+
+        const segments = parseInlineSpeakerLabels(transcript);
+        const speakers = getUniqueSpeakers(segments);
+
+        expect(speakers.length).toBe(2);
+        expect(speakers).toContain('Host');
+        expect(speakers).toContain('Guest');
+      });
+
+      it('should handle three-person podcast', () => {
+        const transcript = `Host: Welcome back to another episode.
+Guest A: Happy to be here.
+Guest B: Thanks for the invitation.
+Host: Let's start with Guest A. What's new?
+Guest A: We just launched a new product line.
+Guest B: I actually tried it and loved it.`;
+
+        const segments = parseInlineSpeakerLabels(transcript);
+        const speakers = getUniqueSpeakers(segments);
+
+        expect(speakers.length).toBe(3);
+        expect(speakers).toContain('Host');
+        expect(speakers).toContain('Guest A');
+        expect(speakers).toContain('Guest B');
+        expect(segments).toHaveLength(6);
+      });
+
+      it('should detect casual back-and-forth conversation', () => {
+        const transcript = `Hey, how's it going?
+
+Pretty good, just finished a big project.
+
+Oh nice! What was it about?
+
+It was a mobile app for tracking fitness goals.
+
+That sounds cool. How long did it take?
+
+About three months from start to finish.`;
+
+        const segments = parseTranscriptIntoSegments(transcript);
+        const speakers = getUniqueSpeakers(segments);
+
+        expect(speakers.length).toBe(2);
+      });
+    });
+
+    describe('Meeting Format', () => {
+      it('should detect speakers in meeting transcript', () => {
+        const transcript = `Manager: Let's go over the quarterly results.
+Sales Lead: We exceeded targets by fifteen percent.
+Manager: That's excellent news. What about the new market?
+Marketing Lead: We're seeing strong traction in the European region.
+Sales Lead: Yes, and our partnership strategy is paying off.`;
+
+        const segments = parseInlineSpeakerLabels(transcript);
+        const speakers = getUniqueSpeakers(segments);
+
+        expect(speakers.length).toBe(3);
+        expect(speakers).toContain('Manager');
+        expect(speakers).toContain('Sales Lead');
+        expect(speakers).toContain('Marketing Lead');
+      });
+
+      it('should handle speaker labels with titles', () => {
+        const transcript = `Dr Johnson: The test results are promising.
+Professor Smith: I agree, the data supports our hypothesis.
+Dr Johnson: Should we proceed to the next phase?
+Professor Smith: Yes, let's schedule the follow-up experiments.`;
+
+        const segments = parseInlineSpeakerLabels(transcript);
+        const speakers = getUniqueSpeakers(segments);
+
+        expect(speakers.length).toBe(2);
+        expect(speakers).toContain('Dr Johnson');
+        expect(speakers).toContain('Professor Smith');
+      });
+    });
+
+    describe('Therapy/Consultation Format', () => {
+      it('should detect therapist and client', () => {
+        const transcript = `Therapist: How have you been feeling this week?
+Client: Better than last week, actually.
+Therapist: That's good to hear. What do you think contributed to that?
+Client: I've been trying the breathing exercises you suggested.
+Therapist: And how are those working for you?
+Client: They really help when I feel anxious.`;
+
+        const segments = parseInlineSpeakerLabels(transcript);
+        const speakers = getUniqueSpeakers(segments);
+
+        expect(speakers.length).toBe(2);
+        expect(speakers).toContain('Therapist');
+        expect(speakers).toContain('Client');
+        expect(segments).toHaveLength(6);
+      });
+
+      it('should handle medical consultation format', () => {
+        const transcript = `Doctor: What brings you in today?
+Patient: I've been having headaches for the past week.
+Doctor: Can you describe the pain?
+Patient: It's a dull ache, mostly in the front.
+Doctor: Are you taking any medications currently?
+Patient: Just over the counter pain relievers.`;
+
+        const segments = parseInlineSpeakerLabels(transcript);
+
+        expect(segments).toHaveLength(6);
+        expect(segments[0].speaker).toBe('Doctor');
+        expect(segments[1].speaker).toBe('Patient');
+      });
+    });
+
+    describe('Dialogue Pattern Detection', () => {
+      it('should detect dialogue dash pattern', () => {
+        const transcript = `- Hello, how can I help you?
+- I'm looking for information about your services.
+- Of course, let me explain what we offer.`;
+
+        const segments = parseTranscriptIntoSegments(transcript);
+
+        expect(segments.length).toBeGreaterThanOrEqual(2);
+      });
+
+      it('should detect quoted speech pattern', () => {
+        const transcript = `"I think we should proceed with the plan."
+
+"Are you sure? It seems risky."
+
+"Yes, I've analyzed all the data."`;
+
+        const segments = parseTranscriptIntoSegments(transcript);
+        const speakers = getUniqueSpeakers(segments);
+
+        expect(speakers.length).toBe(2);
+      });
+
+      it('should detect turn indicators (okay, so, well)', () => {
+        const transcript = `The project deadline is next Friday.
+
+Okay, that gives us about a week then.
+
+So we need to prioritize the critical features.
+
+Right, let's focus on the core functionality first.`;
+
+        const segments = parseTranscriptIntoSegments(transcript);
+        const speakers = getUniqueSpeakers(segments);
+
+        expect(speakers.length).toBe(2);
+      });
+
+      it('should detect speaker change on agreement/disagreement', () => {
+        const transcript = `I believe we should expand into new markets.
+
+I think that's a great idea, but we need more resources.
+
+You know, we could start small and scale up.
+
+In my opinion, that's the safest approach.`;
+
+        const segments = parseTranscriptIntoSegments(transcript);
+
+        // Should detect multiple speakers based on turn indicators
+        expect(segments.length).toBeGreaterThanOrEqual(3);
+      });
+    });
+
+    describe('Speaker Count Verification', () => {
+      it('should correctly count two unique speakers', () => {
+        const segments: TranscriptSegment[] = [
+          { start: 0, end: 10, text: 'Hello', speaker: 'Alice' },
+          { start: 10, end: 20, text: 'Hi', speaker: 'Bob' },
+          { start: 20, end: 30, text: 'How are you?', speaker: 'Alice' },
+          { start: 30, end: 40, text: 'Great, thanks!', speaker: 'Bob' },
+        ];
+
+        const speakers = getUniqueSpeakers(segments);
+        expect(speakers.length).toBe(2);
+      });
+
+      it('should correctly count three unique speakers', () => {
+        const segments: TranscriptSegment[] = [
+          { start: 0, end: 10, text: 'A', speaker: 'Alice' },
+          { start: 10, end: 20, text: 'B', speaker: 'Bob' },
+          { start: 20, end: 30, text: 'C', speaker: 'Charlie' },
+          { start: 30, end: 40, text: 'D', speaker: 'Alice' },
+          { start: 40, end: 50, text: 'E', speaker: 'Bob' },
+        ];
+
+        const speakers = getUniqueSpeakers(segments);
+        expect(speakers.length).toBe(3);
+        expect(speakers).toContain('Alice');
+        expect(speakers).toContain('Bob');
+        expect(speakers).toContain('Charlie');
+      });
+
+      it('should correctly count speakers after merging', () => {
+        const segments: TranscriptSegment[] = [
+          { start: 0, end: 10, text: 'A', speaker: 'Alice' },
+          { start: 10, end: 20, text: 'B', speaker: 'Alice' },
+          { start: 20, end: 30, text: 'C', speaker: 'Bob' },
+          { start: 30, end: 40, text: 'D', speaker: 'Bob' },
+        ];
+
+        const merged = mergeAdjacentSpeakerSegments(segments);
+        const speakers = getUniqueSpeakers(merged);
+
+        expect(merged.length).toBe(2);
+        expect(speakers.length).toBe(2);
+      });
+    });
+
+    describe('Real-World Transcript Scenarios', () => {
+      it('should handle long multi-turn conversation', () => {
+        const transcript = `John: Good morning everyone, let's start the standup.
+Sarah: Morning! Yesterday I finished the login feature.
+Mike: I reviewed Sarah's PR and it looks good.
+John: Great, any blockers?
+Sarah: None from my side.
+Mike: I'm waiting on the API docs from the backend team.
+John: I'll follow up on that. Let's move to sprint planning.
+Sarah: Sounds good.
+Mike: Ready when you are.`;
+
+        const segments = parseInlineSpeakerLabels(transcript);
+        const speakers = getUniqueSpeakers(segments);
+
+        expect(speakers.length).toBe(3);
+        expect(speakers).toContain('John');
+        expect(speakers).toContain('Sarah');
+        expect(speakers).toContain('Mike');
+        expect(segments.length).toBe(9);
+      });
+
+      it('should handle mixed content with speaker labels', () => {
+        const transcript = `Moderator: Welcome to today's panel discussion.
+We have three distinguished guests joining us.
+Panelist A: Thank you for the introduction.
+Panelist B: Happy to be here.
+Panelist C: Looking forward to the discussion.
+Moderator: Let's begin with the first question.`;
+
+        const segments = parseInlineSpeakerLabels(transcript);
+        const speakers = getUniqueSpeakers(segments);
+
+        expect(speakers.length).toBe(4);
+      });
+
+      it('should preserve speaker names after renaming', () => {
+        const transcript = `Speaker: Hello, I'm the interviewer.
+Interviewee: Nice to meet you.`;
+
+        const segments = parseInlineSpeakerLabels(transcript);
+        const renamed = renameSpeaker(segments, 'Speaker', 'Jane');
+
+        expect(renamed[0].speaker).toBe('Jane');
+        expect(renamed[1].speaker).toBe('Interviewee');
+
+        const speakers = getUniqueSpeakers(renamed);
+        expect(speakers).toContain('Jane');
+        expect(speakers).not.toContain('Speaker');
+      });
+    });
+
+    describe('Speaker Detection Accuracy', () => {
+      it('should not falsely detect speakers in monologue', () => {
+        const transcript = `Today I want to talk about productivity. First, let me share some background. I've been studying this topic for years. The key insight is that focus matters more than time. Let me explain what I mean by that.`;
+
+        const segments = parseTranscriptIntoSegments(transcript);
+
+        // Monologue should stay as one or few segments from same speaker
+        expect(segments.length).toBeLessThanOrEqual(2);
+      });
+
+      it('should handle paragraph breaks in single speaker content', () => {
+        const transcript = `Speaker One: This is my opening statement.
+I want to make several points today.
+First, we need to consider the budget.
+Second, we need to review the timeline.
+
+Speaker Two: Thank you for that overview.`;
+
+        const segments = parseInlineSpeakerLabels(transcript);
+        const speakers = getUniqueSpeakers(segments);
+
+        expect(speakers.length).toBe(2);
+        // First speaker's multi-line content should be combined
+        expect(segments[0].text).toContain('opening statement');
+        expect(segments[0].text).toContain('timeline');
+      });
+
+      it('should correctly attribute Q&A format with labeled speakers', () => {
+        const transcript = `Q: What is the capital of France?
+A: The capital of France is Paris.
+Q: When was it founded?
+A: Paris was founded in the third century BC.`;
+
+        const segments = parseInlineSpeakerLabels(transcript);
+        const speakers = getUniqueSpeakers(segments);
+
+        expect(speakers.length).toBe(2);
+        expect(speakers).toContain('Q');
+        expect(speakers).toContain('A');
+        expect(segments).toHaveLength(4);
+      });
+    });
+  });
 });
