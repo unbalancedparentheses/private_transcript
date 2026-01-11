@@ -41,8 +41,16 @@ pub async fn start_live_transcription(
 #[tauri::command]
 #[allow(non_snake_case)]
 pub async fn feed_live_audio(sessionId: String, samples: Vec<f32>) -> Result<(), String> {
-    // Don't log every audio chunk - too noisy
-    streaming_transcription::feed_audio(&sessionId, &samples).map_err(|e| e.to_string())
+    // Log every 10th chunk to avoid too much noise
+    static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let count = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    if count % 10 == 0 {
+        println!("[Command] feed_live_audio: session={}, samples={}, chunk#{}", sessionId, samples.len(), count);
+    }
+    streaming_transcription::feed_audio(&sessionId, &samples).map_err(|e| {
+        println!("[Command] feed_live_audio ERROR: {}", e);
+        e.to_string()
+    })
 }
 
 /// Stop a live transcription session

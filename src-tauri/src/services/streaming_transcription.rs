@@ -302,6 +302,8 @@ pub fn start_worker(app: &AppHandle) -> Result<()> {
 
 /// Initialize the worker with a model
 pub fn initialize_worker(app: &AppHandle, model: Option<String>, language: Option<String>) -> Result<()> {
+    println!("[StreamingTranscription] initialize_worker: model={:?}, language={:?}", model, language);
+
     // Ensure worker is running
     start_worker(app)?;
 
@@ -313,8 +315,10 @@ pub fn initialize_worker(app: &AppHandle, model: Option<String>, language: Optio
         language,
     };
 
+    println!("[StreamingTranscription] Sending init command to worker...");
     send_command(&mut worker.stdin, &cmd)?;
     worker.current_model = model;
+    println!("[StreamingTranscription] Init command sent successfully");
 
     Ok(())
 }
@@ -325,6 +329,8 @@ pub fn start_session(
     session_id: &str,
     config: &LiveTranscriptionConfig,
 ) -> Result<()> {
+    println!("[StreamingTranscription] start_session: session_id={}, config={:?}", session_id, config);
+
     // Ensure worker is initialized
     initialize_worker(app, config.model.clone(), config.language.clone())?;
 
@@ -337,6 +343,7 @@ pub fn start_session(
         confirmation_threshold: config.confirmation_threshold.unwrap_or(2),
     };
 
+    println!("[StreamingTranscription] Sending start command to worker...");
     send_command(&mut worker.stdin, &cmd)?;
     worker.state = WorkerState::Transcribing(session_id.to_string());
 
@@ -483,6 +490,11 @@ pub fn ensure_worker_running(app: &AppHandle) -> Result<()> {
 /// Send a command to the worker via stdin
 fn send_command(stdin: &mut ChildStdin, cmd: &WorkerCommand) -> Result<()> {
     let json = serde_json::to_string(cmd)?;
+    // Log non-audio commands (audio commands are too frequent)
+    match cmd {
+        WorkerCommand::Audio { .. } => {}
+        _ => println!("[StreamingTranscription] Sending command: {}", json),
+    }
     writeln!(stdin, "{}", json)?;
     stdin.flush()?;
     Ok(())
@@ -490,6 +502,7 @@ fn send_command(stdin: &mut ChildStdin, cmd: &WorkerCommand) -> Result<()> {
 
 /// Handle an event from the worker
 fn handle_worker_event(app: &AppHandle, line: &str) -> Result<()> {
+    println!("[StreamingTranscription] Received from worker: {}", line);
     let event: WorkerEvent = serde_json::from_str(line)
         .map_err(|e| anyhow!("Failed to parse worker event: {} - line: {}", e, line))?;
 
