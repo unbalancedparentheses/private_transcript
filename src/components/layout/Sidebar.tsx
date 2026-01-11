@@ -51,25 +51,17 @@ export function Sidebar() {
   };
 
   return (
-    <aside className="w-64 h-screen bg-[var(--sidebar)] border-r border-[var(--border)] flex flex-col">
-      {/* Logo/Brand */}
-      <div className="px-5 py-4 border-b border-[var(--border)]">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--gradient-start)] to-[var(--gradient-end)] flex items-center justify-center shadow-lg shadow-[var(--primary)]/20">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
-              <path d="M12 2a3 3 0 00-3 3v7a3 3 0 006 0V5a3 3 0 00-3-3z" />
-              <path d="M19 10v2a7 7 0 01-14 0v-2" />
-            </svg>
-          </div>
-          <div>
-            <h1 className="text-sm font-semibold text-[var(--foreground)]">Transcript</h1>
-            <p className="text-[10px] text-[var(--muted-foreground)]">Private & Local</p>
-          </div>
-        </div>
+    <aside className="w-60 h-screen bg-[var(--sidebar)] backdrop-blur-xl border-r border-[var(--border)] flex flex-col">
+      {/* Titlebar drag region with traffic light spacing */}
+      <div
+        className="h-[52px] flex items-end pb-2 px-4 select-none"
+        data-tauri-drag-region
+      >
+        <h1 className="text-[13px] font-semibold text-[var(--foreground)] pl-[70px]">Transcript</h1>
       </div>
 
       {/* Workspace Selector */}
-      <div className="p-3">
+      <div className="px-3 pb-2">
         <div className="relative">
           <select
             value={currentWorkspace?.id || ''}
@@ -77,9 +69,9 @@ export function Sidebar() {
               const workspace = workspaces.find((w) => w.id === e.target.value);
               if (workspace) selectWorkspace(workspace);
             }}
-            className="w-full h-10 px-3 pr-8 rounded-lg bg-[var(--muted)] border border-transparent text-sm font-medium
-                       focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20
-                       appearance-none cursor-pointer transition-all hover:border-[var(--border)]"
+            className="w-full h-7 px-2 pr-6 rounded-md bg-[var(--secondary)] text-[13px] font-medium
+                       focus:outline-none focus:ring-2 focus:ring-[var(--ring)]
+                       appearance-none cursor-pointer transition-colors"
           >
             {workspaces.map((workspace) => (
               <option key={workspace.id} value={workspace.id}>
@@ -88,8 +80,8 @@ export function Sidebar() {
               </option>
             ))}
           </select>
-          <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--muted-foreground)]">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+          <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--muted-foreground)]">
+            <svg width="10" height="10" viewBox="0 0 16 16" fill="none">
               <path d="M4 6L8 10L12 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </div>
@@ -97,29 +89,29 @@ export function Sidebar() {
       </div>
 
       {/* Folders List */}
-      <div className="flex-1 overflow-y-auto px-3 pb-3">
-        <div className="flex items-center justify-between mb-2 px-2">
-          <h3 className="text-[10px] font-semibold uppercase text-[var(--muted-foreground)] tracking-wider">
+      <div className="flex-1 overflow-y-auto px-2 pb-3">
+        <div className="flex items-center justify-between mb-1 px-2">
+          <h3 className="text-[11px] font-medium text-[var(--muted-foreground)]">
             {config?.folderLabel || 'Folders'}
           </h3>
         </div>
 
-        {/* New Folder Form - Moved to top */}
+        {/* New Folder Form */}
         {showNewFolder ? (
-          <div className="mb-3 p-3 rounded-xl bg-[var(--muted)] space-y-2 animate-scale-in">
+          <div className="mb-2 p-2 rounded-md bg-[var(--secondary)] space-y-2">
             <Input
               placeholder={`${config?.folderLabel?.slice(0, -1) || 'Folder'} name`}
               value={newFolderName}
               onChange={(e) => setNewFolderName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleCreateFolder()}
               autoFocus
-              className="bg-[var(--card)] text-sm"
+              className="bg-[var(--card)] text-[13px] h-7"
             />
-            <div className="flex gap-2">
-              <Button size="sm" onClick={handleCreateFolder} className="flex-1">
+            <div className="flex gap-1.5">
+              <Button size="sm" onClick={handleCreateFolder} className="flex-1 h-6 text-[12px]">
                 Create
               </Button>
-              <Button size="sm" variant="ghost" onClick={() => setShowNewFolder(false)}>
+              <Button size="sm" variant="ghost" onClick={() => setShowNewFolder(false)} className="h-6 text-[12px]">
                 Cancel
               </Button>
             </div>
@@ -127,55 +119,51 @@ export function Sidebar() {
         ) : (
           <button
             onClick={() => setShowNewFolder(true)}
-            className="w-full mb-2 px-3 py-2 text-sm text-[var(--muted-foreground)] hover:text-[var(--foreground)]
-                       hover:bg-[var(--muted)] rounded-lg transition-all text-left flex items-center gap-2.5 group"
+            className="w-full mb-1 px-2 py-1.5 text-[13px] text-[var(--muted-foreground)] hover:text-[var(--foreground)]
+                       hover:bg-[var(--secondary)] rounded-md transition-colors text-left flex items-center gap-2"
           >
-            <span className="w-5 h-5 rounded-md bg-[var(--muted)] group-hover:bg-[var(--primary)]/10
-                           flex items-center justify-center text-xs transition-colors">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="12" y1="5" x2="12" y2="19" />
-                <line x1="5" y1="12" x2="19" y2="12" />
-              </svg>
-            </span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
             <span>New {config?.folderLabel?.slice(0, -1) || 'Folder'}</span>
           </button>
         )}
 
-        <div className="space-y-0.5">
-          {folders.map((folder, index) => (
+        <div className="space-y-px">
+          {folders.map((folder) => (
             <div
               key={folder.id}
               className={clsx(
-                'group relative w-full text-left px-3 py-2 rounded-lg text-sm transition-all animate-fade-in cursor-pointer',
+                'group relative w-full text-left px-2 py-1.5 rounded-md text-[13px] transition-colors cursor-pointer',
                 currentFolder?.id === folder.id
-                  ? 'bg-gradient-to-r from-[var(--primary)] to-[var(--gradient-end)] text-white font-medium shadow-md shadow-[var(--primary)]/25'
-                  : 'hover:bg-[var(--muted)] text-[var(--foreground)]'
+                  ? 'bg-[var(--primary)] text-white'
+                  : 'hover:bg-[var(--secondary)] text-[var(--foreground)]'
               )}
-              style={{ animationDelay: `${index * 0.03}s` }}
               onClick={() => selectFolder(folder)}
             >
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
                   <svg
                     width="14"
                     height="14"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
-                    strokeWidth="2"
-                    className={clsx('flex-shrink-0', currentFolder?.id === folder.id ? 'opacity-80' : 'opacity-50')}
+                    strokeWidth="1.5"
+                    className="flex-shrink-0 opacity-70"
                   >
                     <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z" />
                   </svg>
                   <span className="truncate">{folder.name}</span>
                 </div>
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1">
                   {folder.sessionCount > 0 && (
                     <span className={clsx(
-                      "text-[10px] font-medium min-w-[20px] h-5 flex items-center justify-center px-1.5 rounded-full",
+                      "text-[11px] tabular-nums",
                       currentFolder?.id === folder.id
-                        ? "bg-white/20 text-white"
-                        : "bg-[var(--muted)] text-[var(--muted-foreground)]"
+                        ? "text-white/70"
+                        : "text-[var(--muted-foreground)]"
                     )}>
                       {folder.sessionCount}
                     </span>
@@ -183,7 +171,7 @@ export function Sidebar() {
                   <button
                     onClick={(e) => handleDeleteFolder(e, folder.id, folder.name)}
                     className={clsx(
-                      'opacity-0 group-hover:opacity-100 p-1 rounded transition-all',
+                      'opacity-0 group-hover:opacity-100 p-0.5 rounded transition-opacity',
                       currentFolder?.id === folder.id
                         ? 'hover:bg-white/20 text-white/70 hover:text-white'
                         : 'hover:bg-[var(--destructive)]/10 text-[var(--muted-foreground)] hover:text-[var(--destructive)]'
@@ -202,20 +190,19 @@ export function Sidebar() {
       </div>
 
       {/* Bottom Actions */}
-      <div className="p-3 border-t border-[var(--border)]">
+      <div className="p-2 border-t border-[var(--border)]">
         <button
           onClick={() => setView('settings')}
-          className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-[var(--muted-foreground)]
-                     hover:text-[var(--foreground)] hover:bg-[var(--muted)] rounded-lg transition-all group"
+          className="w-full flex items-center gap-2 px-2 py-1.5 text-[13px] text-[var(--muted-foreground)]
+                     hover:text-[var(--foreground)] hover:bg-[var(--secondary)] rounded-md transition-colors"
         >
           <svg
-            width="16"
-            height="16"
+            width="14"
+            height="14"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
             strokeWidth="1.5"
-            className="group-hover:rotate-45 transition-transform duration-300"
           >
             <path d="M12 15a3 3 0 100-6 3 3 0 000 6z" />
             <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z" />

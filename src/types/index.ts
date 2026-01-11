@@ -42,6 +42,7 @@ export interface TranscriptSegment {
   end: number;
   text: string;
   speaker?: string;
+  favorited?: boolean;
 }
 
 export interface Template {

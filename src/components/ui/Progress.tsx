@@ -30,29 +30,28 @@ export function Progress({
   return (
     <div className={cn('w-full', className)}>
       {(showLabel || label) && (
-        <div className="flex justify-between items-center mb-2">
-          <span className="text-xs font-medium text-[var(--muted-foreground)]">{label}</span>
+        <div className="flex justify-between items-center mb-1.5">
+          <span className="text-[11px] text-[var(--muted-foreground)]">{label}</span>
           {showLabel && !indeterminate && (
-            <span className="text-xs font-medium text-[var(--foreground)]">{Math.round(percentage)}%</span>
+            <span className="text-[11px] tabular-nums text-[var(--foreground)]">{Math.round(percentage)}%</span>
           )}
         </div>
       )}
       <div className={cn(
-        'w-full rounded-full overflow-hidden bg-[var(--muted)]',
+        'w-full rounded-full overflow-hidden bg-[var(--border)]',
         heights[size]
       )}>
         {indeterminate ? (
           <div
-            className="h-full rounded-full bg-gradient-to-r from-[var(--primary)] via-[var(--gradient-end)] to-[var(--primary)]"
+            className="h-full rounded-full bg-[var(--primary)]"
             style={{
-              width: '50%',
-              animation: 'indeterminate 1.5s ease-in-out infinite',
-              backgroundSize: '200% 100%',
+              width: '30%',
+              animation: 'indeterminate 1.2s ease-in-out infinite',
             }}
           />
         ) : (
           <div
-            className="h-full rounded-full bg-gradient-to-r from-[var(--primary)] to-[var(--gradient-end)] transition-all duration-500 ease-out"
+            className="h-full rounded-full bg-[var(--primary)] transition-all duration-300"
             style={{ width: `${percentage}%` }}
           />
         )}
@@ -62,11 +61,8 @@ export function Progress({
           0% {
             transform: translateX(-100%);
           }
-          50% {
-            transform: translateX(100%);
-          }
           100% {
-            transform: translateX(-100%);
+            transform: translateX(400%);
           }
         }
       `}</style>

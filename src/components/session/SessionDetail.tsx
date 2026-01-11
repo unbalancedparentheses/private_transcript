@@ -61,6 +61,8 @@ export function SessionDetail() {
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [compactMode, setCompactMode] = useState(false);
   const [removeFillers, setRemoveFillers] = useState(false);
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+  const [favoritedIndices, setFavoritedIndices] = useState<Set<number>>(new Set());
 
   // Speaker labels state (enabled by default)
   const [showSpeakerView, setShowSpeakerView] = useState(true);
@@ -107,11 +109,38 @@ export function SessionDetail() {
     return getUniqueSpeakers(speakerSegments);
   }, [speakerSegments]);
 
-  // Apply filler word removal if enabled
+  // Apply filler word removal and favorites filter
   const displaySegments = useMemo(() => {
-    if (!removeFillers) return speakerSegments;
-    return removeFillerWordsFromSegments(speakerSegments);
-  }, [speakerSegments, removeFillers]);
+    let segments = speakerSegments.map((segment, index) => ({
+      ...segment,
+      originalIndex: index,
+      favorited: favoritedIndices.has(index),
+    }));
+    if (removeFillers) {
+      segments = removeFillerWordsFromSegments(segments).map((s, i) => ({
+        ...s,
+        originalIndex: segments[i]?.originalIndex ?? i,
+      }));
+    }
+    // Filter if showing favorites only
+    if (showFavoritesOnly) {
+      segments = segments.filter((s) => s.favorited);
+    }
+    return segments;
+  }, [speakerSegments, removeFillers, showFavoritesOnly, favoritedIndices]);
+
+  // Toggle segment favorite
+  const handleToggleFavorite = useCallback((originalIndex: number) => {
+    setFavoritedIndices((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(originalIndex)) {
+        newSet.delete(originalIndex);
+      } else {
+        newSet.add(originalIndex);
+      }
+      return newSet;
+    });
+  }, []);
 
   // Handle speaker rename
   const handleRenameSpeaker = () => {
@@ -380,7 +409,7 @@ export function SessionDetail() {
     setEditingNote(false);
   };
 
-  const handleExport = async (format: 'markdown' | 'pdf' | 'docx' | 'srt' | 'vtt') => {
+  const handleExport = async (format: 'markdown' | 'pdf' | 'docx' | 'srt' | 'vtt' | 'obsidian') => {
     const filename = `session-${currentSession.id.slice(0, 8)}`;
 
     // Handle SRT/VTT exports client-side
@@ -402,6 +431,34 @@ export function SessionDetail() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
       addToast(`Exported ${format.toUpperCase()} file`, 'success');
+      return;
+    }
+
+    // Handle Obsidian export
+    if (format === 'obsidian') {
+      const vaultPath = localStorage.getItem('obsidianVaultPath');
+      if (!vaultPath) {
+        addToast('Please configure your Obsidian vault path in Settings first', 'error');
+        return;
+      }
+
+      const tagsStr = localStorage.getItem('obsidianTags') || 'transcript';
+      const tags = tagsStr.split(',').map(t => t.trim()).filter(t => t.length > 0);
+
+      const content = `# ${currentSession.title || 'Session'}\n\n## Transcript\n\n${currentSession.transcript || ''}\n\n## Notes\n\n${currentSession.generatedNote || ''}`;
+
+      try {
+        const path = await invoke<string>('export_to_obsidian', {
+          content,
+          filename: currentSession.title || filename,
+          vaultPath,
+          tags,
+        });
+        addToast(`Exported to Obsidian: ${path}`, 'success');
+        await open(path);
+      } catch (error) {
+        addToast(`Obsidian export failed: ${error}`, 'error');
+      }
       return;
     }
 
@@ -524,6 +581,17 @@ export function SessionDetail() {
                 className="w-full px-3 py-1.5 text-xs text-left hover:bg-[var(--muted)] transition-colors"
               >
                 VTT Subtitles
+              </button>
+              <div className="border-t border-[var(--border)] my-1" />
+              <button
+                onClick={() => handleExport('obsidian')}
+                className="w-full px-3 py-1.5 text-xs text-left hover:bg-[var(--muted)] transition-colors flex items-center gap-1.5"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10" />
+                  <polygon points="10 8 16 12 10 16 10 8" />
+                </svg>
+                Obsidian
               </button>
             </div>
           </div>
@@ -794,6 +862,25 @@ export function SessionDetail() {
                   <path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
                 </svg>
               </button>
+              {/* Favorites Filter Toggle */}
+              <button
+                onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+                className={`w-7 h-7 flex items-center justify-center rounded transition-colors ${
+                  showFavoritesOnly
+                    ? 'bg-[var(--primary)] text-white'
+                    : 'hover:bg-[var(--muted)]'
+                }`}
+                title={showFavoritesOnly ? 'Show all segments' : 'Show favorites only'}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill={showFavoritesOnly ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                </svg>
+              </button>
+              {favoritedIndices.size > 0 && (
+                <span className="text-[10px] text-[var(--muted-foreground)] tabular-nums">
+                  {favoritedIndices.size} starred
+                </span>
+              )}
               {/* Regenerate Transcript */}
               {currentSession.audioPath && (
                 <button
@@ -931,7 +1018,7 @@ export function SessionDetail() {
                     return (
                       <div
                         key={index}
-                        className={`flex gap-3 animate-fade-in rounded-lg p-2 -mx-2 transition-all duration-200 ${
+                        className={`group flex gap-3 animate-fade-in rounded-lg p-2 -mx-2 transition-all duration-200 ${
                           hasTimestamp ? 'cursor-pointer hover:bg-[var(--muted)]/50' : ''
                         } ${isActive ? 'bg-[var(--primary)]/10 ring-1 ring-[var(--primary)]/30' : ''}`}
                         style={{ animationDelay: `${index * 20}ms` }}
@@ -963,8 +1050,33 @@ export function SessionDetail() {
                         }`}>
                           {segment.text}
                         </p>
-                        {hasTimestamp && (
-                          <div className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex-shrink-0 flex items-center gap-1">
+                          {/* Star/Favorite Button */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleToggleFavorite(segment.originalIndex);
+                            }}
+                            className={`w-6 h-6 flex items-center justify-center rounded transition-all ${
+                              segment.favorited
+                                ? 'text-yellow-500'
+                                : 'text-[var(--muted-foreground)] opacity-0 group-hover:opacity-100'
+                            } hover:bg-[var(--muted)]`}
+                            title={segment.favorited ? 'Remove from favorites' : 'Add to favorites'}
+                          >
+                            <svg
+                              width="14"
+                              height="14"
+                              viewBox="0 0 24 24"
+                              fill={segment.favorited ? 'currentColor' : 'none'}
+                              stroke="currentColor"
+                              strokeWidth="2"
+                            >
+                              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                            </svg>
+                          </button>
+                          {/* Play indicator */}
+                          {hasTimestamp && (
                             <svg
                               width="14"
                               height="14"
@@ -972,12 +1084,12 @@ export function SessionDetail() {
                               fill="none"
                               stroke="currentColor"
                               strokeWidth="2"
-                              className={`text-[var(--muted-foreground)] ${isActive ? 'text-[var(--primary)]' : ''}`}
+                              className={`text-[var(--muted-foreground)] opacity-0 group-hover:opacity-100 transition-opacity ${isActive ? 'text-[var(--primary)] opacity-100' : ''}`}
                             >
                               <polygon points="5 3 19 12 5 21 5 3" />
                             </svg>
-                          </div>
-                        )}
+                          )}
+                        </div>
                       </div>
                     );
                   })}

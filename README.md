@@ -274,6 +274,9 @@ FEATURES │ MacWhisper │            │   │  Otter     │ Fireflies  │
 | **Niche templates** | Built-in SOAP, DAP, legal, research templates |
 | **Multiple LLM providers** | Ollama + OpenRouter + bundled model (they have limited AI) |
 | **Speaker rename** | Rename "Speaker 1" → "John" |
+| **Obsidian integration** | Export directly to Obsidian vault with frontmatter |
+| **Star/favorite segments** | Mark important moments in transcript |
+| **Filler word removal** | Toggle to remove "um", "uh", "like" |
 
 #### vs Cloud Services (Otter, Fireflies)
 | Advantage | Details |
@@ -320,14 +323,14 @@ System audio              ❌ Missing          ❌ Missing
 Real-time                 ❌ Missing          ❌ Missing
 Mobile                    ❌ Missing          ❌ Missing
 Video support             ❌ Missing          🟡 They have it
-Integrations              ❌ Missing          ❌ Missing
+Integrations              🟡 Obsidian done    ❌ Missing
 ```
 
 **Biggest gaps to close:**
 1. System audio capture (can't record Zoom/Meet)
 2. Real-time transcription (or decide not to do it)
 3. Video player with subtitles
-4. Integrations (Obsidian, Notion)
+4. Notion integration
 
 ---
 
@@ -472,6 +475,7 @@ Only after these are fixed, proceed to new features below.
 | **AI note generation** | ❌ (manual prompts) | ✅ | **Done** |
 | **Niche templates (legal, medical, research)** | ❌ | ✅ | **Done** |
 | **Multiple LLM providers** | ❌ | ✅ | **Done** (Ollama, OpenRouter, bundled) |
+| **Obsidian integration** | ❌ | ✅ | **Done** |
 | **Local RAG / Chat with transcripts** | ❌ | ✅ | Planned |
 | **Cross-meeting insights** | ❌ | ✅ | Planned |
 | **AI summaries + action items** | ❌ | ✅ | Planned |
@@ -750,6 +754,7 @@ For now, we prioritize **privacy and accuracy** over real-time. Post-recording t
 - [x] Audio-transcript sync (click to seek)
 - [x] Transcription progress tracking
 - [x] PDF/DOCX export with formatting
+- [x] SRT/VTT subtitle export
 - [x] Pause/resume recording
 - [x] Microphone level meter
 - [x] Search within transcript
@@ -757,7 +762,15 @@ For now, we prioritize **privacy and accuracy** over real-time. Post-recording t
 - [x] Speaker view with color-coded labels
 - [x] Toast notifications
 - [x] Settings page with model selection
-- [x] Delete sessions and folders
+- [x] Ollama status indicator
+- [x] Delete sessions
+- [x] Playback speed control (0.5x-3x)
+- [x] Compact mode (hide timestamps)
+- [x] Filler word removal
+- [x] Star/favorite segments
+- [x] Obsidian integration
+- [x] GitHub Actions CI/CD
+- [x] Logging utility
 
 ---
 

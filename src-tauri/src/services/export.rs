@@ -214,6 +214,79 @@ pub async fn export_docx(content: &str, filename: &str) -> Result<String> {
     Ok(path)
 }
 
+/// Export content to Obsidian vault with frontmatter
+pub async fn export_to_obsidian(
+    content: &str,
+    filename: &str,
+    vault_path: &str,
+    tags: Vec<String>,
+) -> Result<String> {
+    use chrono::Utc;
+
+    println!("[Export] Exporting to Obsidian vault: {}", vault_path);
+
+    let vault_dir = PathBuf::from(vault_path);
+    if !vault_dir.exists() {
+        return Err(anyhow::anyhow!("Obsidian vault path does not exist: {}", vault_path));
+    }
+
+    // Create a "Private Transcript" subfolder in the vault
+    let export_dir = vault_dir.join("Private Transcript");
+    if !export_dir.exists() {
+        tokio::fs::create_dir_all(&export_dir).await?;
+    }
+
+    let (title, transcript, notes) = parse_content(content);
+
+    // Build frontmatter
+    let date = Utc::now().format("%Y-%m-%d").to_string();
+    let tags_str = if tags.is_empty() {
+        "  - transcript".to_string()
+    } else {
+        tags.iter()
+            .map(|t| format!("  - {}", t))
+            .collect::<Vec<_>>()
+            .join("\n")
+    };
+
+    let frontmatter = format!(
+        "---\ntitle: \"{}\"\ndate: {}\ntags:\n{}\nsource: Private Transcript\n---\n\n",
+        title.replace("\"", "\\\""),
+        date,
+        tags_str
+    );
+
+    // Build markdown content
+    let mut md_content = frontmatter;
+    md_content.push_str(&format!("# {}\n\n", title));
+
+    if !transcript.is_empty() {
+        md_content.push_str("## Transcript\n\n");
+        md_content.push_str(&transcript);
+        md_content.push_str("\n\n");
+    }
+
+    if !notes.is_empty() {
+        md_content.push_str("## Notes\n\n");
+        md_content.push_str(&notes);
+        md_content.push('\n');
+    }
+
+    // Create safe filename
+    let safe_filename = filename
+        .chars()
+        .map(|c| if c.is_alphanumeric() || c == '-' || c == '_' { c } else { '_' })
+        .collect::<String>();
+
+    let file_path = export_dir.join(format!("{}.md", safe_filename));
+
+    tokio::fs::write(&file_path, md_content).await?;
+
+    let path = file_path.to_string_lossy().to_string();
+    println!("[Export] Obsidian note exported to: {}", path);
+    Ok(path)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

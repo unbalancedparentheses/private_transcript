@@ -13,6 +13,19 @@ pub async fn export_markdown(
 }
 
 #[tauri::command]
+pub async fn export_to_obsidian(
+    _app: AppHandle,
+    content: String,
+    filename: String,
+    vault_path: String,
+    tags: Vec<String>,
+) -> Result<String, String> {
+    export::export_to_obsidian(&content, &filename, &vault_path, tags)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 pub async fn export_pdf(
     _app: AppHandle,
     content: String,

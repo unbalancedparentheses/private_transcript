@@ -20,31 +20,31 @@ export function Button({
   return (
     <button
       className={clsx(
-        'inline-flex items-center justify-center gap-2 rounded-xl font-medium transition-all duration-200',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]',
-        'disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none',
-        'btn-press',
+        'inline-flex items-center justify-center gap-1.5 rounded-md font-medium transition-colors',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]',
+        'disabled:opacity-50 disabled:cursor-not-allowed',
+        'active:opacity-80',
         {
-          // Primary - solid gradient
-          'bg-[var(--primary)] text-white hover:bg-[var(--primary-hover)] shadow-sm hover:shadow-md hover:shadow-[var(--primary)]/20':
+          // Primary - macOS style solid blue
+          'bg-[var(--primary)] text-white hover:bg-[var(--primary-hover)]':
             variant === 'primary',
-          // Gradient - full gradient
-          'bg-gradient-to-r from-[var(--gradient-start)] to-[var(--gradient-end)] text-white shadow-md shadow-[var(--primary)]/25 hover:shadow-lg hover:shadow-[var(--primary)]/30':
+          // Gradient - same as primary for macOS consistency
+          'bg-[var(--primary)] text-white hover:bg-[var(--primary-hover)]':
             variant === 'gradient',
           // Secondary - subtle background
-          'bg-[var(--secondary)] text-[var(--secondary-foreground)] hover:bg-[var(--muted)] border border-[var(--border)]':
+          'bg-[var(--secondary)] text-[var(--foreground)] hover:bg-[var(--border)]':
             variant === 'secondary',
           // Ghost - transparent
-          'text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--muted)]':
+          'text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--secondary)]':
             variant === 'ghost',
           // Destructive - danger
-          'bg-[var(--destructive)] text-white hover:bg-[var(--destructive)]/90 shadow-sm hover:shadow-md hover:shadow-[var(--destructive)]/20':
+          'bg-[var(--destructive)] text-white hover:opacity-90':
             variant === 'destructive',
-          // Sizes
-          'h-8 px-3 text-xs': size === 'sm',
-          'h-10 px-4 text-sm': size === 'md',
-          'h-12 px-6 text-base': size === 'lg',
-          'h-10 w-10 p-0': size === 'icon',
+          // Sizes - more compact for macOS
+          'h-6 px-2 text-[12px]': size === 'sm',
+          'h-8 px-3 text-[13px]': size === 'md',
+          'h-9 px-4 text-[14px]': size === 'lg',
+          'h-8 w-8 p-0': size === 'icon',
         },
         className
       )}
@@ -52,7 +52,7 @@ export function Button({
       {...props}
     >
       {loading && (
-        <span className="w-4 h-4 border-2 border-current/30 border-t-current rounded-full animate-spin" />
+        <span className="w-3.5 h-3.5 border-2 border-current/30 border-t-current rounded-full animate-spin" />
       )}
       {children}
     </button>

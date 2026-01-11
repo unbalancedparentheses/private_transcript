@@ -54,6 +54,7 @@ fn main() {
             commands::export::export_markdown,
             commands::export::export_pdf,
             commands::export::export_docx,
+            commands::export::export_to_obsidian,
             // Settings commands
             commands::settings::get_settings,
             commands::settings::update_settings,
