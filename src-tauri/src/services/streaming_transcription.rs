@@ -545,9 +545,12 @@ fn handle_worker_event(app: &AppHandle, line: &str) -> Result<()> {
             session_id,
             text,
             start_time,
-            end_time: _,
+            end_time,
         } => {
-            println!("[LIVE] ✓ CONFIRMED: \"{}\"", text);
+            println!(
+                "[LIVE] ✓ CONFIRMED: \"{}\" ({:.2}s - {:.2}s)",
+                text, start_time, end_time
+            );
             let _ = app.emit(
                 "live-transcription",
                 LiveTranscriptionEvent {
