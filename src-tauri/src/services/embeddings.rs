@@ -107,10 +107,17 @@ fn ensure_model_loaded() -> Result<()> {
 
     // Try to auto-load if app data dir is set
     if let Some(app_data_dir) = get_app_data_dir() {
+        // Check if model file exists before trying to load
+        if !is_embedding_model_available(app_data_dir) {
+            return Err(anyhow!(
+                "Embedding model not downloaded. Please download it from Settings → Models."
+            ));
+        }
+        println!("[Embeddings] Auto-loading embedding model...");
         load_embedding_model(app_data_dir)?;
         Ok(())
     } else {
-        Err(anyhow!("Embedding model not loaded and app data dir not set"))
+        Err(anyhow!("App data directory not initialized"))
     }
 }
 
