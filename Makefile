@@ -19,9 +19,9 @@ build: build-whisperkit
 clean:
 	rm -rf node_modules dist src-tauri/target whisperkit-worker/.build
 
-# Build WhisperKit worker
+# Build WhisperKit worker (uses system Swift, not nix - avoids SDK conflicts)
 build-whisperkit:
-	nix develop --command bash -c "cd whisperkit-worker && swift build -c release"
+	cd whisperkit-worker && swift build -c release
 	@echo "WhisperKit worker built at whisperkit-worker/.build/release/whisperkit-worker"
 
 # Build all workers and copy to binaries folder
