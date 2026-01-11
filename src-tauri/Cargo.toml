@@ -24,7 +24,7 @@ serde_json = "1.0"
 tokio = { version = "1.35", features = ["full"] }
 
 # Database
-sqlx = { version = "0.7", features = ["runtime-tokio", "sqlite"] }
+sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite"] }
 
 # Whisper transcription: Now using WhisperKit (Swift/CoreML) via subprocess
 # whisper-rs removed - caused BLAS crashes on M4 in Tauri/WebKit context
