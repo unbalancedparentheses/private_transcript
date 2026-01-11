@@ -41,13 +41,38 @@ struct WhisperKitWorker {
 
             fputs("Transcribing audio...\n", stderr)
 
-            // Transcribe the audio
-            let results = try await whisperKit.transcribe(audioPath: audioPath)
+            // Set up decoding options:
+            // - task: .transcribe = keep original language (NOT translate to English)
+            // - language: nil = auto-detect the language
+            // - detectLanguage: true = detect the language first
+            // - usePrefillPrompt: false = don't force any language in prefill
+            let decodingOptions = DecodingOptions(
+                verbose: false,
+                task: .transcribe,           // Keep original language
+                language: nil,               // Auto-detect language
+                temperature: 0.0,
+                usePrefillPrompt: false,     // Don't use prefill (can cause translation)
+                usePrefillCache: false,      // Don't use prefill cache
+                detectLanguage: true,        // Detect language first
+                skipSpecialTokens: true,
+                withoutTimestamps: true
+            )
+
+            // Transcribe the audio with options
+            let results = try await whisperKit.transcribe(
+                audioPath: audioPath,
+                decodeOptions: decodingOptions
+            )
 
             // Output the transcript to stdout
             if results.isEmpty {
                 fputs("ERROR: No transcription results\n", stderr)
                 exit(1)
+            }
+
+            // Log detected language
+            if let detectedLanguage = results.first?.language {
+                fputs("Detected language: \(detectedLanguage)\n", stderr)
             }
 
             let fullText = results.map { $0.text }.joined(separator: " ")
