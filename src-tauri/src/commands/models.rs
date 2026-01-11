@@ -3,6 +3,7 @@ use crate::services::model_manager::{
     get_all_models, get_llm_models, get_whisper_models, ModelInfo, ModelManager,
 };
 use crate::services::whisper;
+use crate::utils::IntoTauriResult;
 use tauri::AppHandle;
 
 /// Get all available Whisper models
@@ -26,7 +27,7 @@ pub async fn get_all_available_models() -> Result<Vec<ModelInfo>, String> {
 /// Get list of downloaded model IDs
 #[tauri::command]
 pub async fn get_downloaded_models(app: AppHandle) -> Result<Vec<String>, String> {
-    let manager = ModelManager::new(&app).await.map_err(|e| e.to_string())?;
+    let manager = ModelManager::new(&app).await.into_tauri_result()?;
     Ok(manager.get_downloaded_models())
 }
 
@@ -36,12 +37,12 @@ pub async fn download_model(app: AppHandle, model_id: String) -> Result<String, 
     let model_info = ModelManager::get_model_info(&model_id)
         .ok_or_else(|| format!("Unknown model: {}", model_id))?;
 
-    let manager = ModelManager::new(&app).await.map_err(|e| e.to_string())?;
+    let manager = ModelManager::new(&app).await.into_tauri_result()?;
 
     let path = manager
         .download_model(&app, &model_info)
         .await
-        .map_err(|e| e.to_string())?;
+        .into_tauri_result()?;
 
     Ok(path.to_string_lossy().to_string())
 }
@@ -52,14 +53,9 @@ pub async fn delete_model(app: AppHandle, model_id: String) -> Result<(), String
     let model_info = ModelManager::get_model_info(&model_id)
         .ok_or_else(|| format!("Unknown model: {}", model_id))?;
 
-    let manager = ModelManager::new(&app).await.map_err(|e| e.to_string())?;
+    let manager = ModelManager::new(&app).await.into_tauri_result()?;
 
-    manager
-        .delete_model(&model_info)
-        .await
-        .map_err(|e| e.to_string())?;
-
-    Ok(())
+    manager.delete_model(&model_info).await.into_tauri_result()
 }
 
 /// Load a Whisper model into memory
@@ -67,7 +63,7 @@ pub async fn delete_model(app: AppHandle, model_id: String) -> Result<(), String
 pub async fn load_whisper_model(app: AppHandle, model_id: String) -> Result<(), String> {
     whisper::load_model(&app, &model_id)
         .await
-        .map_err(|e| e.to_string())
+        .into_tauri_result()
 }
 
 /// Unload the currently loaded Whisper model
@@ -94,7 +90,7 @@ pub fn get_loaded_whisper_model() -> Option<String> {
 pub async fn load_llm_model(app: AppHandle, model_id: String) -> Result<(), String> {
     local_llm::load_model(&app, &model_id)
         .await
-        .map_err(|e| e.to_string())
+        .into_tauri_result()
 }
 
 /// Unload the currently loaded LLM model
@@ -119,14 +115,14 @@ pub fn get_loaded_llm_model() -> Option<String> {
 /// Get total size of downloaded models in bytes
 #[tauri::command]
 pub async fn get_models_total_size(app: AppHandle) -> Result<u64, String> {
-    let manager = ModelManager::new(&app).await.map_err(|e| e.to_string())?;
-    manager.get_total_size().await.map_err(|e| e.to_string())
+    let manager = ModelManager::new(&app).await.into_tauri_result()?;
+    manager.get_total_size().await.into_tauri_result()
 }
 
 /// Check if models are ready (at least one Whisper and one LLM downloaded)
 #[tauri::command]
 pub async fn are_models_ready(app: AppHandle) -> Result<bool, String> {
-    let manager = ModelManager::new(&app).await.map_err(|e| e.to_string())?;
+    let manager = ModelManager::new(&app).await.into_tauri_result()?;
     let downloaded = manager.get_downloaded_models();
 
     let has_whisper = downloaded.iter().any(|id| id.starts_with("whisper-"));

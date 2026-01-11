@@ -1,5 +1,6 @@
 use crate::models::TranscriptionProgress;
 use crate::services::whisper;
+use crate::utils::IntoTauriResult;
 use once_cell::sync::Lazy;
 use parking_lot::Mutex;
 use std::collections::HashMap;
@@ -32,7 +33,10 @@ pub fn update_progress(session_id: &str, progress: f32, status: &str) {
 
 /// Clear transcription progress when done
 pub fn clear_progress(session_id: &str) {
-    println!("[TranscriptionCmd] Clearing progress for session: {}", session_id);
+    println!(
+        "[TranscriptionCmd] Clearing progress for session: {}",
+        session_id
+    );
     let mut map = TRANSCRIPTION_PROGRESS.lock();
     map.remove(session_id);
     println!(
@@ -47,7 +51,10 @@ pub async fn transcribe_audio(
     session_id: String,
     audio_path: String,
 ) -> Result<String, String> {
-    println!("[Transcription] Starting transcription for session: {}", session_id);
+    println!(
+        "[Transcription] Starting transcription for session: {}",
+        session_id
+    );
     println!("[Transcription] Audio path: {}", audio_path);
 
     // Initialize progress tracking
@@ -61,8 +68,14 @@ pub async fn transcribe_audio(
         update_progress(&session_id, 0.0, "error");
         return Err(err);
     }
-    println!("[Transcription] Audio file exists, size: {} bytes",
-        std::fs::metadata(&audio_path).map(|m| m.len()).unwrap_or(0));
+
+    let file_size = std::fs::metadata(&audio_path)
+        .map(|m| m.len())
+        .unwrap_or(0);
+    println!(
+        "[Transcription] Audio file exists, size: {} bytes",
+        file_size
+    );
 
     // WhisperKit auto-downloads models, so we can transcribe directly
     // Set a default model if none is loaded (for UI compatibility)
@@ -84,8 +97,14 @@ pub async fn transcribe_audio(
 
     match &result {
         Ok(transcript) => {
-            println!("[Transcription] SUCCESS! Transcript length: {} chars", transcript.len());
-            println!("[Transcription] First 200 chars: {}", &transcript.chars().take(200).collect::<String>());
+            println!(
+                "[Transcription] SUCCESS! Transcript length: {} chars",
+                transcript.len()
+            );
+            println!(
+                "[Transcription] First 200 chars: {}",
+                &transcript.chars().take(200).collect::<String>()
+            );
             update_progress(&session_id, 100.0, "complete");
         }
         Err(e) => {
@@ -101,7 +120,7 @@ pub async fn transcribe_audio(
         clear_progress(&session_id_clone);
     });
 
-    result.map_err(|e| e.to_string())
+    result.into_tauri_result()
 }
 
 #[tauri::command]
@@ -118,4 +137,30 @@ pub async fn get_transcription_progress(
             progress: 0.0,
             status: "pending".to_string(),
         }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_update_progress() {
+        let session_id = "test-session-1";
+        update_progress(session_id, 50.0, "transcribing");
+
+        let map = TRANSCRIPTION_PROGRESS.lock();
+        let progress = map.get(session_id).unwrap();
+        assert_eq!(progress.progress, 50.0);
+        assert_eq!(progress.status, "transcribing");
+    }
+
+    #[test]
+    fn test_clear_progress() {
+        let session_id = "test-session-2";
+        update_progress(session_id, 100.0, "complete");
+        clear_progress(session_id);
+
+        let map = TRANSCRIPTION_PROGRESS.lock();
+        assert!(map.get(session_id).is_none());
+    }
 }

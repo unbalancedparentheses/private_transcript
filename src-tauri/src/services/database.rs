@@ -536,3 +536,401 @@ pub async fn update_settings(
 
     get_settings(_app).await
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::db::migrations;
+    use sqlx::sqlite::SqlitePoolOptions;
+
+    async fn create_test_pool() -> SqlitePool {
+        let pool = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect("sqlite::memory:")
+            .await
+            .expect("Failed to create test pool");
+
+        // Run migrations
+        migrations::run_pending_migrations(&pool)
+            .await
+            .expect("Failed to run migrations");
+
+        pool
+    }
+
+    #[tokio::test]
+    async fn test_workspace_crud() {
+        let pool = create_test_pool().await;
+
+        // Create workspace
+        let id = Uuid::new_v4().to_string();
+        let now = chrono::Utc::now().timestamp();
+
+        sqlx::query(
+            "INSERT INTO workspaces (id, name, workspace_type, created_at, updated_at, is_active) VALUES (?, ?, ?, ?, ?, 1)",
+        )
+        .bind(&id)
+        .bind("Test Workspace")
+        .bind("general")
+        .bind(now)
+        .bind(now)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        // Read workspace
+        let row = sqlx::query(
+            "SELECT id, name, workspace_type, created_at, updated_at, is_active FROM workspaces WHERE id = ?"
+        )
+        .bind(&id)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+
+        let workspace = workspace_from_row(row);
+        assert_eq!(workspace.id, id);
+        assert_eq!(workspace.name, "Test Workspace");
+        assert_eq!(workspace.workspace_type, "general");
+        assert!(workspace.is_active);
+
+        // Update workspace
+        sqlx::query("UPDATE workspaces SET name = ? WHERE id = ?")
+            .bind("Updated Workspace")
+            .bind(&id)
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        let row = sqlx::query(
+            "SELECT id, name, workspace_type, created_at, updated_at, is_active FROM workspaces WHERE id = ?"
+        )
+        .bind(&id)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+
+        let workspace = workspace_from_row(row);
+        assert_eq!(workspace.name, "Updated Workspace");
+
+        // Soft delete
+        sqlx::query("UPDATE workspaces SET is_active = 0 WHERE id = ?")
+            .bind(&id)
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        let row = sqlx::query(
+            "SELECT id, name, workspace_type, created_at, updated_at, is_active FROM workspaces WHERE id = ?"
+        )
+        .bind(&id)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+
+        let workspace = workspace_from_row(row);
+        assert!(!workspace.is_active);
+    }
+
+    #[tokio::test]
+    async fn test_folder_crud() {
+        let pool = create_test_pool().await;
+
+        // Create workspace first
+        let workspace_id = Uuid::new_v4().to_string();
+        let now = chrono::Utc::now().timestamp();
+
+        sqlx::query(
+            "INSERT INTO workspaces (id, name, workspace_type, created_at, updated_at, is_active) VALUES (?, ?, ?, ?, ?, 1)",
+        )
+        .bind(&workspace_id)
+        .bind("Test Workspace")
+        .bind("general")
+        .bind(now)
+        .bind(now)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        // Create folder
+        let folder_id = Uuid::new_v4().to_string();
+        sqlx::query(
+            "INSERT INTO folders (id, workspace_id, name, metadata, created_at, updated_at, is_active) VALUES (?, ?, ?, ?, ?, ?, 1)",
+        )
+        .bind(&folder_id)
+        .bind(&workspace_id)
+        .bind("Test Folder")
+        .bind(None::<String>)
+        .bind(now)
+        .bind(now)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        // Read folder with session count
+        let row = sqlx::query(
+            r#"
+            SELECT
+                f.id, f.workspace_id, f.name, f.metadata, f.created_at, f.updated_at,
+                f.is_active,
+                COALESCE((SELECT COUNT(*) FROM sessions s WHERE s.folder_id = f.id), 0) as session_count
+            FROM folders f
+            WHERE f.id = ?
+            "#
+        )
+        .bind(&folder_id)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+
+        let folder = folder_from_row(row);
+        assert_eq!(folder.id, folder_id);
+        assert_eq!(folder.workspace_id, workspace_id);
+        assert_eq!(folder.name, "Test Folder");
+        assert_eq!(folder.session_count, 0);
+    }
+
+    #[tokio::test]
+    async fn test_session_crud() {
+        let pool = create_test_pool().await;
+
+        // Create workspace and folder first
+        let workspace_id = Uuid::new_v4().to_string();
+        let folder_id = Uuid::new_v4().to_string();
+        let now = chrono::Utc::now().timestamp();
+
+        sqlx::query(
+            "INSERT INTO workspaces (id, name, workspace_type, created_at, updated_at, is_active) VALUES (?, ?, ?, ?, ?, 1)",
+        )
+        .bind(&workspace_id)
+        .bind("Test Workspace")
+        .bind("general")
+        .bind(now)
+        .bind(now)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        sqlx::query(
+            "INSERT INTO folders (id, workspace_id, name, created_at, updated_at, is_active) VALUES (?, ?, ?, ?, ?, 1)",
+        )
+        .bind(&folder_id)
+        .bind(&workspace_id)
+        .bind("Test Folder")
+        .bind(now)
+        .bind(now)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        // Create session
+        let session_id = Uuid::new_v4().to_string();
+        sqlx::query(
+            "INSERT INTO sessions (id, folder_id, title, audio_path, audio_duration, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'pending', ?, ?)",
+        )
+        .bind(&session_id)
+        .bind(&folder_id)
+        .bind("Test Session")
+        .bind("/path/to/audio.wav")
+        .bind(60000i64)
+        .bind(now)
+        .bind(now)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        // Read session
+        let row = sqlx::query("SELECT * FROM sessions WHERE id = ?")
+            .bind(&session_id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+
+        let session = session_from_row(row);
+        assert_eq!(session.id, session_id);
+        assert_eq!(session.folder_id, folder_id);
+        assert_eq!(session.title, Some("Test Session".to_string()));
+        assert_eq!(session.audio_path, "/path/to/audio.wav");
+        assert_eq!(session.audio_duration, Some(60000));
+        assert_eq!(session.status, "pending");
+        assert!(session.transcript.is_none());
+        assert!(session.generated_note.is_none());
+
+        // Update session with transcript (status must be one of: pending, transcribing, generating, complete, error)
+        sqlx::query("UPDATE sessions SET transcript = ?, status = ? WHERE id = ?")
+            .bind("This is a test transcript.")
+            .bind("complete")
+            .bind(&session_id)
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        let row = sqlx::query("SELECT * FROM sessions WHERE id = ?")
+            .bind(&session_id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+
+        let session = session_from_row(row);
+        assert_eq!(session.transcript, Some("This is a test transcript.".to_string()));
+        assert_eq!(session.status, "complete");
+    }
+
+    #[tokio::test]
+    async fn test_template_crud() {
+        let pool = create_test_pool().await;
+
+        // Create template
+        let template_id = Uuid::new_v4().to_string();
+        let now = chrono::Utc::now().timestamp();
+
+        sqlx::query(
+            "INSERT INTO templates (id, name, workspace_type, description, prompt, is_default, is_system, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        )
+        .bind(&template_id)
+        .bind("Test Template")
+        .bind("general")
+        .bind("A test template")
+        .bind("Generate notes from: {transcript}")
+        .bind(true)
+        .bind(false)
+        .bind(now)
+        .bind(now)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        // Read template
+        let row = sqlx::query(
+            "SELECT id, name, workspace_type, description, prompt, output_format, is_default, is_system, created_at, updated_at FROM templates WHERE id = ?"
+        )
+        .bind(&template_id)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+
+        let template = template_from_row(row);
+        assert_eq!(template.id, template_id);
+        assert_eq!(template.name, "Test Template");
+        assert_eq!(template.workspace_type, "general");
+        assert_eq!(template.description, Some("A test template".to_string()));
+        assert!(template.prompt.contains("{transcript}"));
+        assert!(template.is_default);
+        assert!(!template.is_system);
+    }
+
+    #[tokio::test]
+    async fn test_settings_crud() {
+        let pool = create_test_pool().await;
+        let now = chrono::Utc::now().timestamp();
+
+        // Insert setting
+        sqlx::query(
+            "INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
+        )
+        .bind("theme")
+        .bind("dark")
+        .bind(now)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        // Read setting
+        let row: (String, String) = sqlx::query_as("SELECT key, value FROM settings WHERE key = ?")
+            .bind("theme")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+
+        assert_eq!(row.0, "theme");
+        assert_eq!(row.1, "dark");
+
+        // Update setting
+        sqlx::query(
+            "INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
+        )
+        .bind("theme")
+        .bind("light")
+        .bind(now)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        let row: (String, String) = sqlx::query_as("SELECT key, value FROM settings WHERE key = ?")
+            .bind("theme")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+
+        assert_eq!(row.1, "light");
+    }
+
+    #[tokio::test]
+    async fn test_session_count_in_folder() {
+        let pool = create_test_pool().await;
+
+        // Create workspace and folder
+        let workspace_id = Uuid::new_v4().to_string();
+        let folder_id = Uuid::new_v4().to_string();
+        let now = chrono::Utc::now().timestamp();
+
+        sqlx::query(
+            "INSERT INTO workspaces (id, name, workspace_type, created_at, updated_at, is_active) VALUES (?, ?, ?, ?, ?, 1)",
+        )
+        .bind(&workspace_id)
+        .bind("Test Workspace")
+        .bind("general")
+        .bind(now)
+        .bind(now)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        sqlx::query(
+            "INSERT INTO folders (id, workspace_id, name, created_at, updated_at, is_active) VALUES (?, ?, ?, ?, ?, 1)",
+        )
+        .bind(&folder_id)
+        .bind(&workspace_id)
+        .bind("Test Folder")
+        .bind(now)
+        .bind(now)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        // Create 3 sessions
+        for i in 0..3 {
+            let session_id = Uuid::new_v4().to_string();
+            sqlx::query(
+                "INSERT INTO sessions (id, folder_id, title, audio_path, status, created_at, updated_at) VALUES (?, ?, ?, ?, 'pending', ?, ?)",
+            )
+            .bind(&session_id)
+            .bind(&folder_id)
+            .bind(format!("Session {}", i + 1))
+            .bind(format!("/path/to/audio_{}.wav", i))
+            .bind(now)
+            .bind(now)
+            .execute(&pool)
+            .await
+            .unwrap();
+        }
+
+        // Check session count
+        let row = sqlx::query(
+            r#"
+            SELECT
+                f.id, f.workspace_id, f.name, f.metadata, f.created_at, f.updated_at,
+                f.is_active,
+                COALESCE((SELECT COUNT(*) FROM sessions s WHERE s.folder_id = f.id), 0) as session_count
+            FROM folders f
+            WHERE f.id = ?
+            "#
+        )
+        .bind(&folder_id)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+
+        let folder = folder_from_row(row);
+        assert_eq!(folder.session_count, 3);
+    }
+}

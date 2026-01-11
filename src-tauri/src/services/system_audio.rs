@@ -268,7 +268,7 @@ pub fn start_recording(
     let mut child = cmd.spawn().map_err(|e| anyhow!("Failed to start worker: {}", e))?;
 
     // Get stdout for reading progress
-    let stdout = child.stdout.take().expect("Failed to get stdout");
+    let stdout = child.stdout.take().ok_or_else(|| anyhow!("Failed to get stdout from worker process"))?;
 
     // Store the active recording
     *state = Some(ActiveRecording {
