@@ -222,7 +222,7 @@ describe('AppStore', () => {
         .mockResolvedValueOnce(updatedSession); // get_session
 
       const { updateSession } = useAppStore.getState();
-      await updateSession('session-1', { title: 'Updated Title', status: 'completed' });
+      await updateSession('session-1', { title: 'Updated Title', status: 'complete' });
 
       const state = useAppStore.getState();
       expect(state.sessions[0].title).toBe('Updated Title');

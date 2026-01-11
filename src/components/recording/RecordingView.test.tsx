@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { RecordingView } from './RecordingView';
 import { listen } from '@tauri-apps/api/event';
-import { invoke } from '@tauri-apps/api/core';
 
 // Mock the app store
 const mockSetView = vi.fn();
@@ -37,8 +36,8 @@ describe('RecordingView', () => {
     vi.clearAllMocks();
 
     // Mock MediaRecorder
-    (global as unknown as { MediaRecorder: unknown }).MediaRecorder = vi.fn(() => mockMediaRecorder);
-    (global as unknown as { MediaRecorder: { isTypeSupported: unknown } }).MediaRecorder.isTypeSupported = vi.fn(() => true);
+    (globalThis as unknown as { MediaRecorder: unknown }).MediaRecorder = vi.fn(() => mockMediaRecorder);
+    (globalThis as unknown as { MediaRecorder: { isTypeSupported: unknown } }).MediaRecorder.isTypeSupported = vi.fn(() => true);
 
     // Mock getUserMedia
     Object.defineProperty(navigator, 'mediaDevices', {
@@ -89,7 +88,7 @@ describe('RecordingView', () => {
 
   describe('Transcription Progress', () => {
     it('should display progress bar when transcribing', async () => {
-      const { rerender } = render(<RecordingView />);
+      render(<RecordingView />);
 
       // Simulate having an audio blob and starting transcription
       // This tests the UI state when isTranscribing is true

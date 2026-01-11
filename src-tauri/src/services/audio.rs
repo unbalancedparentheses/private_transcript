@@ -10,6 +10,9 @@ use symphonia::core::probe::Hint;
 use tauri::AppHandle;
 use tauri::Manager;
 
+// Target sample rate for Whisper (16kHz mono)
+// These are used by decode_audio_to_whisper_format which will be called by WhisperKit
+#[allow(dead_code)]
 const TARGET_SAMPLE_RATE: u32 = 16000;
 
 /// Get the audio directory for storing recordings
@@ -72,6 +75,8 @@ pub async fn get_audio_path(app: &AppHandle, session_id: &str) -> Result<String>
 
 /// Decode any audio file and convert to f32 samples at 16kHz mono
 /// This replaces ffmpeg for audio conversion - pure Rust implementation
+/// Currently used by WhisperKit subprocess for audio preprocessing
+#[allow(dead_code)]
 pub fn decode_audio_to_whisper_format(audio_path: &str) -> Result<Vec<f32>> {
     println!("[Audio] decode_audio_to_whisper_format() called for: {}", audio_path);
 
@@ -232,6 +237,7 @@ pub fn decode_audio_to_whisper_format(audio_path: &str) -> Result<Vec<f32>> {
 }
 
 /// Resample audio using rubato (high quality resampling)
+#[allow(dead_code)]
 fn resample_audio(samples: &[f32], source_rate: usize, target_rate: usize) -> Result<Vec<f32>> {
     if source_rate == target_rate {
         return Ok(samples.to_vec());
