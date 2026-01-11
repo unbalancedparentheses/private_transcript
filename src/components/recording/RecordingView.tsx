@@ -1,7 +1,16 @@
 import { useState, useRef, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { listen, UnlistenFn } from '@tauri-apps/api/event';
 import { useAppStore } from '../../stores/appStore';
 import { Button } from '../ui/Button';
+import { Progress } from '../ui/Progress';
+
+interface TranscriptionProgress {
+  sessionId: string;
+  progress: number;
+  status: string;
+  message?: string;
+}
 
 export function RecordingView() {
   const { currentFolder, createSession, setView, updateSession } = useAppStore();
@@ -9,9 +18,35 @@ export function RecordingView() {
   const [duration, setDuration] = useState(0);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [transcriptionProgress, setTranscriptionProgress] = useState<TranscriptionProgress | null>(null);
+  const [isTranscribing, setIsTranscribing] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<number | null>(null);
+
+  // Listen for transcription progress events
+  useEffect(() => {
+    let unlisten: UnlistenFn | null = null;
+
+    const setupListener = async () => {
+      unlisten = await listen<TranscriptionProgress>('transcription-progress', (event) => {
+        console.log('[RecordingView] Transcription progress:', event.payload);
+        setTranscriptionProgress(event.payload);
+
+        if (event.payload.status === 'complete' || event.payload.status === 'error') {
+          setIsTranscribing(false);
+        }
+      });
+    };
+
+    setupListener();
+
+    return () => {
+      if (unlisten) {
+        unlisten();
+      }
+    };
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -98,6 +133,8 @@ export function RecordingView() {
     if (!audioBlob || !currentFolder) return;
 
     setIsSaving(true);
+    setIsTranscribing(true);
+    setTranscriptionProgress(null);
 
     try {
       const arrayBuffer = await audioBlob.arrayBuffer();
@@ -144,6 +181,7 @@ export function RecordingView() {
       alert('Failed to save recording.');
     } finally {
       setIsSaving(false);
+      setIsTranscribing(false);
     }
   };
 
@@ -255,6 +293,20 @@ export function RecordingView() {
                   </svg>
                 )}
               </button>
+            ) : isTranscribing ? (
+              <div className="w-full max-w-xs">
+                <Progress
+                  value={transcriptionProgress?.progress ?? 0}
+                  showLabel
+                  label={transcriptionProgress?.message || 'Transcribing...'}
+                />
+                <p className="text-sm text-muted-foreground mt-2 text-center">
+                  {transcriptionProgress?.status === 'starting' && 'Preparing...'}
+                  {transcriptionProgress?.status === 'transcribing' && 'Processing audio...'}
+                  {transcriptionProgress?.status === 'processing' && 'Almost done...'}
+                  {!transcriptionProgress && 'Starting transcription...'}
+                </p>
+              </div>
             ) : (
               <>
                 <Button
@@ -297,6 +349,8 @@ export function RecordingView() {
           <p className="mt-10 text-[var(--muted-foreground)] text-sm max-w-sm mx-auto leading-relaxed">
             {isRecording
               ? 'Recording in progress. Click the stop button when finished.'
+              : isTranscribing
+              ? 'Transcribing your audio locally. This may take a moment...'
               : audioBlob
               ? 'Recording complete! Save to transcribe your audio locally.'
               : 'Click the button to start recording. All audio is processed locally on your device.'}

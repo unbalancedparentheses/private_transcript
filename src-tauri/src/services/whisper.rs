@@ -1,11 +1,23 @@
 use anyhow::{anyhow, Result};
 use once_cell::sync::OnceCell;
 use parking_lot::Mutex;
+use serde::Serialize;
 use std::path::PathBuf;
 use std::process::Command;
 use std::sync::Arc;
 use tauri::AppHandle;
-use tauri::Manager;
+use tauri::{Emitter, Manager};
+
+/// Transcription progress event sent to frontend
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TranscriptionProgressEvent {
+    pub session_id: String,
+    pub progress: f32,
+    pub status: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
+}
 
 /// Currently loaded model ID (for compatibility with UI)
 static LOADED_MODEL_ID: OnceCell<Arc<Mutex<Option<String>>>> = OnceCell::new();
@@ -84,14 +96,38 @@ pub fn get_loaded_model() -> Option<String> {
     lock.clone()
 }
 
+/// Emit transcription progress event
+fn emit_progress(app: &AppHandle, session_id: &str, progress: f32, status: &str, message: Option<&str>) {
+    println!(
+        "[WhisperKit] Progress event: session={}, progress={:.1}%, status={}, message={:?}",
+        session_id, progress, status, message
+    );
+
+    let event = TranscriptionProgressEvent {
+        session_id: session_id.to_string(),
+        progress,
+        status: status.to_string(),
+        message: message.map(|s| s.to_string()),
+    };
+
+    match app.emit("transcription-progress", &event) {
+        Ok(_) => println!("[WhisperKit] Successfully emitted progress event"),
+        Err(e) => println!("[WhisperKit] ERROR: Failed to emit progress event: {}", e),
+    }
+}
+
 /// Transcribe audio file using whisperkit-worker subprocess
 /// WhisperKit provides fast CoreML/Metal-accelerated transcription
-pub async fn transcribe(app: &AppHandle, _session_id: &str, audio_path: &str) -> Result<String> {
+pub async fn transcribe(app: &AppHandle, session_id: &str, audio_path: &str) -> Result<String> {
     println!("[WhisperKit] transcribe() called for: {}", audio_path);
+
+    // Emit starting event
+    emit_progress(app, session_id, 0.0, "starting", Some("Preparing transcription..."));
 
     // Verify audio file exists
     let audio_file = std::path::Path::new(audio_path);
     if !audio_file.exists() {
+        emit_progress(app, session_id, 0.0, "error", Some("Audio file not found"));
         return Err(anyhow!("Audio file not found: {}", audio_path));
     }
 
@@ -100,26 +136,47 @@ pub async fn transcribe(app: &AppHandle, _session_id: &str, audio_path: &str) ->
 
     println!("[WhisperKit] Running whisperkit-worker subprocess...");
 
+    // Emit transcribing event - progress will be estimated
+    emit_progress(app, session_id, 10.0, "transcribing", Some("Loading model..."));
+
     // Spawn worker process
     // WhisperKit will auto-download and cache the model on first run
     let audio_path_str = audio_path.to_string();
     let worker_path_clone = worker_path.clone();
+    let session_id_clone = session_id.to_string();
+    let app_clone = app.clone();
 
-    let output = tokio::task::spawn_blocking(move || {
+    // Run transcription in background and emit progress updates
+    let handle = tokio::task::spawn_blocking(move || {
+        // Emit progress update when model is loaded
+        emit_progress(&app_clone, &session_id_clone, 30.0, "transcribing", Some("Transcribing audio..."));
+
         Command::new(&worker_path_clone)
             .arg(&audio_path_str)
             .output()
-    })
-    .await
-    .map_err(|e| anyhow!("Task join error: {}", e))?
-    .map_err(|e| anyhow!("Failed to run whisperkit-worker: {}", e))?;
+    });
+
+    let output = handle
+        .await
+        .map_err(|e| {
+            emit_progress(app, session_id, 0.0, "error", Some(&format!("Task error: {}", e)));
+            anyhow!("Task join error: {}", e)
+        })?
+        .map_err(|e| {
+            emit_progress(app, session_id, 0.0, "error", Some(&format!("Worker error: {}", e)));
+            anyhow!("Failed to run whisperkit-worker: {}", e)
+        })?;
 
     // Check for errors
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         println!("[WhisperKit] Worker failed with stderr: {}", stderr);
+        emit_progress(app, session_id, 0.0, "error", Some(&format!("Transcription failed: {}", stderr)));
         return Err(anyhow!("Transcription failed: {}", stderr));
     }
+
+    // Emit processing result event
+    emit_progress(app, session_id, 90.0, "processing", Some("Processing result..."));
 
     // Get transcript from stdout
     let transcript = String::from_utf8_lossy(&output.stdout).trim().to_string();
@@ -127,6 +184,7 @@ pub async fn transcribe(app: &AppHandle, _session_id: &str, audio_path: &str) ->
     if transcript.is_empty() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         println!("[WhisperKit] Worker stderr: {}", stderr);
+        emit_progress(app, session_id, 0.0, "error", Some("Transcription produced no output"));
         return Err(anyhow!("Transcription produced no output"));
     }
 
@@ -135,6 +193,9 @@ pub async fn transcribe(app: &AppHandle, _session_id: &str, audio_path: &str) ->
         transcript.len()
     );
     println!("[WhisperKit] Result: {}", transcript);
+
+    // Emit completion event
+    emit_progress(app, session_id, 100.0, "complete", Some("Transcription complete"));
 
     Ok(transcript)
 }
