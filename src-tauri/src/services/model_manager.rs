@@ -450,3 +450,139 @@ impl ModelManager {
         Ok(total)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_whisper_models_returns_valid_list() {
+        let models = get_whisper_models();
+        assert!(!models.is_empty());
+
+        // Check first model has valid structure
+        let first = &models[0];
+        assert!(!first.id.is_empty());
+        assert!(!first.name.is_empty());
+        assert_eq!(first.model_type, ModelType::Whisper);
+        assert!(!first.repo_id.is_empty());
+        assert!(!first.filename.is_empty());
+        assert!(first.size_bytes > 0);
+    }
+
+    #[test]
+    fn test_get_llm_models_returns_valid_list() {
+        let models = get_llm_models();
+        assert!(!models.is_empty());
+
+        // Check first model has valid structure
+        let first = &models[0];
+        assert!(!first.id.is_empty());
+        assert!(!first.name.is_empty());
+        assert_eq!(first.model_type, ModelType::Llm);
+        assert!(!first.repo_id.is_empty());
+        assert!(!first.filename.is_empty());
+        assert!(first.size_bytes > 0);
+    }
+
+    #[test]
+    fn test_get_all_models_combines_both() {
+        let all = get_all_models();
+        let whisper = get_whisper_models();
+        let llm = get_llm_models();
+
+        assert_eq!(all.len(), whisper.len() + llm.len());
+    }
+
+    #[test]
+    fn test_model_info_get_existing() {
+        let model = ModelManager::get_model_info("whisper-tiny");
+        assert!(model.is_some());
+        let model = model.unwrap();
+        assert_eq!(model.id, "whisper-tiny");
+        assert_eq!(model.model_type, ModelType::Whisper);
+    }
+
+    #[test]
+    fn test_model_info_get_nonexistent() {
+        let model = ModelManager::get_model_info("nonexistent-model");
+        assert!(model.is_none());
+    }
+
+    #[test]
+    fn test_whisper_models_have_valid_huggingface_repos() {
+        let models = get_whisper_models();
+        for model in models {
+            assert!(
+                model.repo_id.contains("/"),
+                "Repo ID should be in format 'org/repo': {}",
+                model.repo_id
+            );
+            assert!(
+                model.filename.ends_with(".bin"),
+                "Whisper model filename should end with .bin: {}",
+                model.filename
+            );
+        }
+    }
+
+    #[test]
+    fn test_llm_models_have_valid_huggingface_repos() {
+        let models = get_llm_models();
+        for model in models {
+            assert!(
+                model.repo_id.contains("/"),
+                "Repo ID should be in format 'org/repo': {}",
+                model.repo_id
+            );
+            assert!(
+                model.filename.ends_with(".gguf"),
+                "LLM model filename should end with .gguf: {}",
+                model.filename
+            );
+        }
+    }
+
+    #[test]
+    fn test_download_progress_serialization() {
+        let progress = DownloadProgress {
+            model_id: "whisper-tiny".to_string(),
+            downloaded_bytes: 50000000,
+            total_bytes: 100000000,
+            percent: 50.0,
+            status: DownloadStatus::Downloading,
+            error_message: None,
+        };
+
+        let json = serde_json::to_string(&progress).unwrap();
+        assert!(json.contains("\"modelId\":\"whisper-tiny\""));
+        assert!(json.contains("\"downloadedBytes\":50000000"));
+        assert!(json.contains("\"percent\":50.0"));
+        assert!(json.contains("\"status\":\"downloading\""));
+    }
+
+    #[test]
+    fn test_download_status_variants() {
+        // Verify all status variants serialize correctly
+        let statuses = vec![
+            (DownloadStatus::Downloading, "downloading"),
+            (DownloadStatus::Verifying, "verifying"),
+            (DownloadStatus::Complete, "complete"),
+            (DownloadStatus::Error, "error"),
+        ];
+
+        for (status, expected) in statuses {
+            let json = serde_json::to_string(&status).unwrap();
+            assert_eq!(json, format!("\"{}\"", expected));
+        }
+    }
+
+    #[test]
+    fn test_model_type_serialization() {
+        let whisper_json = serde_json::to_string(&ModelType::Whisper).unwrap();
+        assert_eq!(whisper_json, "\"whisper\"");
+
+        let llm_json = serde_json::to_string(&ModelType::Llm).unwrap();
+        assert_eq!(llm_json, "\"llm\"");
+    }
+}

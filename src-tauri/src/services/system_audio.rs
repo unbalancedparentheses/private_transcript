@@ -457,3 +457,110 @@ pub fn open_screen_recording_settings(app: &AppHandle) -> Result<()> {
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_recording_config_default() {
+        let config = RecordingConfig::default();
+        assert!(config.mic_device_id.is_none());
+        assert!(!config.capture_system_audio);
+        assert_eq!(config.sample_rate, 16000);
+        assert_eq!(config.mic_volume, 1.0);
+        assert_eq!(config.system_volume, 0.7);
+    }
+
+    #[test]
+    fn test_recording_status_default() {
+        let status = RecordingStatus::default();
+        assert_eq!(status.state, RecordingState::Idle);
+        assert_eq!(status.duration_ms, 0);
+        assert_eq!(status.mic_level, 0.0);
+        assert_eq!(status.system_level, 0.0);
+    }
+
+    #[test]
+    fn test_recording_state_serialization() {
+        let idle_json = serde_json::to_string(&RecordingState::Idle).unwrap();
+        assert_eq!(idle_json, "\"idle\"");
+
+        let recording_json = serde_json::to_string(&RecordingState::Recording).unwrap();
+        assert_eq!(recording_json, "\"recording\"");
+
+        let stopping_json = serde_json::to_string(&RecordingState::Stopping).unwrap();
+        assert_eq!(stopping_json, "\"stopping\"");
+    }
+
+    #[test]
+    fn test_audio_device_serialization() {
+        let device = AudioDevice {
+            id: "device-1".to_string(),
+            name: "Built-in Microphone".to_string(),
+            is_default: true,
+        };
+
+        let json = serde_json::to_string(&device).unwrap();
+        assert!(json.contains("\"id\":\"device-1\""));
+        assert!(json.contains("\"name\":\"Built-in Microphone\""));
+        assert!(json.contains("\"isDefault\":true"));
+    }
+
+    #[test]
+    fn test_audio_permissions_serialization() {
+        let perms = AudioPermissions {
+            microphone: true,
+            screen_recording: false,
+        };
+
+        let json = serde_json::to_string(&perms).unwrap();
+        assert!(json.contains("\"microphone\":true"));
+        assert!(json.contains("\"screenRecording\":false"));
+    }
+
+    #[test]
+    fn test_recording_progress_event_serialization() {
+        let event = RecordingProgressEvent {
+            session_id: "test-session".to_string(),
+            state: "recording".to_string(),
+            duration_ms: 5000,
+            mic_level: 0.75,
+            system_level: 0.5,
+        };
+
+        let json = serde_json::to_string(&event).unwrap();
+        assert!(json.contains("\"sessionId\":\"test-session\""));
+        assert!(json.contains("\"state\":\"recording\""));
+        assert!(json.contains("\"durationMs\":5000"));
+        assert!(json.contains("\"micLevel\":0.75"));
+        assert!(json.contains("\"systemLevel\":0.5"));
+    }
+
+    #[test]
+    fn test_get_status_returns_default_when_idle() {
+        // When no recording is in progress, get_status should return default
+        let status = get_status();
+        assert_eq!(status.state, RecordingState::Idle);
+    }
+
+    #[test]
+    fn test_stop_recording_when_not_recording() {
+        // Stopping when not recording should return an error
+        let result = stop_recording();
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("No recording in progress"));
+    }
+
+    #[test]
+    fn test_recording_config_deserialization() {
+        let json = r#"{"micDeviceId":"device-1","captureSystemAudio":true,"sampleRate":44100,"micVolume":0.8,"systemVolume":0.6}"#;
+        let config: RecordingConfig = serde_json::from_str(json).unwrap();
+
+        assert_eq!(config.mic_device_id, Some("device-1".to_string()));
+        assert!(config.capture_system_audio);
+        assert_eq!(config.sample_rate, 44100);
+        assert_eq!(config.mic_volume, 0.8);
+        assert_eq!(config.system_volume, 0.6);
+    }
+}

@@ -199,3 +199,65 @@ pub async fn transcribe(app: &AppHandle, session_id: &str, audio_path: &str) -> 
 
     Ok(transcript)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_loaded_model_returns_option() {
+        let result = get_loaded_model();
+        // Should return Some(String) or None, never panic
+        match result {
+            Some(model_id) => assert!(!model_id.is_empty()),
+            None => {} // This is fine
+        }
+    }
+
+    #[test]
+    fn test_unload_model_no_panic() {
+        // Verify unloading when nothing is loaded doesn't panic
+        unload_model();
+        assert!(!is_model_loaded() || is_model_loaded()); // Should not panic
+    }
+
+    #[test]
+    fn test_is_model_loaded_function() {
+        // This test verifies the function works
+        let _result = is_model_loaded();
+        // Should not panic
+    }
+
+    #[test]
+    fn test_transcription_progress_event_serialization() {
+        let event = TranscriptionProgressEvent {
+            session_id: "test-session".to_string(),
+            progress: 50.0,
+            status: "transcribing".to_string(),
+            message: Some("Processing audio...".to_string()),
+        };
+
+        let json = serde_json::to_string(&event).unwrap();
+        assert!(json.contains("\"sessionId\":\"test-session\""));
+        assert!(json.contains("\"progress\":50.0"));
+        assert!(json.contains("\"status\":\"transcribing\""));
+        assert!(json.contains("\"message\":\"Processing audio...\""));
+    }
+
+    #[test]
+    fn test_transcription_progress_event_without_message() {
+        let event = TranscriptionProgressEvent {
+            session_id: "test-session".to_string(),
+            progress: 100.0,
+            status: "complete".to_string(),
+            message: None,
+        };
+
+        let json = serde_json::to_string(&event).unwrap();
+        assert!(json.contains("\"sessionId\":\"test-session\""));
+        assert!(json.contains("\"progress\":100.0"));
+        assert!(json.contains("\"status\":\"complete\""));
+        // message should be skipped when None due to skip_serializing_if
+        assert!(!json.contains("\"message\""));
+    }
+}

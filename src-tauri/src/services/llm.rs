@@ -390,3 +390,64 @@ pub async fn check_ollama_status() -> Result<OllamaStatus> {
         }),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_ollama_generate_request_serialization() {
+        let request = OllamaGenerateRequest {
+            model: "llama2".to_string(),
+            prompt: "Hello, world!".to_string(),
+            stream: false,
+        };
+
+        let json = serde_json::to_string(&request).unwrap();
+        assert!(json.contains("\"model\":\"llama2\""));
+        assert!(json.contains("\"prompt\":\"Hello, world!\""));
+        assert!(json.contains("\"stream\":false"));
+    }
+
+    #[test]
+    fn test_ollama_status_not_connected() {
+        let status = OllamaStatus {
+            connected: false,
+            models: vec![],
+            error: Some("Connection refused".to_string()),
+        };
+
+        assert!(!status.connected);
+        assert!(status.models.is_empty());
+        assert!(status.error.is_some());
+    }
+
+    #[test]
+    fn test_ollama_status_connected() {
+        let status = OllamaStatus {
+            connected: true,
+            models: vec!["llama2".to_string(), "mistral".to_string()],
+            error: None,
+        };
+
+        assert!(status.connected);
+        assert_eq!(status.models.len(), 2);
+        assert!(status.error.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_check_ollama_status_handles_offline() {
+        // This test verifies that check_ollama_status doesn't panic
+        // when Ollama is not running (which is expected in CI)
+        let result = check_ollama_status().await;
+        assert!(result.is_ok());
+
+        let status = result.unwrap();
+        // If Ollama is not running, we should get a connection error
+        // If it is running, we should get a successful connection
+        // Either way, the function should not panic
+        if !status.connected {
+            assert!(status.error.is_some());
+        }
+    }
+}
