@@ -126,41 +126,63 @@ actor StreamingTranscriber {
     // MARK: - Transcription Loop
 
     private func transcriptionLoop() async {
+        fputs("[StreamingTranscriber] Transcription loop started\n", stderr)
+        var loopCount = 0
         while isTranscribing {
+            loopCount += 1
             // Check if we have enough new audio to process
             let currentSampleCount = audioBuffer.count
             let newSamples = currentSampleCount - lastTranscribedSampleCount
 
+            if loopCount % 10 == 1 {
+                fputs("[StreamingTranscriber] Loop #\(loopCount): buffer=\(currentSampleCount), new=\(newSamples), threshold=8000\n", stderr)
+            }
+
             // Process when we have at least 0.5 seconds of new audio (8000 samples at 16kHz)
             if newSamples >= 8000 {
+                fputs("[StreamingTranscriber] Processing buffer with \(newSamples) new samples...\n", stderr)
                 await transcribeCurrentBuffer(isFinal: false)
             }
 
             // Wait before next iteration
             try? await Task.sleep(nanoseconds: UInt64(config.realtimeDelayMs) * 1_000_000)
         }
+        fputs("[StreamingTranscriber] Transcription loop ended\n", stderr)
     }
 
     private func transcribeCurrentBuffer(isFinal: Bool) async {
         guard let whisperKit = whisperKit,
-              let sessionId = currentSessionId else { return }
+              let sessionId = currentSessionId else {
+            fputs("[StreamingTranscriber] transcribeCurrentBuffer: no whisperKit or sessionId\n", stderr)
+            return
+        }
 
         let samples = Array(audioBuffer)
 
-        guard samples.count > 0 else { return }
+        guard samples.count > 0 else {
+            fputs("[StreamingTranscriber] transcribeCurrentBuffer: no samples\n", stderr)
+            return
+        }
+
+        fputs("[StreamingTranscriber] transcribeCurrentBuffer: \(samples.count) samples, isFinal=\(isFinal)\n", stderr)
 
         // Optional VAD check
         if config.useVAD && !isFinal {
             // Check if there's voice activity in recent samples
             let recentSamples = Array(samples.suffix(4800)) // Last 0.3 seconds
             let energy = recentSamples.map { $0 * $0 }.reduce(0, +) / Float(recentSamples.count)
-            if energy < config.silenceThreshold * config.silenceThreshold {
+            let threshold = config.silenceThreshold * config.silenceThreshold
+            fputs("[StreamingTranscriber] VAD check: energy=\(energy), threshold=\(threshold)\n", stderr)
+            if energy < threshold {
                 // No voice detected, skip this iteration
+                fputs("[StreamingTranscriber] VAD: skipping - below threshold\n", stderr)
                 return
             }
+            fputs("[StreamingTranscriber] VAD: voice detected, continuing\n", stderr)
         }
 
         do {
+            fputs("[StreamingTranscriber] Calling whisperKit.transcribe()...\n", stderr)
             let decodingOptions = DecodingOptions(
                 verbose: false,
                 task: .transcribe,
@@ -179,6 +201,7 @@ actor StreamingTranscriber {
                 decodeOptions: decodingOptions
             )
 
+            fputs("[StreamingTranscriber] Got \(results.count) results\n", stderr)
             lastTranscribedSampleCount = samples.count
 
             processResults(results, sessionId: sessionId, isFinal: isFinal)
@@ -194,14 +217,25 @@ actor StreamingTranscriber {
     }
 
     private func processResults(_ results: [TranscriptionResult], sessionId: String, isFinal: Bool) {
-        guard !results.isEmpty else { return }
+        guard !results.isEmpty else {
+            fputs("[StreamingTranscriber] processResults: no results\n", stderr)
+            return
+        }
 
         var allSegments: [TranscriptionSegment] = []
         for result in results {
             allSegments.append(contentsOf: result.segments)
         }
 
-        guard !allSegments.isEmpty else { return }
+        fputs("[StreamingTranscriber] processResults: \(allSegments.count) segments from \(results.count) results\n", stderr)
+        for (i, seg) in allSegments.enumerated() {
+            fputs("[StreamingTranscriber]   segment[\(i)]: \"\(seg.text)\"\n", stderr)
+        }
+
+        guard !allSegments.isEmpty else {
+            fputs("[StreamingTranscriber] processResults: no segments\n", stderr)
+            return
+        }
 
         // Determine which segments are confirmed vs tentative
         // Segments that have appeared consistently are confirmed
