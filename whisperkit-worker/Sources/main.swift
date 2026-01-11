@@ -116,6 +116,7 @@ struct Stream: AsyncParsableCommand {
 
         let transcriber = StreamingTranscriber()
         var shouldExit = false
+        var audioChunkCount = 0
 
         // Main command loop
         while !shouldExit {
@@ -145,8 +146,15 @@ struct Stream: AsyncParsableCommand {
                 case .audio(let sessionId, let samplesBase64, let sampleCount):
                     // Decode and feed audio samples
                     if let samples = IPC.decodeSamples(base64: samplesBase64, expectedCount: sampleCount) {
+                        // Log sample statistics periodically (every 50th chunk = ~5 seconds)
+                        audioChunkCount += 1
+                        if audioChunkCount % 50 == 1 {
+                            let energy = samples.map { $0 * $0 }.reduce(0, +) / Float(samples.count)
+                            fputs("[Stream] Audio chunk #\(audioChunkCount): energy=\(energy)\n", stderr)
+                        }
                         await transcriber.feedAudio(samples: samples)
                     } else {
+                        fputs("[Stream] Failed to decode audio!\n", stderr)
                         IPC.emit(.error(
                             sessionId: sessionId,
                             message: "Failed to decode audio samples",

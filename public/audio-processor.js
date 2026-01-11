@@ -41,6 +41,11 @@ class AudioSampleProcessor extends AudioWorkletProcessor {
 
     const input = inputs[0];
     if (!input || input.length === 0) {
+      // Log this occasionally to debug
+      this.emptyInputCount = (this.emptyInputCount || 0) + 1;
+      if (this.emptyInputCount % 100 === 1) {
+        console.log('[AudioProcessor] Empty input #' + this.emptyInputCount);
+      }
       return true; // Continue but no input
     }
 
@@ -48,6 +53,20 @@ class AudioSampleProcessor extends AudioWorkletProcessor {
     const channelData = input[0];
     if (!channelData || channelData.length === 0) {
       return true;
+    }
+
+    // Debug: Log sample statistics occasionally
+    this.processCount = (this.processCount || 0) + 1;
+    if (this.processCount % 500 === 1) {
+      let minVal = Infinity, maxVal = -Infinity, sumSq = 0;
+      for (let i = 0; i < channelData.length; i++) {
+        const v = channelData[i];
+        if (v < minVal) minVal = v;
+        if (v > maxVal) maxVal = v;
+        sumSq += v * v;
+      }
+      const energy = sumSq / channelData.length;
+      console.log(`[AudioProcessor] Frame #${this.processCount}: len=${channelData.length}, min=${minVal.toFixed(6)}, max=${maxVal.toFixed(6)}, energy=${energy.toFixed(6)}`);
     }
 
     // Add samples to buffer

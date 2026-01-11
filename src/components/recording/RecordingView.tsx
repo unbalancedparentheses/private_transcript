@@ -48,6 +48,7 @@ export function RecordingView() {
   const streamRef = useRef<MediaStream | null>(null);
   const audioWorkletRef = useRef<AudioWorkletNode | null>(null);
   const liveTranscriptionContextRef = useRef<AudioContext | null>(null);
+  const liveTranscriptionStreamRef = useRef<MediaStream | null>(null);
 
   // Listen for transcription progress events
   useEffect(() => {
@@ -98,32 +99,62 @@ export function RecordingView() {
   const startLiveTranscription = useCallback(async (stream: MediaStream, sessionId: string) => {
     console.log('[LiveTranscription] Starting for session:', sessionId);
     try {
-      // Create a separate AudioContext for live transcription at 16kHz
-      console.log('[LiveTranscription] Creating AudioContext at 16kHz...');
-      const audioContext = new AudioContext({ sampleRate: 16000 });
+      // Log stream track info
+      const tracks = stream.getAudioTracks();
+      console.log('[LiveTranscription] Audio tracks:', tracks.length);
+      for (const track of tracks) {
+        const settings = track.getSettings();
+        console.log('[LiveTranscription] Track settings:', JSON.stringify(settings));
+      }
+
+      // Clone the stream to avoid interference with other consumers
+      // Each track clone gets its own audio pipeline
+      const clonedStream = stream.clone();
+      liveTranscriptionStreamRef.current = clonedStream;
+      console.log('[LiveTranscription] Cloned stream for transcription');
+
+      // Create a dedicated AudioContext for live transcription
+      console.log('[LiveTranscription] Creating dedicated AudioContext...');
+      const audioContext = new AudioContext();
       liveTranscriptionContextRef.current = audioContext;
+      console.log('[LiveTranscription] AudioContext sampleRate:', audioContext.sampleRate);
+      console.log('[LiveTranscription] AudioContext state:', audioContext.state);
+
+      // Resume if suspended (needed for some browsers)
+      if (audioContext.state === 'suspended') {
+        console.log('[LiveTranscription] Resuming suspended AudioContext...');
+        await audioContext.resume();
+        console.log('[LiveTranscription] AudioContext resumed, state:', audioContext.state);
+      }
 
       // Load the AudioWorklet module
       console.log('[LiveTranscription] Loading AudioWorklet module...');
       await audioContext.audioWorklet.addModule('/audio-processor.js');
       console.log('[LiveTranscription] AudioWorklet module loaded');
 
-      // Create source from stream
-      const source = audioContext.createMediaStreamSource(stream);
-
       // Create the worklet node
       const workletNode = new AudioWorkletNode(audioContext, 'audio-sample-processor');
       audioWorkletRef.current = workletNode;
+
+      // Create MediaStreamSource from the CLONED stream
+      console.log('[LiveTranscription] Creating MediaStreamSource from cloned stream');
+      const source = audioContext.createMediaStreamSource(clonedStream);
 
       // Handle messages from the worklet (audio samples)
       let sampleCount = 0;
       workletNode.port.onmessage = async (event) => {
         if (event.data.type === 'samples') {
           sampleCount++;
-          if (sampleCount % 10 === 1) {
-            console.log('[LiveTranscription] Feeding audio chunk', sampleCount);
-          }
           const samples = Array.from(event.data.samples as Float32Array);
+
+          // Debug: Log sample statistics every 10th chunk
+          if (sampleCount % 10 === 1) {
+            const minVal = Math.min(...samples);
+            const maxVal = Math.max(...samples);
+            const energy = samples.reduce((acc, s) => acc + s * s, 0) / samples.length;
+            console.log(`[LiveTranscription] Chunk #${sampleCount}: count=${samples.length}, min=${minVal.toFixed(6)}, max=${maxVal.toFixed(6)}, energy=${energy.toFixed(6)}`);
+          }
+
           try {
             await invoke('feed_live_audio', {
               sessionId,
@@ -142,7 +173,7 @@ export function RecordingView() {
       // Start the live transcription session
       const config: LiveTranscriptionConfig = {
         model: undefined, // Use default
-        language: undefined, // Auto-detect
+        language: 'en', // Force English to avoid language detection confusion
         useVad: true,
         confirmationThreshold: 2,
       };
@@ -173,7 +204,13 @@ export function RecordingView() {
         audioWorkletRef.current = null;
       }
 
-      // Close the audio context
+      // Stop the cloned stream tracks
+      if (liveTranscriptionStreamRef.current) {
+        liveTranscriptionStreamRef.current.getTracks().forEach(track => track.stop());
+        liveTranscriptionStreamRef.current = null;
+      }
+
+      // Close the dedicated audio context
       if (liveTranscriptionContextRef.current) {
         await liveTranscriptionContextRef.current.close();
         liveTranscriptionContextRef.current = null;

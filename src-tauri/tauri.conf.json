@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "identifier": "app.privatetranscript",
   "build": {
-    "beforeDevCommand": "pnpm dev",
+    "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
     "beforeBuildCommand": "pnpm build",
     "frontendDist": "../dist"
