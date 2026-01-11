@@ -237,9 +237,12 @@ fn generate_sync(
 
     let mut output = String::new();
     let mut n_cur = batch.n_tokens();
+    // Track the index for sampling - after initial decode it's the last token,
+    // after subsequent single-token decodes it's always 0
+    let mut logits_idx = (batch.n_tokens() - 1) as i32;
 
     for _ in 0..max_tokens {
-        let new_token = sampler.sample(&ctx, n_cur - 1);
+        let new_token = sampler.sample(&ctx, logits_idx);
         sampler.accept(new_token);
 
         // Check for end of generation
@@ -269,6 +272,8 @@ fn generate_sync(
             .map_err(|e| anyhow!("Failed to decode: {}", e))?;
 
         n_cur += 1;
+        // After clearing and adding one token, logits are at index 0
+        logits_idx = 0;
     }
 
     Ok(output.trim().to_string())
