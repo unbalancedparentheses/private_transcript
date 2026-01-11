@@ -1,0 +1,20 @@
+{
+  "name": "Team Standup Meeting",
+  "format": "meeting",
+  "transcript": "Manager: Alright, let's get started with our daily standup. Who wants to go first?\n\nDeveloper One: I'll go. Yesterday I finished the authentication refactor. Today I'm starting on the API rate limiting feature. No blockers.\n\nManager: Great progress. Developer Two?\n\nDeveloper Two: I'm still working on the database migration. Ran into an issue with the foreign key constraints. I might need some help from Developer One later today.\n\nDeveloper One: Yeah, just ping me when you're ready. I dealt with similar issues last sprint.\n\nManager: Perfect. What about the QA side?\n\nQA Lead: We finished testing the new export feature. Found three bugs, all minor UI issues. I've already filed them and assigned them to Developer One.\n\nDeveloper One: I saw those. I should be able to knock them out this afternoon.\n\nManager: Excellent. Any other concerns before we wrap up?\n\nDeveloper Two: Just one thing. The staging environment has been slow lately. Can we look into that?\n\nManager: Good point. I'll create a ticket for DevOps to investigate. Anything else? No? Alright, let's have a productive day everyone.",
+  "expectedSpeakers": ["Manager", "Developer One", "Developer Two", "QA Lead"],
+  "expectedSegmentCount": 12,
+  "groundTruth": [
+    {"speaker": "Manager", "startsWith": "Alright, let's"},
+    {"speaker": "Developer One", "startsWith": "I'll go"},
+    {"speaker": "Manager", "startsWith": "Great progress"},
+    {"speaker": "Developer Two", "startsWith": "I'm still working"},
+    {"speaker": "Developer One", "startsWith": "Yeah, just ping"},
+    {"speaker": "Manager", "startsWith": "Perfect. What"},
+    {"speaker": "QA Lead", "startsWith": "We finished testing"},
+    {"speaker": "Developer One", "startsWith": "I saw those"},
+    {"speaker": "Manager", "startsWith": "Excellent. Any other"},
+    {"speaker": "Developer Two", "startsWith": "Just one thing"},
+    {"speaker": "Manager", "startsWith": "Good point"}
+  ]
+}

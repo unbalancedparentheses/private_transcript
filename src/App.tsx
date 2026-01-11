@@ -3,6 +3,7 @@ import { Sidebar } from './components/layout/Sidebar';
 import { MainContent } from './components/layout/MainContent';
 import { OnboardingView } from './components/onboarding/OnboardingView';
 import { GlobalSearch } from './components/search/GlobalSearch';
+import { ChatPanel } from './components/chat';
 import { useAppStore } from './stores/appStore';
 import { logger } from './lib/logger';
 
@@ -56,6 +57,7 @@ function App() {
       <Sidebar />
       <MainContent />
       <GlobalSearch isOpen={searchOpen} onClose={handleCloseSearch} />
+      <ChatPanel />
     </div>
   );
 }

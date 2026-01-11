@@ -10,11 +10,23 @@ struct Migration {
 }
 
 /// All migrations in order
-const MIGRATIONS: &[Migration] = &[Migration {
-    version: 1,
-    name: "initial_schema",
-    sql: include_str!("m001_initial_schema.sql"),
-}];
+const MIGRATIONS: &[Migration] = &[
+    Migration {
+        version: 1,
+        name: "initial_schema",
+        sql: include_str!("m001_initial_schema.sql"),
+    },
+    Migration {
+        version: 2,
+        name: "transcript_chunks",
+        sql: include_str!("m002_transcript_chunks.sql"),
+    },
+    Migration {
+        version: 3,
+        name: "chat_history",
+        sql: include_str!("m003_chat_history.sql"),
+    },
+];
 
 /// Ensures the _migrations table exists
 async fn ensure_migrations_table(pool: &SqlitePool) -> Result<()> {
@@ -191,16 +203,24 @@ mod tests {
         // Run migrations on fresh database
         run_pending_migrations(&pool).await.unwrap();
 
-        // Verify migration was recorded
+        // Verify migrations were recorded
         let version = get_current_version(&pool).await.unwrap();
-        assert_eq!(version, 1);
+        assert_eq!(version, 3); // Now we have 3 migrations
 
-        // Verify tables were created
+        // Verify migration 1 tables were created
         assert!(table_exists(&pool, "workspaces").await.unwrap());
         assert!(table_exists(&pool, "folders").await.unwrap());
         assert!(table_exists(&pool, "sessions").await.unwrap());
         assert!(table_exists(&pool, "templates").await.unwrap());
         assert!(table_exists(&pool, "settings").await.unwrap());
+
+        // Verify migration 2 tables (transcript chunks)
+        assert!(table_exists(&pool, "transcript_chunks").await.unwrap());
+        assert!(table_exists(&pool, "session_indexing_status").await.unwrap());
+
+        // Verify migration 3 tables (chat history)
+        assert!(table_exists(&pool, "chat_conversations").await.unwrap());
+        assert!(table_exists(&pool, "chat_messages").await.unwrap());
     }
 
     #[tokio::test]
@@ -211,13 +231,13 @@ mod tests {
         run_pending_migrations(&pool).await.unwrap();
         run_pending_migrations(&pool).await.unwrap();
 
-        // Should still be at version 1, not error
+        // Should still be at version 3, not error
         let version = get_current_version(&pool).await.unwrap();
-        assert_eq!(version, 1);
+        assert_eq!(version, 3);
 
-        // Check only one migration record exists
+        // Check all 3 migration records exist
         let migrations = get_applied_migrations(&pool).await.unwrap();
-        assert_eq!(migrations.len(), 1);
+        assert_eq!(migrations.len(), 3);
     }
 
     #[tokio::test]

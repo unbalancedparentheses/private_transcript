@@ -562,4 +562,263 @@ mod tests {
         assert_eq!(config.mic_volume, 0.8);
         assert_eq!(config.system_volume, 0.6);
     }
+
+    // ==========================================
+    // Worker Message Parsing Tests
+    // ==========================================
+
+    #[test]
+    fn test_parse_worker_status_message() {
+        let json = r#"{"type":"status","state":"recording","duration_ms":5000,"mic_level":0.75,"system_level":0.5}"#;
+        let msg: WorkerMessage = serde_json::from_str(json).unwrap();
+
+        match msg {
+            WorkerMessage::Status {
+                _state,
+                duration_ms,
+                mic_level,
+                system_level,
+            } => {
+                assert_eq!(duration_ms, 5000);
+                assert_eq!(mic_level, 0.75);
+                assert_eq!(system_level, 0.5);
+            }
+            _ => panic!("Expected Status message"),
+        }
+    }
+
+    #[test]
+    fn test_parse_worker_complete_message() {
+        let json = r#"{"type":"complete","output_path":"/path/to/audio.wav","duration_ms":120000}"#;
+        let msg: WorkerMessage = serde_json::from_str(json).unwrap();
+
+        match msg {
+            WorkerMessage::Complete {
+                _output_path,
+                duration_ms,
+            } => {
+                assert_eq!(duration_ms, 120000);
+            }
+            _ => panic!("Expected Complete message"),
+        }
+    }
+
+    #[test]
+    fn test_parse_worker_error_message() {
+        let json = r#"{"type":"error","message":"Permission denied"}"#;
+        let msg: WorkerMessage = serde_json::from_str(json).unwrap();
+
+        match msg {
+            WorkerMessage::Error { message } => {
+                assert_eq!(message, "Permission denied");
+            }
+            _ => panic!("Expected Error message"),
+        }
+    }
+
+    #[test]
+    fn test_parse_worker_devices_message() {
+        let json = r#"{"type":"devices","devices":[{"id":"dev1","name":"Built-in Mic","isDefault":true},{"id":"dev2","name":"USB Mic","isDefault":false}]}"#;
+        let msg: WorkerMessage = serde_json::from_str(json).unwrap();
+
+        match msg {
+            WorkerMessage::Devices { devices } => {
+                assert_eq!(devices.len(), 2);
+                assert_eq!(devices[0].id, "dev1");
+                assert_eq!(devices[0].name, "Built-in Mic");
+                assert!(devices[0].is_default);
+                assert_eq!(devices[1].id, "dev2");
+                assert!(!devices[1].is_default);
+            }
+            _ => panic!("Expected Devices message"),
+        }
+    }
+
+    #[test]
+    fn test_parse_worker_status_with_zero_levels() {
+        let json = r#"{"type":"status","state":"recording","duration_ms":0,"mic_level":0.0,"system_level":0.0}"#;
+        let msg: WorkerMessage = serde_json::from_str(json).unwrap();
+
+        match msg {
+            WorkerMessage::Status {
+                duration_ms,
+                mic_level,
+                system_level,
+                ..
+            } => {
+                assert_eq!(duration_ms, 0);
+                assert_eq!(mic_level, 0.0);
+                assert_eq!(system_level, 0.0);
+            }
+            _ => panic!("Expected Status message"),
+        }
+    }
+
+    #[test]
+    fn test_parse_worker_devices_empty_list() {
+        let json = r#"{"type":"devices","devices":[]}"#;
+        let msg: WorkerMessage = serde_json::from_str(json).unwrap();
+
+        match msg {
+            WorkerMessage::Devices { devices } => {
+                assert!(devices.is_empty());
+            }
+            _ => panic!("Expected Devices message"),
+        }
+    }
+
+    // ==========================================
+    // Recording Config Validation Tests
+    // ==========================================
+
+    #[test]
+    fn test_recording_config_with_null_mic_device() {
+        let json = r#"{"micDeviceId":null,"captureSystemAudio":false,"sampleRate":16000,"micVolume":1.0,"systemVolume":0.7}"#;
+        let config: RecordingConfig = serde_json::from_str(json).unwrap();
+        assert!(config.mic_device_id.is_none());
+    }
+
+    #[test]
+    fn test_recording_config_volume_bounds() {
+        // Test that extreme volume values are accepted (validation happens elsewhere)
+        let json = r#"{"micDeviceId":null,"captureSystemAudio":false,"sampleRate":16000,"micVolume":2.0,"systemVolume":0.0}"#;
+        let config: RecordingConfig = serde_json::from_str(json).unwrap();
+        assert_eq!(config.mic_volume, 2.0);
+        assert_eq!(config.system_volume, 0.0);
+    }
+
+    #[test]
+    fn test_recording_config_different_sample_rates() {
+        for sample_rate in [8000u32, 16000, 22050, 44100, 48000] {
+            let json = format!(
+                r#"{{"micDeviceId":null,"captureSystemAudio":false,"sampleRate":{},"micVolume":1.0,"systemVolume":0.7}}"#,
+                sample_rate
+            );
+            let config: RecordingConfig = serde_json::from_str(&json).unwrap();
+            assert_eq!(config.sample_rate, sample_rate);
+        }
+    }
+
+    // ==========================================
+    // State Transition Tests
+    // ==========================================
+
+    #[test]
+    fn test_recording_state_equality() {
+        assert_eq!(RecordingState::Idle, RecordingState::Idle);
+        assert_eq!(RecordingState::Recording, RecordingState::Recording);
+        assert_eq!(RecordingState::Stopping, RecordingState::Stopping);
+        assert_ne!(RecordingState::Idle, RecordingState::Recording);
+        assert_ne!(RecordingState::Recording, RecordingState::Stopping);
+    }
+
+    #[test]
+    fn test_recording_state_deserialization() {
+        let idle: RecordingState = serde_json::from_str("\"idle\"").unwrap();
+        assert_eq!(idle, RecordingState::Idle);
+
+        let recording: RecordingState = serde_json::from_str("\"recording\"").unwrap();
+        assert_eq!(recording, RecordingState::Recording);
+
+        let stopping: RecordingState = serde_json::from_str("\"stopping\"").unwrap();
+        assert_eq!(stopping, RecordingState::Stopping);
+    }
+
+    #[test]
+    fn test_recording_status_state_update() {
+        let mut status = RecordingStatus::default();
+        assert_eq!(status.state, RecordingState::Idle);
+
+        status.state = RecordingState::Recording;
+        assert_eq!(status.state, RecordingState::Recording);
+
+        status.state = RecordingState::Stopping;
+        assert_eq!(status.state, RecordingState::Stopping);
+
+        status.state = RecordingState::Idle;
+        assert_eq!(status.state, RecordingState::Idle);
+    }
+
+    #[test]
+    fn test_recording_status_level_updates() {
+        let mut status = RecordingStatus::default();
+
+        // Simulate level updates during recording
+        status.mic_level = 0.5;
+        status.system_level = 0.3;
+        status.duration_ms = 1000;
+
+        assert_eq!(status.mic_level, 0.5);
+        assert_eq!(status.system_level, 0.3);
+        assert_eq!(status.duration_ms, 1000);
+
+        // Levels can go to max
+        status.mic_level = 1.0;
+        status.system_level = 1.0;
+        assert_eq!(status.mic_level, 1.0);
+        assert_eq!(status.system_level, 1.0);
+    }
+
+    // ==========================================
+    // Audio Device Tests
+    // ==========================================
+
+    #[test]
+    fn test_audio_device_deserialization() {
+        let json = r#"{"id":"dev-123","name":"Test Microphone","isDefault":false}"#;
+        let device: AudioDevice = serde_json::from_str(json).unwrap();
+
+        assert_eq!(device.id, "dev-123");
+        assert_eq!(device.name, "Test Microphone");
+        assert!(!device.is_default);
+    }
+
+    #[test]
+    fn test_audio_device_with_special_characters() {
+        let json = r#"{"id":"dev:123/test","name":"Microphone (USB Audio)","isDefault":true}"#;
+        let device: AudioDevice = serde_json::from_str(json).unwrap();
+
+        assert_eq!(device.id, "dev:123/test");
+        assert_eq!(device.name, "Microphone (USB Audio)");
+        assert!(device.is_default);
+    }
+
+    #[test]
+    fn test_audio_device_clone() {
+        let device = AudioDevice {
+            id: "original".to_string(),
+            name: "Original Mic".to_string(),
+            is_default: true,
+        };
+
+        let cloned = device.clone();
+        assert_eq!(device.id, cloned.id);
+        assert_eq!(device.name, cloned.name);
+        assert_eq!(device.is_default, cloned.is_default);
+    }
+
+    // ==========================================
+    // Audio Permissions Tests
+    // ==========================================
+
+    #[test]
+    fn test_audio_permissions_deserialization() {
+        let json = r#"{"microphone":true,"screenRecording":true}"#;
+        let perms: AudioPermissions = serde_json::from_str(json).unwrap();
+
+        assert!(perms.microphone);
+        assert!(perms.screen_recording);
+    }
+
+    #[test]
+    fn test_audio_permissions_all_denied() {
+        let perms = AudioPermissions {
+            microphone: false,
+            screen_recording: false,
+        };
+
+        let json = serde_json::to_string(&perms).unwrap();
+        assert!(json.contains("\"microphone\":false"));
+        assert!(json.contains("\"screenRecording\":false"));
+    }
 }

@@ -4,6 +4,7 @@ export { useInitStore } from './useInitStore';
 export { useWorkspaceStore } from './useWorkspaceStore';
 export { useSessionStore } from './useSessionStore';
 export { useTemplateStore } from './useTemplateStore';
+export { useChatStore } from './useChatStore';
 
 // Cross-store subscriptions
 import { useWorkspaceStore } from './useWorkspaceStore';

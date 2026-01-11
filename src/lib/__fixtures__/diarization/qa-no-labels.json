@@ -1,0 +1,18 @@
+{
+  "name": "Q&A Session - No Labels",
+  "format": "qa",
+  "description": "Plain text Q&A without explicit speaker labels - tests heuristic detection",
+  "transcript": "What made you decide to pursue this career path?\n\nI always loved building things. As a kid, I would take apart every electronic device in the house. My parents were not thrilled, but it sparked something in me.\n\nWhen did you realize you could make a living from it?\n\nProbably in college. I built a small app that helped students find study groups, and people actually started using it. That's when I thought, maybe I can do this professionally.\n\nWhat advice would you give to someone just starting out?\n\nDon't wait for permission. Build something. Ship it. Get feedback. Repeat. Most successful people I know didn't ask if they were ready. They just started.\n\nWhat's the biggest mistake you've made in your career?\n\nWaiting too long to hire. I tried to do everything myself for the first two years. By the time I brought on help, I was completely burned out. You can't scale alone.",
+  "expectedSpeakerCount": 2,
+  "expectedAlternating": true,
+  "groundTruth": [
+    {"speakerNum": 1, "startsWith": "What made you"},
+    {"speakerNum": 2, "startsWith": "I always loved"},
+    {"speakerNum": 1, "startsWith": "When did you realize"},
+    {"speakerNum": 2, "startsWith": "Probably in college"},
+    {"speakerNum": 1, "startsWith": "What advice would"},
+    {"speakerNum": 2, "startsWith": "Don't wait"},
+    {"speakerNum": 1, "startsWith": "What's the biggest"},
+    {"speakerNum": 2, "startsWith": "Waiting too long"}
+  ]
+}

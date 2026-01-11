@@ -3,6 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { ModelInfo, DownloadProgress } from '../../types';
 import { Button } from '../ui/Button';
+import { useChatStore } from '../../stores/useChatStore';
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) return '0 B';
@@ -21,6 +22,9 @@ export function ModelManager() {
   const [downloadProgress, setDownloadProgress] = useState<Record<string, DownloadProgress>>({});
   const [loading, setLoading] = useState(true);
   const [totalSize, setTotalSize] = useState<number>(0);
+  const [embeddingModelAvailable, setEmbeddingModelAvailable] = useState(false);
+  const [embeddingModelLoading, setEmbeddingModelLoading] = useState(false);
+  const { isEmbeddingModelLoaded, loadEmbeddingModel, unloadEmbeddingModel, checkEmbeddingModel } = useChatStore();
 
   useEffect(() => {
     loadData();
@@ -47,13 +51,14 @@ export function ModelManager() {
 
   const loadData = async () => {
     try {
-      const [whisper, llm, downloaded, whisperLoaded, llmLoaded, size] = await Promise.all([
+      const [whisper, llm, downloaded, whisperLoaded, llmLoaded, size, embeddingAvailable] = await Promise.all([
         invoke<ModelInfo[]>('get_available_whisper_models'),
         invoke<ModelInfo[]>('get_available_llm_models'),
         invoke<string[]>('get_downloaded_models'),
         invoke<string | null>('get_loaded_whisper_model'),
         invoke<string | null>('get_loaded_llm_model'),
         invoke<number>('get_models_total_size'),
+        invoke<boolean>('check_embedding_model'),
       ]);
 
       setWhisperModels(whisper);
@@ -62,6 +67,10 @@ export function ModelManager() {
       setLoadedWhisperModel(whisperLoaded);
       setLoadedLlmModel(llmLoaded);
       setTotalSize(size);
+      setEmbeddingModelAvailable(embeddingAvailable);
+
+      // Also check if embedding model is loaded
+      await checkEmbeddingModel();
     } catch (error) {
       console.error('Failed to load model data:', error);
     } finally {
@@ -297,6 +306,102 @@ export function ModelManager() {
               </div>
             );
           })}
+        </div>
+      </div>
+
+      {/* Embedding Model for RAG Chat */}
+      <div>
+        <h3 className="font-semibold mb-3">Transcript Search (Embeddings)</h3>
+        <p className="text-sm text-muted-foreground mb-3">
+          Used for semantic search in the chat feature. This model creates embeddings to find relevant parts of your transcripts.
+        </p>
+        <div
+          className={`p-4 rounded-lg border ${
+            isEmbeddingModelLoaded ? 'border-primary bg-primary/5' : 'border-border'
+          }`}
+        >
+          <div className="flex justify-between items-start">
+            <div className="flex-1">
+              <div className="font-medium flex items-center gap-2">
+                all-MiniLM-L6-v2
+                {isEmbeddingModelLoaded && (
+                  <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded">
+                    Active
+                  </span>
+                )}
+                {embeddingModelAvailable && !isEmbeddingModelLoaded && (
+                  <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">
+                    Downloaded
+                  </span>
+                )}
+              </div>
+              <div className="text-sm text-muted-foreground">
+                Fast and efficient embedding model for semantic search
+              </div>
+              <div className="text-sm text-muted-foreground mt-1">~23 MB</div>
+            </div>
+            <div className="flex gap-2">
+              {embeddingModelAvailable ? (
+                <>
+                  {!isEmbeddingModelLoaded ? (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      disabled={embeddingModelLoading}
+                      onClick={async () => {
+                        setEmbeddingModelLoading(true);
+                        try {
+                          await loadEmbeddingModel();
+                        } catch (error) {
+                          console.error('Failed to load embedding model:', error);
+                        } finally {
+                          setEmbeddingModelLoading(false);
+                        }
+                      }}
+                    >
+                      {embeddingModelLoading ? 'Loading...' : 'Load'}
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={async () => {
+                        try {
+                          await unloadEmbeddingModel();
+                        } catch (error) {
+                          console.error('Failed to unload embedding model:', error);
+                        }
+                      }}
+                    >
+                      Unload
+                    </Button>
+                  )}
+                </>
+              ) : (
+                <Button
+                  size="sm"
+                  onClick={() => handleDownload('all-minilm-l6-v2')}
+                  disabled={isDownloading('all-minilm-l6-v2')}
+                >
+                  {isDownloading('all-minilm-l6-v2') ? 'Downloading...' : 'Download'}
+                </Button>
+              )}
+            </div>
+          </div>
+          {isDownloading('all-minilm-l6-v2') && getProgress('all-minilm-l6-v2') && (
+            <div className="mt-3">
+              <div className="h-2 bg-muted rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-primary transition-all"
+                  style={{ width: `${getProgress('all-minilm-l6-v2')?.percent || 0}%` }}
+                />
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">
+                {formatBytes(getProgress('all-minilm-l6-v2')?.downloadedBytes || 0)} /{' '}
+                {formatBytes(getProgress('all-minilm-l6-v2')?.totalBytes || 0)}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

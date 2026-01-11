@@ -1,4 +1,5 @@
 pub mod audio;
+pub mod chat;
 pub mod export;
 pub mod folder;
 pub mod generation;

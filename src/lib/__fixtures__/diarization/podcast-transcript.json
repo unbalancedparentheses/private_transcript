@@ -1,0 +1,21 @@
+{
+  "name": "Podcast - Developer Discussion",
+  "format": "podcast",
+  "transcript": "Host: Welcome back to Code Review, the podcast where we dive deep into software engineering. I'm Marcus and today I'm joined by my co-host Elena.\n\nElena: Hey everyone! We've got a great topic today. We're talking about the resurgence of local-first software.\n\nHost: Yeah, this is something I've been really excited about. For years everything moved to the cloud, but now we're seeing a pushback.\n\nElena: Exactly. And it's not just about privacy, though that's a huge part of it. It's also about reliability and ownership.\n\nHost: Can you explain what you mean by ownership?\n\nElena: Sure. When your data lives in someone else's cloud, you're dependent on their business decisions. If they shut down or change their pricing, you could lose access to your own data.\n\nHost: We saw that happen with so many apps. Remember when Google killed off Reader?\n\nElena: Oh, I'm still bitter about that one. But it's a perfect example. Millions of users lost their carefully curated feeds overnight.\n\nHost: So what's driving this local-first movement now?\n\nElena: A few things. WebAssembly is making it possible to run complex applications locally. SQLite is having a renaissance. And frankly, people are tired of subscription fatigue.\n\nHost: The subscription model really has gotten out of hand.\n\nElena: Every app wants ten dollars a month now. At some point, people start doing the math.",
+  "expectedSpeakers": ["Host", "Elena"],
+  "expectedSegmentCount": 14,
+  "groundTruth": [
+    {"speaker": "Host", "startsWith": "Welcome back"},
+    {"speaker": "Elena", "startsWith": "Hey everyone"},
+    {"speaker": "Host", "startsWith": "Yeah, this is"},
+    {"speaker": "Elena", "startsWith": "Exactly"},
+    {"speaker": "Host", "startsWith": "Can you explain"},
+    {"speaker": "Elena", "startsWith": "Sure. When"},
+    {"speaker": "Host", "startsWith": "We saw that"},
+    {"speaker": "Elena", "startsWith": "Oh, I'm still"},
+    {"speaker": "Host", "startsWith": "So what's driving"},
+    {"speaker": "Elena", "startsWith": "A few things"},
+    {"speaker": "Host", "startsWith": "The subscription"},
+    {"speaker": "Elena", "startsWith": "Every app"}
+  ]
+}

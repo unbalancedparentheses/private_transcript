@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use tauri::{AppHandle, Emitter, Manager};
 use tokio::io::AsyncWriteExt;
 
-use crate::services::{local_llm, whisper};
+use crate::services::{embeddings, local_llm, whisper};
 
 /// Model types supported by the application
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -12,6 +12,7 @@ use crate::services::{local_llm, whisper};
 pub enum ModelType {
     Whisper,
     Llm,
+    Embedding,
 }
 
 /// Information about a downloadable model
@@ -133,10 +134,24 @@ pub fn get_llm_models() -> Vec<ModelInfo> {
     ]
 }
 
+/// Get available embedding models
+pub fn get_embedding_models() -> Vec<ModelInfo> {
+    vec![ModelInfo {
+        id: "all-minilm-l6-v2".into(),
+        name: "all-MiniLM-L6-v2".into(),
+        model_type: ModelType::Embedding,
+        repo_id: "leliuga/all-MiniLM-L6-v2-GGUF".into(),
+        filename: embeddings::EMBEDDING_MODEL_FILENAME.into(),
+        size_bytes: 23_000_000, // ~23MB
+        description: "Fast embedding model for semantic search".into(),
+    }]
+}
+
 /// Get all available models
 pub fn get_all_models() -> Vec<ModelInfo> {
     let mut models = get_whisper_models();
     models.extend(get_llm_models());
+    models.extend(get_embedding_models());
     models
 }
 
@@ -156,6 +171,7 @@ impl ModelManager {
         tokio::fs::create_dir_all(&models_dir).await?;
         tokio::fs::create_dir_all(models_dir.join("whisper")).await?;
         tokio::fs::create_dir_all(models_dir.join("llm")).await?;
+        tokio::fs::create_dir_all(models_dir.join("embedding")).await?;
 
         Ok(Self { models_dir })
     }
@@ -165,6 +181,7 @@ impl ModelManager {
         let subdir = match model_info.model_type {
             ModelType::Whisper => "whisper",
             ModelType::Llm => "llm",
+            ModelType::Embedding => "embedding",
         };
         let path = self.models_dir.join(subdir).join(&model_info.filename);
         if path.exists() {
@@ -192,6 +209,7 @@ impl ModelManager {
         let subdir = match model_info.model_type {
             ModelType::Whisper => "whisper",
             ModelType::Llm => "llm",
+            ModelType::Embedding => "embedding",
         };
         let target_dir = self.models_dir.join(subdir);
         tokio::fs::create_dir_all(&target_dir).await?;
@@ -202,9 +220,15 @@ impl ModelManager {
         if target_path.exists() {
             println!("[ModelManager] Model {} exists, trying to load to verify...", model_info.id);
 
-            let load_result = match model_info.model_type {
+            let load_result: Result<()> = match model_info.model_type {
                 ModelType::Whisper => whisper::load_model(app, &model_info.id).await,
                 ModelType::Llm => local_llm::load_model(app, &model_info.id).await,
+                ModelType::Embedding => {
+                    // For embedding models, just check if file exists and is valid
+                    let app_data_dir = app.path().app_data_dir()
+                        .map_err(|e| anyhow!("Failed to get app data dir: {}", e))?;
+                    embeddings::load_embedding_model(&app_data_dir)
+                }
             };
 
             match load_result {
@@ -372,9 +396,14 @@ impl ModelManager {
 
         // Load the model to verify it works and keep it loaded
         println!("[ModelManager] Loading freshly downloaded model: {}", model_info.id);
-        let load_result = match model_info.model_type {
+        let load_result: Result<()> = match model_info.model_type {
             ModelType::Whisper => whisper::load_model(app, &model_info.id).await,
             ModelType::Llm => local_llm::load_model(app, &model_info.id).await,
+            ModelType::Embedding => {
+                let app_data_dir = app.path().app_data_dir()
+                    .map_err(|e| anyhow!("Failed to get app data dir: {}", e))?;
+                embeddings::load_embedding_model(&app_data_dir)
+            }
         };
 
         if let Err(e) = load_result {
@@ -486,12 +515,13 @@ mod tests {
     }
 
     #[test]
-    fn test_get_all_models_combines_both() {
+    fn test_get_all_models_combines_all() {
         let all = get_all_models();
         let whisper = get_whisper_models();
         let llm = get_llm_models();
+        let embedding = get_embedding_models();
 
-        assert_eq!(all.len(), whisper.len() + llm.len());
+        assert_eq!(all.len(), whisper.len() + llm.len() + embedding.len());
     }
 
     #[test]

@@ -49,7 +49,8 @@ pub async fn init_database(app: &AppHandle) -> Result<()> {
     Ok(())
 }
 
-fn get_pool() -> Result<&'static SqlitePool> {
+/// Get the database pool - public for RAG and other services
+pub fn get_pool() -> Result<&'static SqlitePool> {
     DB_POOL
         .get()
         .ok_or_else(|| anyhow::anyhow!("Database not initialized"))

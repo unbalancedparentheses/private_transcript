@@ -1,0 +1,19 @@
+{
+  "name": "Interview - Tech Founder",
+  "format": "interview",
+  "transcript": "Interviewer: Good morning and welcome to Tech Talks. Today we have Sarah Chen, founder of DataFlow AI. Sarah, thanks for joining us.\n\nSarah Chen: Thank you for having me. It's great to be here.\n\nInterviewer: Let's start with the basics. What inspired you to start DataFlow AI?\n\nSarah Chen: Well, I spent ten years in enterprise software, and I kept seeing the same problem over and over. Companies had massive amounts of data but couldn't actually use it effectively. The tools were either too complex for business users or too simple for real analytics.\n\nInterviewer: And how does DataFlow solve that problem?\n\nSarah Chen: We built a platform that lets anyone in a company query their data using natural language. No SQL required. You just ask a question like you would ask a colleague, and our AI translates that into the right database queries.\n\nInterviewer: That sounds powerful. What about security concerns?\n\nSarah Chen: That's actually one of our key differentiators. Everything runs on-premise or in the customer's own cloud. We never see their data. Privacy is built into the architecture from day one.\n\nInterviewer: How has the market responded so far?\n\nSarah Chen: Beyond our expectations, honestly. We launched eight months ago and already have forty enterprise customers. The demand for privacy-first AI solutions is enormous right now.",
+  "expectedSpeakers": ["Interviewer", "Sarah Chen"],
+  "expectedSegmentCount": 10,
+  "groundTruth": [
+    {"speaker": "Interviewer", "startsWith": "Good morning"},
+    {"speaker": "Sarah Chen", "startsWith": "Thank you for having"},
+    {"speaker": "Interviewer", "startsWith": "Let's start"},
+    {"speaker": "Sarah Chen", "startsWith": "Well, I spent"},
+    {"speaker": "Interviewer", "startsWith": "And how does"},
+    {"speaker": "Sarah Chen", "startsWith": "We built a platform"},
+    {"speaker": "Interviewer", "startsWith": "That sounds"},
+    {"speaker": "Sarah Chen", "startsWith": "That's actually"},
+    {"speaker": "Interviewer", "startsWith": "How has the market"},
+    {"speaker": "Sarah Chen", "startsWith": "Beyond our expectations"}
+  ]
+}

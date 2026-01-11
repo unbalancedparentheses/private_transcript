@@ -8,10 +8,17 @@ mod services;
 mod templates;
 mod utils;
 
+use tauri::Manager;
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .setup(|app| {
+            // Set app data directory for embeddings service
+            if let Ok(app_data_dir) = app.path().app_data_dir() {
+                services::embeddings::set_app_data_dir(app_data_dir);
+            }
+
             // Initialize database on startup
             let app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
@@ -87,6 +94,21 @@ fn main() {
             commands::models::get_loaded_llm_model,
             commands::models::get_models_total_size,
             commands::models::are_models_ready,
+            // Chat/RAG commands
+            commands::chat::check_embedding_model,
+            commands::chat::load_embedding_model,
+            commands::chat::unload_embedding_model,
+            commands::chat::index_session_for_rag,
+            commands::chat::is_session_indexed_for_rag,
+            commands::chat::index_all_sessions,
+            commands::chat::search_transcript_chunks,
+            commands::chat::create_chat_conversation,
+            commands::chat::add_chat_message,
+            commands::chat::get_chat_messages,
+            commands::chat::get_chat_conversations,
+            commands::chat::delete_chat_conversation,
+            commands::chat::build_context_from_chunks,
+            commands::chat::format_rag_chat_prompt,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
