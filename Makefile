@@ -7,8 +7,8 @@
 setup:
 	nix develop --command bash -c "pnpm install && cd whisperkit-worker && swift build -c release"
 
-# Run the app in development mode
-dev:
+# Run the app in development mode (rebuilds workers first)
+dev: build-workers
 	nix develop --command pnpm tauri dev
 
 # Build for production
@@ -23,6 +23,13 @@ clean:
 build-whisperkit:
 	cd whisperkit-worker && swift build -c release
 	@echo "WhisperKit worker built at whisperkit-worker/.build/release/whisperkit-worker"
+
+# Build all workers and copy to binaries folder
+build-workers: build-whisperkit
+	@echo "Copying workers to binaries folder..."
+	@mkdir -p src-tauri/binaries
+	cp whisperkit-worker/.build/release/whisperkit-worker src-tauri/binaries/whisperkit-worker-aarch64-apple-darwin
+	@echo "Workers updated in src-tauri/binaries/"
 
 # Run all tests
 test-all: test-backend test-frontend

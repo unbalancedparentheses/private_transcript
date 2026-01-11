@@ -96,13 +96,17 @@ export function RecordingView() {
 
   // Start live transcription with AudioWorklet
   const startLiveTranscription = useCallback(async (stream: MediaStream, sessionId: string) => {
+    console.log('[LiveTranscription] Starting for session:', sessionId);
     try {
       // Create a separate AudioContext for live transcription at 16kHz
+      console.log('[LiveTranscription] Creating AudioContext at 16kHz...');
       const audioContext = new AudioContext({ sampleRate: 16000 });
       liveTranscriptionContextRef.current = audioContext;
 
       // Load the AudioWorklet module
+      console.log('[LiveTranscription] Loading AudioWorklet module...');
       await audioContext.audioWorklet.addModule('/audio-processor.js');
+      console.log('[LiveTranscription] AudioWorklet module loaded');
 
       // Create source from stream
       const source = audioContext.createMediaStreamSource(stream);
@@ -112,8 +116,13 @@ export function RecordingView() {
       audioWorkletRef.current = workletNode;
 
       // Handle messages from the worklet (audio samples)
+      let sampleCount = 0;
       workletNode.port.onmessage = async (event) => {
         if (event.data.type === 'samples') {
+          sampleCount++;
+          if (sampleCount % 10 === 1) {
+            console.log('[LiveTranscription] Feeding audio chunk', sampleCount);
+          }
           const samples = Array.from(event.data.samples as Float32Array);
           try {
             await invoke('feed_live_audio', {
@@ -128,7 +137,7 @@ export function RecordingView() {
 
       // Connect the audio pipeline
       source.connect(workletNode);
-      // Note: We don't connect to destination - we don't want to hear the audio
+      console.log('[LiveTranscription] Audio pipeline connected');
 
       // Start the live transcription session
       const config: LiveTranscriptionConfig = {
@@ -138,15 +147,16 @@ export function RecordingView() {
         confirmationThreshold: 2,
       };
 
+      console.log('[LiveTranscription] Invoking start_live_transcription...');
       await invoke('start_live_transcription', {
         sessionId,
         config,
       });
 
       setIsLiveTranscribing(true);
-      console.log('[LiveTranscription] Started for session:', sessionId);
+      console.log('[LiveTranscription] Successfully started for session:', sessionId);
     } catch (error) {
-      console.error('Failed to start live transcription:', error);
+      console.error('[LiveTranscription] Failed to start:', error);
       addToast('Live transcription unavailable. Recording will continue.', 'warning');
     }
   }, [addToast]);
@@ -371,7 +381,9 @@ export function RecordingView() {
       startAudioAnalysis(stream);
 
       // Start live transcription if enabled
+      console.log('[Recording] enableLiveTranscription:', enableLiveTranscription);
       if (enableLiveTranscription) {
+        console.log('[Recording] Starting live transcription...');
         await startLiveTranscription(stream, sessionId);
       }
 
