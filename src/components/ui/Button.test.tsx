@@ -41,7 +41,7 @@ describe('Button', () => {
   it('should apply ghost variant styles', () => {
     render(<Button variant="ghost">Ghost</Button>);
     const button = screen.getByRole('button');
-    expect(button.className).toContain('hover:bg-[var(--muted)]');
+    expect(button.className).toContain('hover:bg-[var(--secondary)]');
   });
 
   it('should apply destructive variant styles', () => {
@@ -53,38 +53,39 @@ describe('Button', () => {
   it('should apply gradient variant styles', () => {
     render(<Button variant="gradient">Gradient</Button>);
     const button = screen.getByRole('button');
-    expect(button.className).toContain('bg-gradient-to-r');
+    // Gradient variant uses same styles as primary for macOS consistency
+    expect(button.className).toContain('bg-[var(--primary)]');
   });
 
   it('should apply small size styles', () => {
     render(<Button size="sm">Small</Button>);
     const button = screen.getByRole('button');
-    expect(button.className).toContain('h-8');
-    expect(button.className).toContain('px-3');
-    expect(button.className).toContain('text-xs');
+    expect(button.className).toContain('h-6');
+    expect(button.className).toContain('px-2');
+    expect(button.className).toContain('text-[12px]');
   });
 
   it('should apply medium size styles by default', () => {
     render(<Button>Medium</Button>);
     const button = screen.getByRole('button');
-    expect(button.className).toContain('h-10');
-    expect(button.className).toContain('px-4');
-    expect(button.className).toContain('text-sm');
+    expect(button.className).toContain('h-8');
+    expect(button.className).toContain('px-3');
+    expect(button.className).toContain('text-[13px]');
   });
 
   it('should apply large size styles', () => {
     render(<Button size="lg">Large</Button>);
     const button = screen.getByRole('button');
-    expect(button.className).toContain('h-12');
-    expect(button.className).toContain('px-6');
-    expect(button.className).toContain('text-base');
+    expect(button.className).toContain('h-9');
+    expect(button.className).toContain('px-4');
+    expect(button.className).toContain('text-[14px]');
   });
 
   it('should apply icon size styles', () => {
     render(<Button size="icon">+</Button>);
     const button = screen.getByRole('button');
-    expect(button.className).toContain('h-10');
-    expect(button.className).toContain('w-10');
+    expect(button.className).toContain('h-8');
+    expect(button.className).toContain('w-8');
   });
 
   it('should merge custom className', () => {

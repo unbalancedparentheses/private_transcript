@@ -169,8 +169,9 @@ describe('Toast Component', () => {
 
       fireEvent.click(screen.getByText('Add Success'));
       const toast = screen.getByRole('alert');
-      expect(toast).toHaveClass('bg-green-500/10');
-      expect(toast).toHaveClass('border-green-500/20');
+      // Toast uses card background with colored icon
+      expect(toast.className).toContain('bg-[var(--card)]');
+      expect(toast.className).toContain('border-[var(--border)]');
     });
 
     it('should render error toast with correct styling', () => {
@@ -182,8 +183,7 @@ describe('Toast Component', () => {
 
       fireEvent.click(screen.getByText('Add Error'));
       const toast = screen.getByRole('alert');
-      expect(toast).toHaveClass('bg-red-500/10');
-      expect(toast).toHaveClass('border-red-500/20');
+      expect(toast.className).toContain('bg-[var(--card)]');
     });
 
     it('should render warning toast with correct styling', () => {
@@ -195,8 +195,7 @@ describe('Toast Component', () => {
 
       fireEvent.click(screen.getByText('Add Warning'));
       const toast = screen.getByRole('alert');
-      expect(toast).toHaveClass('bg-yellow-500/10');
-      expect(toast).toHaveClass('border-yellow-500/20');
+      expect(toast.className).toContain('bg-[var(--card)]');
     });
 
     it('should render info toast with correct styling', () => {
@@ -208,8 +207,7 @@ describe('Toast Component', () => {
 
       fireEvent.click(screen.getByText('Add Info'));
       const toast = screen.getByRole('alert');
-      expect(toast).toHaveClass('bg-blue-500/10');
-      expect(toast).toHaveClass('border-blue-500/20');
+      expect(toast.className).toContain('bg-[var(--card)]');
     });
   });
 

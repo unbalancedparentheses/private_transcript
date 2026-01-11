@@ -111,14 +111,15 @@ describe('SettingsView', () => {
       render(<SettingsView />);
       fireEvent.click(screen.getByText('General'));
       await waitFor(() => {
-        expect(screen.getByText('General Settings')).toBeInTheDocument();
+        // General tab shows Ollama Connection section
+        expect(screen.getByText('Ollama Connection')).toBeInTheDocument();
       });
     });
 
     it('should switch to About tab', () => {
       render(<SettingsView />);
       fireEvent.click(screen.getByText('About'));
-      expect(screen.getByText('About Private Transcript')).toBeInTheDocument();
+      expect(screen.getByText('Private Transcript')).toBeInTheDocument();
     });
   });
 
@@ -170,11 +171,11 @@ describe('SettingsView', () => {
     });
 
     it('should show offline capability info', () => {
-      expect(screen.getByText('No Cloud Required')).toBeInTheDocument();
+      expect(screen.getByText('Works Offline')).toBeInTheDocument();
     });
 
-    it('should show open source info', () => {
-      expect(screen.getByText('Powered by Open Source')).toBeInTheDocument();
+    it('should show GPU acceleration info', () => {
+      expect(screen.getByText('GPU Accelerated')).toBeInTheDocument();
     });
 
     it('should show version info', () => {

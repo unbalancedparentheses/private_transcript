@@ -2,12 +2,19 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { RecordingView } from './RecordingView';
 import { listen } from '@tauri-apps/api/event';
+import { invoke } from '@tauri-apps/api/core';
 import { ToastProvider } from '../ui/Toast';
 
 // Helper to render with ToastProvider
 const renderWithToast = (ui: React.ReactElement) => {
   return render(<ToastProvider>{ui}</ToastProvider>);
 };
+
+// Mock audio devices
+const mockAudioDevices = [
+  { id: 'device-1', name: 'Default Microphone', isDefault: true, isInput: true },
+  { id: 'device-2', name: 'External Mic', isDefault: false, isInput: true },
+];
 
 // Mock the app store
 const mockSetView = vi.fn();
@@ -42,6 +49,17 @@ const mockMediaStream = {
 describe('RecordingView', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+
+    // Mock invoke for Tauri commands
+    vi.mocked(invoke).mockImplementation(async (cmd: string) => {
+      if (cmd === 'get_audio_devices') {
+        return mockAudioDevices;
+      }
+      if (cmd === 'check_audio_permissions') {
+        return { microphone: true, screenRecording: false };
+      }
+      return undefined;
+    });
 
     // Mock MediaRecorder
     (globalThis as unknown as { MediaRecorder: unknown }).MediaRecorder = vi.fn(() => mockMediaRecorder);
@@ -139,6 +157,16 @@ describe('RecordingView', () => {
 describe('RecordingView - No Folder Selected', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Mock invoke for Tauri commands
+    vi.mocked(invoke).mockImplementation(async (cmd: string) => {
+      if (cmd === 'get_audio_devices') {
+        return mockAudioDevices;
+      }
+      if (cmd === 'check_audio_permissions') {
+        return { microphone: true, screenRecording: false };
+      }
+      return undefined;
+    });
   });
 
   it('should show message when no folder is selected', () => {
@@ -155,6 +183,20 @@ describe('RecordingView - No Folder Selected', () => {
 });
 
 describe('Audio Level Meter', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // Mock invoke for Tauri commands
+    vi.mocked(invoke).mockImplementation(async (cmd: string) => {
+      if (cmd === 'get_audio_devices') {
+        return mockAudioDevices;
+      }
+      if (cmd === 'check_audio_permissions') {
+        return { microphone: true, screenRecording: false };
+      }
+      return undefined;
+    });
+  });
+
   it('should not show level meter when not recording', () => {
     renderWithToast(<RecordingView />);
     // The level meter bars should not be visible when not recording
@@ -180,6 +222,17 @@ describe('Pause/Resume Recording', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockMediaRecorder.state = 'inactive';
+
+    // Mock invoke for Tauri commands
+    vi.mocked(invoke).mockImplementation(async (cmd: string) => {
+      if (cmd === 'get_audio_devices') {
+        return mockAudioDevices;
+      }
+      if (cmd === 'check_audio_permissions') {
+        return { microphone: true, screenRecording: false };
+      }
+      return undefined;
+    });
 
     // Mock AudioContext
     (globalThis as unknown as { AudioContext: unknown }).AudioContext = vi.fn(() => mockAudioContext);
@@ -209,6 +262,14 @@ describe('Pause/Resume Recording', () => {
     // Mock requestAnimationFrame
     vi.spyOn(window, 'requestAnimationFrame').mockImplementation((_callback) => {
       return 1;
+    });
+
+    // Mock getUserMedia
+    Object.defineProperty(navigator, 'mediaDevices', {
+      value: {
+        getUserMedia: vi.fn(() => Promise.resolve(mockMediaStream)),
+      },
+      writable: true,
     });
   });
 
@@ -250,6 +311,20 @@ describe('Pause/Resume Recording', () => {
 });
 
 describe('Transcription Progress Event Handling', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // Mock invoke for Tauri commands
+    vi.mocked(invoke).mockImplementation(async (cmd: string) => {
+      if (cmd === 'get_audio_devices') {
+        return mockAudioDevices;
+      }
+      if (cmd === 'check_audio_permissions') {
+        return { microphone: true, screenRecording: false };
+      }
+      return undefined;
+    });
+  });
+
   it('should handle complete status', async () => {
     let progressCallback: ((event: { payload: unknown }) => void) | null = null;
     vi.mocked(listen).mockImplementation(async (eventName, callback) => {

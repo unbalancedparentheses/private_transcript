@@ -12,20 +12,20 @@ describe('Progress', () => {
 
   it('should set correct width based on value', () => {
     render(<Progress value={75} />);
-    // The progress bar inner element has the gradient and width
-    const progressBar = document.querySelector('.bg-gradient-to-r') as HTMLElement;
+    // The progress bar inner element has bg-[var(--primary)] and width
+    const progressBar = document.querySelector('[style*="width"]') as HTMLElement;
     expect(progressBar?.style.width).toBe('75%');
   });
 
   it('should clamp value to 0-100 range', () => {
     render(<Progress value={150} />);
-    const progressBar = document.querySelector('.bg-gradient-to-r') as HTMLElement;
+    const progressBar = document.querySelector('[style*="width"]') as HTMLElement;
     expect(progressBar?.style.width).toBe('100%');
   });
 
   it('should handle negative values', () => {
     render(<Progress value={-10} />);
-    const progressBar = document.querySelector('.bg-gradient-to-r') as HTMLElement;
+    const progressBar = document.querySelector('[style*="width"]') as HTMLElement;
     expect(progressBar?.style.width).toBe('0%');
   });
 
@@ -70,24 +70,27 @@ describe('Progress', () => {
 
   it('should handle zero value', () => {
     render(<Progress value={0} />);
-    const progressBar = document.querySelector('.bg-gradient-to-r') as HTMLElement;
+    const progressBar = document.querySelector('[style*="width"]') as HTMLElement;
     expect(progressBar?.style.width).toBe('0%');
   });
 
   it('should handle 100% value', () => {
     render(<Progress value={100} />);
-    const progressBar = document.querySelector('.bg-gradient-to-r') as HTMLElement;
+    const progressBar = document.querySelector('[style*="width"]') as HTMLElement;
     expect(progressBar?.style.width).toBe('100%');
   });
 
   it('should support different sizes', () => {
-    const { rerender } = render(<Progress value={50} size="sm" />);
-    expect(document.querySelector('.h-1')).toBeInTheDocument();
+    const { container, rerender } = render(<Progress value={50} size="sm" />);
+    // Check that h-1 class exists on the container
+    expect(container.querySelector('.h-1')).toBeInTheDocument();
 
     rerender(<Progress value={50} size="md" />);
-    expect(document.querySelector('.h-1\\.5')).toBeInTheDocument();
+    // h-1.5 class is escaped differently in DOM queries
+    const mdBar = container.querySelector('.rounded-full.overflow-hidden');
+    expect(mdBar?.className).toContain('h-1.5');
 
     rerender(<Progress value={50} size="lg" />);
-    expect(document.querySelector('.h-2')).toBeInTheDocument();
+    expect(container.querySelector('.h-2')).toBeInTheDocument();
   });
 });

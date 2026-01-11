@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { useAppStore } from './appStore';
 import { useInitStore } from './useInitStore';
 import { useWorkspaceStore } from './useWorkspaceStore';
@@ -37,6 +37,13 @@ describe('AppStore', () => {
       view: 'list',
     });
     vi.clearAllMocks();
+    // Reset mock implementations to default (returns undefined)
+    vi.mocked(invoke).mockReset();
+  });
+
+  afterEach(() => {
+    // Ensure mocks are reset after each test
+    vi.mocked(invoke).mockReset();
   });
 
   describe('Initial State', () => {
@@ -141,7 +148,10 @@ describe('AppStore', () => {
     });
 
     it('should handle errors gracefully', async () => {
-      (invoke as any).mockRejectedValue(new Error('Network error'));
+      // Mock invoke to reject with an error
+      vi.mocked(invoke).mockImplementation(() =>
+        Promise.reject(new Error('Network error'))
+      );
 
       const { initialize } = useAppStore.getState();
       await initialize();
@@ -189,12 +199,21 @@ describe('AppStore', () => {
         status: 'pending',
       };
 
+      // Mock invoke to return empty sessions for loadSessions and then the session for createSession
+      vi.mocked(invoke).mockImplementation(async (cmd: string) => {
+        if (cmd === 'get_sessions') return [];
+        if (cmd === 'create_session') return mockSession;
+        return undefined;
+      });
+
       // Set up folder first - update the workspace store
+      // This triggers subscription which calls loadSessions
       useWorkspaceStore.setState({
         currentFolder: { id: 'folder-1', name: 'Test Folder' } as any,
       });
 
-      (invoke as any).mockResolvedValueOnce(mockSession);
+      // Wait for subscription to complete
+      await new Promise((resolve) => setTimeout(resolve, 0));
 
       const { createSession } = useAppStore.getState();
       const result = await createSession('/path/audio.m4a', 'My Recording');

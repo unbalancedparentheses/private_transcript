@@ -25,12 +25,9 @@ export function Button({
         'disabled:opacity-50 disabled:cursor-not-allowed',
         'active:opacity-80',
         {
-          // Primary - macOS style solid blue
+          // Primary and Gradient - macOS style solid blue
           'bg-[var(--primary)] text-white hover:bg-[var(--primary-hover)]':
-            variant === 'primary',
-          // Gradient - same as primary for macOS consistency
-          'bg-[var(--primary)] text-white hover:bg-[var(--primary-hover)]':
-            variant === 'gradient',
+            variant === 'primary' || variant === 'gradient',
           // Secondary - subtle background
           'bg-[var(--secondary)] text-[var(--foreground)] hover:bg-[var(--border)]':
             variant === 'secondary',

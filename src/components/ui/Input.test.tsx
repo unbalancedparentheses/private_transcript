@@ -66,10 +66,11 @@ describe('Input', () => {
       expect(input.className).toContain('border-[var(--destructive)]');
     });
 
-    it('should render error icon with error message', () => {
+    it('should render error message with correct styling', () => {
       render(<Input error="Error message" />);
-      const errorContainer = screen.getByText('Error message').closest('p');
-      expect(errorContainer?.querySelector('svg')).toBeInTheDocument();
+      const errorContainer = screen.getByText('Error message');
+      expect(errorContainer).toBeInTheDocument();
+      expect(errorContainer.className).toContain('text-[var(--destructive)]');
     });
 
     it('should hide hint when error is shown', () => {
@@ -174,8 +175,8 @@ describe('Input', () => {
       render(<Input />);
       const input = screen.getByRole('textbox');
       expect(input.className).toContain('w-full');
-      expect(input.className).toContain('h-10');
-      expect(input.className).toContain('rounded-lg');
+      expect(input.className).toContain('h-7');
+      expect(input.className).toContain('rounded-md');
     });
 
     it('should have focus ring styles', () => {
@@ -184,10 +185,10 @@ describe('Input', () => {
       expect(input.className).toContain('focus:ring-2');
     });
 
-    it('should have hover styles', () => {
+    it('should have transition styles', () => {
       render(<Input />);
       const input = screen.getByRole('textbox');
-      expect(input.className).toContain('hover:border-[var(--muted-foreground)]/30');
+      expect(input.className).toContain('transition-colors');
     });
   });
 
