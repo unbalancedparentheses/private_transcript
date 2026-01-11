@@ -15,6 +15,7 @@ interface TranscriptionProgress {
 export function RecordingView() {
   const { currentFolder, createSession, setView, updateSession } = useAppStore();
   const [isRecording, setIsRecording] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [duration, setDuration] = useState(0);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -185,12 +186,57 @@ export function RecordingView() {
   };
 
   const stopRecording = () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+    if (mediaRecorderRef.current && (mediaRecorderRef.current.state === 'recording' || mediaRecorderRef.current.state === 'paused')) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
+      setIsPaused(false);
       if (timerRef.current) {
         clearInterval(timerRef.current);
         timerRef.current = null;
+      }
+    }
+  };
+
+  const pauseRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      mediaRecorderRef.current.pause();
+      setIsPaused(true);
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      // Pause audio level analysis
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+    }
+  };
+
+  const resumeRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'paused') {
+      mediaRecorderRef.current.resume();
+      setIsPaused(false);
+      // Resume timer
+      timerRef.current = window.setInterval(() => {
+        setDuration((d) => d + 1);
+      }, 1000);
+      // Resume audio level analysis
+      if (analyserRef.current) {
+        const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
+        const updateLevel = () => {
+          if (!analyserRef.current) return;
+          analyserRef.current.getByteFrequencyData(dataArray);
+          let sum = 0;
+          for (let i = 0; i < dataArray.length; i++) {
+            sum += dataArray[i] * dataArray[i];
+          }
+          const rms = Math.sqrt(sum / dataArray.length);
+          const normalizedLevel = Math.min(100, (rms / 128) * 100);
+          setAudioLevel(normalizedLevel);
+          animationFrameRef.current = requestAnimationFrame(updateLevel);
+        };
+        updateLevel();
       }
     }
   };
@@ -304,14 +350,21 @@ export function RecordingView() {
           <div className="mb-8">
             <div
               className={`relative w-32 h-32 rounded-full mx-auto flex items-center justify-center transition-all duration-300 ${
-                isRecording
+                isRecording && !isPaused
                   ? 'bg-gradient-to-br from-red-500 to-red-600 recording-pulse shadow-2xl'
+                  : isRecording && isPaused
+                  ? 'bg-gradient-to-br from-amber-500 to-amber-600 shadow-lg shadow-amber-500/30'
                   : audioBlob
                   ? 'bg-gradient-to-br from-[var(--success)] to-emerald-600 shadow-lg shadow-[var(--success)]/30'
                   : 'bg-[var(--muted)]'
               }`}
             >
-              {isRecording ? (
+              {isRecording && isPaused ? (
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="white">
+                  <rect x="6" y="4" width="4" height="16" rx="1" />
+                  <rect x="14" y="4" width="4" height="16" rx="1" />
+                </svg>
+              ) : isRecording ? (
                 <svg width="40" height="40" viewBox="0 0 24 24" fill="white">
                   <rect x="6" y="6" width="12" height="12" rx="2" />
                 </svg>
@@ -329,7 +382,7 @@ export function RecordingView() {
             </div>
 
             {/* Audio Level Meter */}
-            {isRecording && (
+            {isRecording && !isPaused && (
               <div className="mt-6 flex items-end justify-center gap-0.5 h-10">
                 {[...Array(24)].map((_, i) => {
                   const threshold = (i / 24) * 100;
@@ -367,24 +420,51 @@ export function RecordingView() {
           {/* Controls */}
           <div className="flex items-center justify-center gap-4">
             {!audioBlob ? (
-              <button
-                onClick={isRecording ? stopRecording : startRecording}
-                className={`w-16 h-16 rounded-full flex items-center justify-center transition-all btn-press ${
-                  isRecording
-                    ? 'bg-gradient-to-br from-red-500 to-red-600 shadow-lg shadow-red-500/30 hover:shadow-xl'
-                    : 'bg-gradient-to-br from-[var(--primary)] to-[var(--gradient-end)] shadow-lg shadow-[var(--primary)]/30 hover:shadow-xl'
-                }`}
-              >
-                {isRecording ? (
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
-                    <rect x="6" y="6" width="12" height="12" rx="2" />
-                  </svg>
-                ) : (
+              isRecording ? (
+                <div className="flex items-center gap-3">
+                  {/* Pause/Resume Button */}
+                  <button
+                    onClick={isPaused ? resumeRecording : pauseRecording}
+                    className={`w-14 h-14 rounded-full flex items-center justify-center transition-all btn-press ${
+                      isPaused
+                        ? 'bg-gradient-to-br from-[var(--success)] to-emerald-600 shadow-lg shadow-[var(--success)]/30 hover:shadow-xl'
+                        : 'bg-gradient-to-br from-amber-500 to-amber-600 shadow-lg shadow-amber-500/30 hover:shadow-xl'
+                    }`}
+                    title={isPaused ? 'Resume recording' : 'Pause recording'}
+                  >
+                    {isPaused ? (
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                    ) : (
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+                        <rect x="6" y="4" width="4" height="16" rx="1" />
+                        <rect x="14" y="4" width="4" height="16" rx="1" />
+                      </svg>
+                    )}
+                  </button>
+                  {/* Stop Button */}
+                  <button
+                    onClick={stopRecording}
+                    className="w-16 h-16 rounded-full flex items-center justify-center transition-all btn-press bg-gradient-to-br from-red-500 to-red-600 shadow-lg shadow-red-500/30 hover:shadow-xl"
+                    title="Stop recording"
+                  >
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+                      <rect x="6" y="6" width="12" height="12" rx="2" />
+                    </svg>
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={startRecording}
+                  className="w-16 h-16 rounded-full flex items-center justify-center transition-all btn-press bg-gradient-to-br from-[var(--primary)] to-[var(--gradient-end)] shadow-lg shadow-[var(--primary)]/30 hover:shadow-xl"
+                  title="Start recording"
+                >
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
                     <circle cx="12" cy="12" r="6" />
                   </svg>
-                )}
-              </button>
+                </button>
+              )
             ) : isTranscribing ? (
               <div className="w-full max-w-xs animate-fade-in">
                 <Progress
@@ -430,8 +510,10 @@ export function RecordingView() {
 
           {/* Instructions */}
           <p className="mt-10 text-[var(--muted-foreground)] text-sm max-w-xs mx-auto leading-relaxed">
-            {isRecording
-              ? 'Recording... Click the stop button when finished.'
+            {isRecording && isPaused
+              ? 'Recording paused. Click play to resume or stop to finish.'
+              : isRecording
+              ? 'Recording... Pause or stop when finished.'
               : isTranscribing
               ? 'Transcribing locally. This may take a moment...'
               : audioBlob

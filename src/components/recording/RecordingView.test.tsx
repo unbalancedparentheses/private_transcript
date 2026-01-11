@@ -21,7 +21,9 @@ vi.mock('../../stores/appStore', () => ({
 const mockMediaRecorder = {
   start: vi.fn(),
   stop: vi.fn(),
-  state: 'inactive',
+  pause: vi.fn(),
+  resume: vi.fn(),
+  state: 'inactive' as 'inactive' | 'recording' | 'paused',
   ondataavailable: null as ((e: { data: Blob }) => void) | null,
   onstop: null as (() => void) | null,
   mimeType: 'audio/webm',
@@ -152,6 +154,92 @@ describe('Audio Level Meter', () => {
     // The level meter bars should not be visible when not recording
     const levelMeterBars = document.querySelectorAll('.bg-green-500, .bg-yellow-500, .bg-red-500');
     expect(levelMeterBars.length).toBe(0);
+  });
+});
+
+describe('Pause/Resume Recording', () => {
+  const mockAudioContext = {
+    createAnalyser: vi.fn(() => ({
+      fftSize: 256,
+      smoothingTimeConstant: 0.8,
+      frequencyBinCount: 128,
+      getByteFrequencyData: vi.fn(),
+    })),
+    createMediaStreamSource: vi.fn(() => ({
+      connect: vi.fn(),
+    })),
+    close: vi.fn(),
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockMediaRecorder.state = 'inactive';
+
+    // Mock AudioContext
+    (globalThis as unknown as { AudioContext: unknown }).AudioContext = vi.fn(() => mockAudioContext);
+
+    // Mock window.alert
+    vi.spyOn(window, 'alert').mockImplementation(() => {});
+
+    // Mock MediaRecorder with state change simulation
+    (globalThis as unknown as { MediaRecorder: unknown }).MediaRecorder = vi.fn(() => {
+      const recorder = { ...mockMediaRecorder };
+      recorder.start = vi.fn(() => {
+        recorder.state = 'recording';
+      });
+      recorder.pause = vi.fn(() => {
+        recorder.state = 'paused';
+      });
+      recorder.resume = vi.fn(() => {
+        recorder.state = 'recording';
+      });
+      recorder.stop = vi.fn(() => {
+        recorder.state = 'inactive';
+      });
+      return recorder;
+    });
+    (globalThis as unknown as { MediaRecorder: { isTypeSupported: unknown } }).MediaRecorder.isTypeSupported = vi.fn(() => true);
+
+    // Mock requestAnimationFrame
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      return 1;
+    });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('should show instruction for starting recording initially', () => {
+    render(<RecordingView />);
+    expect(screen.getByText(/Tap to start recording/)).toBeInTheDocument();
+  });
+
+  it('should show start button initially', () => {
+    render(<RecordingView />);
+    const startButton = screen.getByTitle('Start recording');
+    expect(startButton).toBeInTheDocument();
+  });
+
+  it('should show pause and stop buttons when recording', async () => {
+    render(<RecordingView />);
+    const startButton = screen.getByTitle('Start recording');
+    fireEvent.click(startButton);
+
+    await waitFor(() => {
+      expect(screen.getByTitle('Pause recording')).toBeInTheDocument();
+      expect(screen.getByTitle('Stop recording')).toBeInTheDocument();
+    });
+  });
+
+  it('should update instruction when recording', async () => {
+    render(<RecordingView />);
+    const startButton = screen.getByTitle('Start recording');
+    fireEvent.click(startButton);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Recording... Pause or stop when finished/)).toBeInTheDocument();
+    });
   });
 });
 
