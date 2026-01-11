@@ -418,10 +418,27 @@ pub fn build_rag_context(chunks: &[RetrievedChunk]) -> String {
 
 /// Format RAG prompt with context and user question
 pub fn format_rag_prompt(context: &str, user_question: &str) -> String {
+    if context.is_empty() {
+        return format!(
+            r#"The user asked a question but no relevant transcript excerpts were found.
+
+User question: {}
+
+Please let the user know that you couldn't find relevant information in their transcripts to answer this question. Suggest they might need to record content related to their question first, or try rephrasing their question."#,
+            user_question
+        );
+    }
+
     format!(
-        r#"You are a helpful assistant that answers questions based on transcript excerpts.
-Use the provided context to answer the user's question. If the context doesn't contain
-relevant information, say so clearly. Be concise and accurate.
+        r#"You are a helpful assistant answering questions based on the user's transcript recordings.
+
+INSTRUCTIONS:
+- Answer the question using ONLY the information from the transcript excerpts below
+- Synthesize information across multiple excerpts when relevant
+- Quote specific parts of the transcripts when it helps answer the question
+- If the excerpts don't contain enough information, say so honestly
+- Be direct and helpful - give actionable answers when possible
+- For analytical questions (summaries, themes, patterns), analyze across all excerpts
 
 {}
 
@@ -443,7 +460,8 @@ pub async fn generate_rag_response(
     let prompt = format_rag_prompt(&context, query);
 
     // Use current LLM provider with streaming (emits llm-stream events)
-    llm::generate_with_current_provider(app, conversation_id, &prompt, 1024).await
+    // 2048 tokens allows for detailed responses
+    llm::generate_with_current_provider(app, conversation_id, &prompt, 2048).await
 }
 
 #[cfg(test)]

@@ -165,8 +165,8 @@ pub async fn send_rag_chat_message(
         .await
         .into_tauri_result()?;
 
-    // 2. Search for relevant chunks
-    let chunks = search_chunks(pool, &message, 5, 0.3)
+    // 2. Search for relevant chunks (8 chunks, 0.25 similarity threshold for broader context)
+    let chunks = search_chunks(pool, &message, 8, 0.25)
         .await
         .into_tauri_result()?;
 
