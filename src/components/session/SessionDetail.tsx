@@ -2,7 +2,6 @@ import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { open } from '@tauri-apps/plugin-shell';
 import { useAppStore } from '../../stores/appStore';
 import { Button } from '../ui/Button';
 import { useToast } from '../ui/Toast';
@@ -74,6 +73,7 @@ export function SessionDetail() {
 
   // Confirmation dialog state
   const [showRetranscribeConfirm, setShowRetranscribeConfirm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Parse transcript into speaker segments when speaker view is enabled
   useEffect(() => {
@@ -558,7 +558,7 @@ export function SessionDetail() {
           tags,
         });
         addToast(`Exported to Obsidian: ${path}`, 'success');
-        await open(path);
+        await invoke('open_file', { path });
       } catch (error) {
         addToast(`Obsidian export failed: ${error}`, 'error');
       }
@@ -572,7 +572,7 @@ export function SessionDetail() {
       const path = await invoke<string>(`export_${format}`, { content, filename });
       addToast(`Exported to: ${path}`, 'success');
       // Open the exported file with the system's default application
-      await open(path);
+      await invoke('open_file', { path });
     } catch (error) {
       addToast('Export failed. Please try again.', 'error');
     }
@@ -588,13 +588,14 @@ export function SessionDetail() {
     }
   };
 
-  const handleDeleteSession = async () => {
+  const handleDeleteSession = () => {
     if (!currentSession) return;
+    setShowDeleteConfirm(true);
+  };
 
-    // Show confirmation
-    if (!window.confirm(`Are you sure you want to delete "${currentSession.title || 'this session'}"? This action cannot be undone.`)) {
-      return;
-    }
+  const confirmDeleteSession = async () => {
+    setShowDeleteConfirm(false);
+    if (!currentSession) return;
 
     try {
       await deleteSession(currentSession.id);
@@ -1327,6 +1328,38 @@ export function SessionDetail() {
                 className="text-[13px]"
               >
                 Regenerate
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Session Confirmation Dialog */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-[var(--card)] rounded-lg shadow-xl p-4 max-w-sm w-full mx-4 border border-[var(--border)]">
+            <h3 className="text-[15px] font-semibold text-[var(--foreground)] mb-2">
+              Delete Session
+            </h3>
+            <p className="text-[13px] text-[var(--muted-foreground)] mb-4">
+              Are you sure you want to delete "{currentSession?.title || 'this session'}"? This will also delete the audio file. This action cannot be undone.
+            </p>
+            <div className="flex gap-2 justify-end">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowDeleteConfirm(false)}
+                className="text-[13px]"
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={confirmDeleteSession}
+                className="text-[13px]"
+              >
+                Delete
               </Button>
             </div>
           </div>

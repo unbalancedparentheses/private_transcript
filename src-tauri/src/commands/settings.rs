@@ -147,6 +147,42 @@ pub async fn show_in_folder(path: String) -> Result<(), String> {
     Ok(())
 }
 
+/// Open a file with the system's default application
+#[tauri::command]
+pub async fn open_file(path: String) -> Result<(), String> {
+    let path = PathBuf::from(&path);
+
+    if !path.exists() {
+        return Err(format!("File does not exist: {}", path.display()));
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open")
+            .arg(&path)
+            .spawn()
+            .map_err(|e| format!("Failed to open file: {}", e))?;
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("cmd")
+            .args(["/C", "start", "", &path.to_string_lossy()])
+            .spawn()
+            .map_err(|e| format!("Failed to open file: {}", e))?;
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        std::process::Command::new("xdg-open")
+            .arg(&path)
+            .spawn()
+            .map_err(|e| format!("Failed to open file: {}", e))?;
+    }
+
+    Ok(())
+}
+
 /// Calculate total size and file count of a directory recursively
 fn get_dir_size(path: &PathBuf) -> (u64, u32) {
     let mut total_size: u64 = 0;

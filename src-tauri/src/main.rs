@@ -69,6 +69,7 @@ fn main() {
             commands::settings::update_settings,
             commands::settings::get_storage_usage,
             commands::settings::show_in_folder,
+            commands::settings::open_file,
             // Model management commands
             commands::models::get_available_whisper_models,
             commands::models::get_available_llm_models,
