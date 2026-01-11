@@ -15,6 +15,9 @@ import {
   estimateSegmentTimestamps,
   findSegmentAtTime,
   formatTimestamp,
+  removeFillerWordsFromSegments,
+  segmentsToSRT,
+  segmentsToVTT,
 } from '../../lib/speakerDetection';
 
 function formatTime(seconds: number): string {
@@ -56,6 +59,7 @@ export function SessionDetail() {
   const [audioError, setAudioError] = useState<string | null>(null);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [compactMode, setCompactMode] = useState(false);
+  const [removeFillers, setRemoveFillers] = useState(false);
 
   // Speaker labels state (enabled by default)
   const [showSpeakerView, setShowSpeakerView] = useState(true);
@@ -101,6 +105,12 @@ export function SessionDetail() {
   const uniqueSpeakers = useMemo(() => {
     return getUniqueSpeakers(speakerSegments);
   }, [speakerSegments]);
+
+  // Apply filler word removal if enabled
+  const displaySegments = useMemo(() => {
+    if (!removeFillers) return speakerSegments;
+    return removeFillerWordsFromSegments(speakerSegments);
+  }, [speakerSegments, removeFillers]);
 
   // Handle speaker rename
   const handleRenameSpeaker = () => {
@@ -374,8 +384,32 @@ export function SessionDetail() {
   };
 
   const handleExport = async (format: 'markdown' | 'pdf' | 'docx' | 'srt' | 'vtt') => {
-    const content = `# ${currentSession.title || 'Session'}\n\n## Transcript\n\n${currentSession.transcript || ''}\n\n## Notes\n\n${currentSession.generatedNote || ''}`;
     const filename = `session-${currentSession.id.slice(0, 8)}`;
+
+    // Handle SRT/VTT exports client-side
+    if (format === 'srt' || format === 'vtt') {
+      const segments = displaySegments.length > 0 ? displaySegments : speakerSegments;
+      if (segments.length === 0) {
+        addToast('No transcript segments to export', 'error');
+        return;
+      }
+
+      const content = format === 'srt' ? segmentsToSRT(segments) : segmentsToVTT(segments);
+      const blob = new Blob([content], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${filename}.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      addToast(`Exported ${format.toUpperCase()} file`, 'success');
+      return;
+    }
+
+    // Handle other formats via Rust backend
+    const content = `# ${currentSession.title || 'Session'}\n\n## Transcript\n\n${currentSession.transcript || ''}\n\n## Notes\n\n${currentSession.generatedNote || ''}`;
 
     try {
       const path = await invoke<string>(`export_${format}`, { content, filename });
@@ -479,6 +513,19 @@ export function SessionDetail() {
                 className="w-full px-3 py-1.5 text-xs text-left hover:bg-[var(--muted)] transition-colors"
               >
                 Word
+              </button>
+              <div className="border-t border-[var(--border)] my-1" />
+              <button
+                onClick={() => handleExport('srt')}
+                className="w-full px-3 py-1.5 text-xs text-left hover:bg-[var(--muted)] transition-colors"
+              >
+                SRT Subtitles
+              </button>
+              <button
+                onClick={() => handleExport('vtt')}
+                className="w-full px-3 py-1.5 text-xs text-left hover:bg-[var(--muted)] transition-colors"
+              >
+                VTT Subtitles
               </button>
             </div>
           </div>
@@ -735,6 +782,20 @@ export function SessionDetail() {
                   <path d="M4 6h16M4 12h10M4 18h16" />
                 </svg>
               </button>
+              {/* Filler Word Removal Toggle */}
+              <button
+                onClick={() => setRemoveFillers(!removeFillers)}
+                className={`w-7 h-7 flex items-center justify-center rounded transition-colors ${
+                  removeFillers
+                    ? 'bg-[var(--primary)] text-white'
+                    : 'hover:bg-[var(--muted)]'
+                }`}
+                title={removeFillers ? 'Show filler words' : 'Remove filler words (um, uh, like)'}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+                </svg>
+              </button>
               {/* Regenerate Transcript */}
               {currentSession.audioPath && (
                 <button
@@ -751,7 +812,7 @@ export function SessionDetail() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => handleCopy(showSpeakerView ? segmentsToText(speakerSegments) : currentSession.transcript || '')}
+                onClick={() => handleCopy(showSpeakerView ? segmentsToText(displaySegments) : currentSession.transcript || '')}
                 className="h-7 px-2 text-xs"
               >
                 Copy
@@ -865,7 +926,7 @@ export function SessionDetail() {
 
                 {/* Speaker Segments */}
                 <div className="space-y-3">
-                  {speakerSegments.map((segment, index) => {
+                  {displaySegments.map((segment, index) => {
                     const isActive = index === activeSegmentIndex;
                     const hasTimestamp = segment.start > 0;
 

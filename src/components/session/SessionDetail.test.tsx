@@ -758,3 +758,120 @@ describe('SessionDetail - No Session', () => {
     // This is tested by the component logic
   });
 });
+
+describe('SessionDetail - Filler Word Removal', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('should have filler word removal toggle button', () => {
+    renderWithToast(<SessionDetail />);
+    const fillerButton = screen.getByTitle(/filler words/i);
+    expect(fillerButton).toBeInTheDocument();
+  });
+
+  it('should toggle filler word removal on click', () => {
+    renderWithToast(<SessionDetail />);
+    const fillerButton = screen.getByTitle(/filler words/i);
+
+    // Initially should not have the active state
+    expect(fillerButton).not.toHaveClass('bg-[var(--primary)]');
+
+    // Click to enable
+    fireEvent.click(fillerButton);
+
+    // After click, button should have active state
+    expect(fillerButton).toHaveClass('bg-[var(--primary)]');
+  });
+});
+
+describe('SessionDetail - Export Options', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('should have export button', () => {
+    renderWithToast(<SessionDetail />);
+    expect(screen.getByText('Export')).toBeInTheDocument();
+  });
+
+  it('should have SRT export option in dropdown', () => {
+    renderWithToast(<SessionDetail />);
+    expect(screen.getByText('SRT Subtitles')).toBeInTheDocument();
+  });
+
+  it('should have VTT export option in dropdown', () => {
+    renderWithToast(<SessionDetail />);
+    expect(screen.getByText('VTT Subtitles')).toBeInTheDocument();
+  });
+
+  it('should have Markdown export option', () => {
+    renderWithToast(<SessionDetail />);
+    expect(screen.getByText('Markdown')).toBeInTheDocument();
+  });
+
+  it('should have PDF export option', () => {
+    renderWithToast(<SessionDetail />);
+    expect(screen.getByText('PDF')).toBeInTheDocument();
+  });
+});
+
+describe('SessionDetail - Compact Mode', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('should have compact mode toggle button', () => {
+    renderWithToast(<SessionDetail />);
+    const compactButton = screen.getByTitle(/compact|timestamps/i);
+    expect(compactButton).toBeInTheDocument();
+  });
+
+  it('should toggle compact mode on click', () => {
+    renderWithToast(<SessionDetail />);
+    const compactButton = screen.getByTitle(/compact|timestamps/i);
+
+    // Click to enable compact mode
+    fireEvent.click(compactButton);
+
+    // After click, button should have active state
+    expect(compactButton).toHaveClass('bg-[var(--primary)]');
+  });
+});
+
+describe('SessionDetail - Playback Speed', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('should have playback speed button', () => {
+    renderWithToast(<SessionDetail />);
+    expect(screen.getByTitle('Playback speed')).toBeInTheDocument();
+  });
+
+  it('should have multiple speed options in dropdown', () => {
+    renderWithToast(<SessionDetail />);
+    // Speed options should be visible in the dropdown
+    expect(screen.getByText('0.5x')).toBeInTheDocument();
+    expect(screen.getByText('0.75x')).toBeInTheDocument();
+    expect(screen.getByText('1.25x')).toBeInTheDocument();
+    expect(screen.getByText('1.5x')).toBeInTheDocument();
+    expect(screen.getByText('2x')).toBeInTheDocument();
+  });
+});
