@@ -14,11 +14,40 @@
 
 <p align="center">
   <a href="#features">Features</a> •
+  <a href="#pricing">Pricing</a> •
   <a href="#quick-start">Quick Start</a> •
   <a href="#roadmap">Roadmap</a> •
-  <a href="#sprint-plan">Sprint Plan</a> •
   <a href="#architecture">Architecture</a>
 </p>
+
+---
+
+## Table of Contents
+
+- [Why Private Transcript?](#why-private-transcript)
+- [Pricing](#pricing)
+- [Competitor Landscape](#competitor-landscape)
+- [Features](#features)
+- [Quick Start](#quick-start)
+- [Roadmap](#roadmap)
+  - [Week 0: Fix What's Broken](#week-0-fix-whats-broken)
+  - [MacWhisper Parity](#-macwhisper-parity-week-1-2)
+  - [Full Feature Roadmap](#full-feature-roadmap)
+- [Sprint Plan](#sprint-plan)
+  - [Week 0: Fix What's Broken](#week-0-fix-whats-broken-2-3-days)
+  - [Week 1: Build Complete Product](#week-1-build-complete-product)
+  - [Week 2: MacWhisper Parity](#week-2-macwhisper-parity--differentiation)
+  - [Week 3: Polish + Launch](#week-3-polish--launch)
+- [Platform Strategy](#platform-strategy)
+- [Architecture](#architecture)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Configuration](#configuration)
+- [Privacy & Security](#privacy--security)
+- [System Requirements](#system-requirements)
+- [Troubleshooting](#troubleshooting)
+- [Contributing](#contributing)
+- [License](#license)
 
 ---
 
@@ -42,6 +71,58 @@ Most transcription apps send your audio to the cloud. That's a problem for:
 Or:
 
 > **"Otter's intelligence. MacWhisper's privacy. One price forever."**
+
+---
+
+## Pricing
+
+### Tiers
+
+| Tier | Price | What You Get |
+|------|-------|--------------|
+| **Free** | $0 | Unlimited transcription, basic model (small), MD/TXT export |
+| **Pro** | $39 one-time | All models, AI features, all exports, integrations |
+| **Cloud Add-on** | +$5/mo | Groq transcription, OpenRouter AI (optional) |
+
+### Why This Works
+
+**Free is truly free:**
+- Unlimited transcription — it runs on *your* computer
+- No artificial monthly limits
+- Better than Buzz (nicer UI, same price)
+- Respects the "your device, your control" promise
+
+**Pro is worth $39:**
+- AI summaries, action items, key decisions
+- Local RAG — chat with all your transcripts
+- Cross-meeting insights ("You discussed X with John 4 times")
+- Speaker diarization + rename speakers
+- Large-v3-turbo model (best accuracy)
+- All exports: PDF, DOCX, SRT, VTT, CSV, HTML
+- Integrations: Obsidian, Notion, Zapier
+
+**Cloud is optional:**
+- For users who want speed over privacy
+- Groq = fastest cloud transcription
+- OpenRouter = access to Claude, GPT-4, etc.
+- Doesn't compromise privacy-first positioning
+
+### The Logic
+
+```
+Free = Transcription      (commodity — Whisper is open source)
+Pro  = Intelligence       (AI features are the real value)
+Cloud = Speed + Power     (optional, for those who want it)
+```
+
+### Competitive Position
+
+| Product | Price | Model | Our Advantage |
+|---------|-------|-------|---------------|
+| **MacWhisper Pro** | $49 | One-time | We have AI features, cross-platform |
+| **Otter.ai** | $200/yr | Subscription | We're local, one-time, private |
+| **Buzz** | Free | Open source | We have AI, better UX |
+| **Private Transcript** | $39 | One-time | Best of all worlds |
 
 ---
 
