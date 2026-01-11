@@ -277,6 +277,9 @@ FEATURES │ MacWhisper │            │   │  Otter     │ Fireflies  │
 | Meeting auto-detect | ❌ | ✅ | ❌ | ❌ | ✅ |
 | Video support | ✅ | ✅ | ✅ | ❌ | ✅ |
 | System audio capture | ❌ | ❌ | ✅ | ❌ | ✅ |
+| AI Privacy Redaction | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Conversation Analytics | ✅ (paid) | ✅ (paid) | ❌ | ❌ | ✅ |
+| Quick Capture Mode | ❌ | ❌ | ❌ | ❌ | ✅ |
 
 ---
 
@@ -406,6 +409,9 @@ Only after these are fixed, proceed to new features below.
 | **Linux support** | ❌ | ✅ | Planned |
 | **Team/collaboration features** | ❌ | ✅ | Planned |
 | **Niche templates (legal, medical)** | ❌ | ✅ | Planned |
+| **AI Privacy Redaction** | ❌ | ✅ | Planned |
+| **Conversation Analytics** | ❌ | ✅ | Planned |
+| **Quick Capture Mode** | ❌ | ✅ | Planned |
 
 **Total parity effort: ~2 weeks with 3 devs**
 
@@ -480,6 +486,9 @@ Only after these are fixed, proceed to new features below.
 | Pause/resume recording | 🔥🔥 | Low | **MISSING** | Recording |
 | Microphone test/level meter | 🔥🔥 | Low | **MISSING** | Recording |
 | Search within transcript | 🔥🔥 | Very Low | **MISSING** | UI |
+| AI Privacy Redaction | 🔥🔥🔥 | Medium | **NEW** | Privacy |
+| Conversation Analytics Dashboard | 🔥🔥🔥 | Medium | **NEW** | AI |
+| Quick Capture Mode | 🔥🔥🔥 | Low | **NEW** | Recording |
 
 ---
 
@@ -491,6 +500,7 @@ Only after these are fixed, proceed to new features below.
 - [ ] **Microphone test/level meter** (visual feedback)
 - [ ] **Recording quality selector** (choose sample rate / bitrate)
 - [ ] **Always-on background mode** (run as menu bar app)
+- [ ] **Quick Capture Mode** (one-tap voice journal, zero friction, auto-transcribe)
 - [ ] **Rewind mode** (continuously record last X hours)
 - [ ] **Auto-detect meeting start** (detect Zoom, Meet, Teams)
 - [ ] **Calendar-triggered recording** (auto-start when event begins)
@@ -533,6 +543,8 @@ Only after these are fixed, proceed to new features below.
 - [ ] **Grammar/punctuation cleanup**
 - [ ] **Tone analysis** (formal vs casual, sentiment)
 - [ ] **Meeting effectiveness score**
+- [ ] **AI Privacy Redaction** (detect and anonymize names, PHI, sensitive info)
+- [ ] **Conversation Analytics Dashboard** (talk time %, interruptions, Q&A ratio, trends)
 - [ ] Generate session summaries
 - [ ] Extract action items automatically
 - [ ] Custom templates per workspace type
@@ -1313,7 +1325,7 @@ pnpm tauri dev
 | **State** | Zustand | Simple, performant state management |
 | **Backend** | Rust | Performance, safety, memory efficiency |
 | **Database** | SQLite + SQLCipher | Local, encrypted, proven |
-| **Transcription** | Whisper (whisper-rs) | Best open-source speech recognition |
+| **Transcription** | WhisperKit (CoreML) | Fast local transcription with Metal acceleration |
 | **LLM** | Ollama / OpenRouter | Local-first with cloud option |
 
 ### Project Structure

@@ -12,6 +12,7 @@ vi.mock('@tauri-apps/plugin-shell', () => ({
   Command: {
     create: vi.fn(),
   },
+  open: vi.fn(() => Promise.resolve()),
 }));
 
 // Mock window.matchMedia

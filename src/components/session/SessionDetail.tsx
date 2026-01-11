@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { convertFileSrc } from '@tauri-apps/api/core';
+import { open } from '@tauri-apps/plugin-shell';
 import { useAppStore } from '../../stores/appStore';
 import { Button } from '../ui/Button';
 import { useToast } from '../ui/Toast';
@@ -414,8 +415,9 @@ export function SessionDetail() {
     try {
       const path = await invoke<string>(`export_${format}`, { content, filename });
       addToast(`Exported to: ${path}`, 'success');
+      // Open the exported file with the system's default application
+      await open(path);
     } catch (error) {
-      console.error('Export failed:', error);
       addToast('Export failed. Please try again.', 'error');
     }
   };
