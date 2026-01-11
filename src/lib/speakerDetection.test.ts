@@ -389,4 +389,259 @@ Guest: Thank you for having me.`;
       expect(formatTimestamp(65.5)).toBe('1:05');
     });
   });
+
+  describe('Edge Cases', () => {
+    describe('parseTranscriptIntoSegments edge cases', () => {
+      it('should handle transcript with only whitespace', () => {
+        const result = parseTranscriptIntoSegments('   \n\n   \t   ');
+        expect(result).toEqual([]);
+      });
+
+      it('should handle transcript with single word', () => {
+        const result = parseTranscriptIntoSegments('Hello');
+        expect(result).toHaveLength(1);
+        expect(result[0].text).toBe('Hello');
+      });
+
+      it('should handle transcript with many paragraphs', () => {
+        const paragraphs = Array(20).fill('This is a paragraph.').join('\n\n');
+        const result = parseTranscriptIntoSegments(paragraphs);
+        expect(result.length).toBeGreaterThan(0);
+      });
+
+      it('should handle transcript with special characters', () => {
+        const transcript = 'Hello! How are you? I\'m fine, thanks.';
+        const result = parseTranscriptIntoSegments(transcript);
+        expect(result.length).toBeGreaterThan(0);
+      });
+
+      it('should handle transcript with unicode', () => {
+        const transcript = '你好，世界！\n\nこんにちは';
+        const result = parseTranscriptIntoSegments(transcript);
+        expect(result.length).toBeGreaterThan(0);
+      });
+
+      it('should handle transcript with numbers', () => {
+        const transcript = '1. First item\n\n2. Second item\n\n3. Third item';
+        const result = parseTranscriptIntoSegments(transcript);
+        expect(result.length).toBeGreaterThan(0);
+      });
+    });
+
+    describe('parseInlineSpeakerLabels edge cases', () => {
+      it('should handle lowercase speaker names', () => {
+        const transcript = 'john: Hello\njane: Hi';
+        const result = parseInlineSpeakerLabels(transcript);
+        // lowercase names won't match the pattern
+        expect(result).toHaveLength(1);
+      });
+
+      it('should handle speaker name with numbers (not supported in pattern)', () => {
+        // Numbers in speaker names don't match the pattern [a-zA-Z\s]
+        // so it falls back to default speaker
+        const transcript = 'Speaker1: Hello';
+        const result = parseInlineSpeakerLabels(transcript);
+        expect(result[0].speaker).toBe('Speaker 1');
+      });
+
+      it('should handle empty text after speaker', () => {
+        const transcript = 'John: \nJane: Hello';
+        const result = parseInlineSpeakerLabels(transcript);
+        expect(result.length).toBeGreaterThan(0);
+      });
+
+      it('should handle very long speaker names', () => {
+        const transcript = 'Doctor John Smith Junior: Hello there';
+        const result = parseInlineSpeakerLabels(transcript);
+        expect(result[0].speaker).toBe('Doctor John Smith Junior');
+      });
+
+      it('should handle colon in the middle of text', () => {
+        const transcript = 'John: The time is 10:30 AM';
+        const result = parseInlineSpeakerLabels(transcript);
+        expect(result[0].text).toBe('The time is 10:30 AM');
+      });
+    });
+
+    describe('mergeAdjacentSpeakerSegments edge cases', () => {
+      it('should handle all segments from same speaker', () => {
+        const segments: TranscriptSegment[] = [
+          { start: 0, end: 10, text: 'A', speaker: 'Alice' },
+          { start: 10, end: 20, text: 'B', speaker: 'Alice' },
+          { start: 20, end: 30, text: 'C', speaker: 'Alice' },
+        ];
+        const result = mergeAdjacentSpeakerSegments(segments);
+        expect(result).toHaveLength(1);
+        expect(result[0].text).toBe('A\n\nB\n\nC');
+      });
+
+      it('should handle alternating speakers', () => {
+        const segments: TranscriptSegment[] = [
+          { start: 0, end: 10, text: 'A', speaker: 'Alice' },
+          { start: 10, end: 20, text: 'B', speaker: 'Bob' },
+          { start: 20, end: 30, text: 'C', speaker: 'Alice' },
+          { start: 30, end: 40, text: 'D', speaker: 'Bob' },
+        ];
+        const result = mergeAdjacentSpeakerSegments(segments);
+        expect(result).toHaveLength(4);
+      });
+    });
+
+    describe('estimateSegmentTimestamps edge cases', () => {
+      it('should handle segments with empty text', () => {
+        const segments: TranscriptSegment[] = [
+          { start: 0, end: 0, text: '', speaker: 'A' },
+          { start: 0, end: 0, text: 'Hello', speaker: 'B' },
+        ];
+        const result = estimateSegmentTimestamps(segments, 100);
+        // Empty text contributes 0 to total, so all time goes to second segment
+        expect(result[0].start).toBe(0);
+        expect(result[0].end).toBe(0);
+        expect(result[1].start).toBe(0);
+        expect(result[1].end).toBe(100);
+      });
+
+      it('should handle very short duration', () => {
+        const segments: TranscriptSegment[] = [
+          { start: 0, end: 0, text: 'A', speaker: 'X' },
+          { start: 0, end: 0, text: 'B', speaker: 'Y' },
+        ];
+        const result = estimateSegmentTimestamps(segments, 0.1);
+        expect(result[0].end).toBeCloseTo(0.05);
+        expect(result[1].start).toBeCloseTo(0.05);
+      });
+
+      it('should handle single segment', () => {
+        const segments: TranscriptSegment[] = [
+          { start: 0, end: 0, text: 'Only segment', speaker: 'A' },
+        ];
+        const result = estimateSegmentTimestamps(segments, 60);
+        expect(result[0].start).toBe(0);
+        expect(result[0].end).toBe(60);
+      });
+    });
+
+    describe('findSegmentAtTime edge cases', () => {
+      it('should handle negative time', () => {
+        const segments: TranscriptSegment[] = [
+          { start: 0, end: 10, text: 'A', speaker: 'X' },
+        ];
+        expect(findSegmentAtTime(segments, -5)).toBe(-1);
+      });
+
+      it('should handle exact boundary time', () => {
+        const segments: TranscriptSegment[] = [
+          { start: 0, end: 10, text: 'A', speaker: 'X' },
+          { start: 10, end: 20, text: 'B', speaker: 'Y' },
+        ];
+        // At exactly 10, should be second segment (start is inclusive, end is exclusive)
+        expect(findSegmentAtTime(segments, 10)).toBe(1);
+      });
+
+      it('should handle gaps between segments', () => {
+        const segments: TranscriptSegment[] = [
+          { start: 0, end: 10, text: 'A', speaker: 'X' },
+          { start: 20, end: 30, text: 'B', speaker: 'Y' },
+        ];
+        // Time 15 is in the gap
+        expect(findSegmentAtTime(segments, 15)).toBe(-1);
+      });
+    });
+
+    describe('getSpeakerColor edge cases', () => {
+      it('should handle empty speaker name', () => {
+        const color = getSpeakerColor('');
+        expect(color).toBeDefined();
+        expect(typeof color).toBe('string');
+      });
+
+      it('should handle very long speaker name', () => {
+        const longName = 'A'.repeat(1000);
+        const color = getSpeakerColor(longName);
+        expect(color).toBeDefined();
+      });
+
+      it('should handle speaker name with special characters', () => {
+        const color = getSpeakerColor('Dr. Smith-Jones (PhD)');
+        expect(color).toBeDefined();
+      });
+
+      it('should handle speaker name with unicode', () => {
+        const color = getSpeakerColor('田中太郎');
+        expect(color).toBeDefined();
+      });
+    });
+
+    describe('segmentsToText edge cases', () => {
+      it('should handle single segment', () => {
+        const segments: TranscriptSegment[] = [
+          { start: 0, end: 10, text: 'Hello', speaker: 'Alice' },
+        ];
+        expect(segmentsToText(segments, true)).toBe('Alice: Hello');
+        expect(segmentsToText(segments, false)).toBe('Hello');
+      });
+
+      it('should handle segment without speaker', () => {
+        const segments: TranscriptSegment[] = [
+          { start: 0, end: 10, text: 'Hello' },
+        ];
+        const result = segmentsToText(segments, true);
+        expect(result).toContain('Hello');
+      });
+
+      it('should handle empty segments array', () => {
+        expect(segmentsToText([], true)).toBe('');
+        expect(segmentsToText([], false)).toBe('');
+      });
+    });
+
+    describe('renameSpeaker edge cases', () => {
+      it('should handle renaming to same name', () => {
+        const segments: TranscriptSegment[] = [
+          { start: 0, end: 10, text: 'Hello', speaker: 'Alice' },
+        ];
+        const result = renameSpeaker(segments, 'Alice', 'Alice');
+        expect(result[0].speaker).toBe('Alice');
+      });
+
+      it('should handle renaming non-existent speaker', () => {
+        const segments: TranscriptSegment[] = [
+          { start: 0, end: 10, text: 'Hello', speaker: 'Alice' },
+        ];
+        const result = renameSpeaker(segments, 'Bob', 'Charlie');
+        expect(result[0].speaker).toBe('Alice');
+      });
+
+      it('should handle empty new name', () => {
+        const segments: TranscriptSegment[] = [
+          { start: 0, end: 10, text: 'Hello', speaker: 'Alice' },
+        ];
+        const result = renameSpeaker(segments, 'Alice', '');
+        expect(result[0].speaker).toBe('');
+      });
+    });
+
+    describe('getUniqueSpeakers edge cases', () => {
+      it('should handle segments with undefined speakers', () => {
+        const segments: TranscriptSegment[] = [
+          { start: 0, end: 10, text: 'Hello' },
+          { start: 10, end: 20, text: 'World', speaker: 'Bob' },
+        ];
+        const result = getUniqueSpeakers(segments);
+        expect(result).toContain('Bob');
+        expect(result).toHaveLength(1);
+      });
+
+      it('should handle all segments with same speaker', () => {
+        const segments: TranscriptSegment[] = [
+          { start: 0, end: 10, text: 'A', speaker: 'Alice' },
+          { start: 10, end: 20, text: 'B', speaker: 'Alice' },
+          { start: 20, end: 30, text: 'C', speaker: 'Alice' },
+        ];
+        const result = getUniqueSpeakers(segments);
+        expect(result).toHaveLength(1);
+        expect(result[0]).toBe('Alice');
+      });
+    });
+  });
 });
