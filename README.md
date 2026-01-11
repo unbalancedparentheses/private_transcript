@@ -35,6 +35,182 @@ Most transcription apps send your audio to the cloud. That's a problem for:
 
 ---
 
+## Competitor Landscape
+
+### Direct Competitors (Local Transcription)
+
+| App | Platform | Price | Strengths | Weaknesses |
+|-----|----------|-------|-----------|------------|
+| **MacWhisper** | macOS | $29 one-time | Fast, polished, many features | macOS only, no AI insights |
+| **Buzz** | All | Free (OSS) | Open source, cross-platform | Basic UI, no AI features |
+| **Whisper Transcription** | macOS | $5-15 | Cheap, simple | Limited features |
+| **Vibe** | macOS | Free | Clean UI | Minimal features |
+| **Aiko** | macOS/iOS | $10 | Simple, fast | Very basic |
+
+### Cloud Meeting Assistants (Main Competition)
+
+| App | Price | Strengths | Weaknesses |
+|-----|-------|-----------|------------|
+| **Otter.ai** | $17/mo | Live transcription, integrations | Cloud only, privacy concerns |
+| **Fireflies.ai** | $19/mo | Meeting bot, CRM integration | Cloud only, bot joins calls |
+| **Fathom** | Free-$32/mo | Free tier, Zoom native | Limited platforms |
+| **tl;dv** | $20/mo | Good summaries, clips | Cloud only |
+| **Grain** | $19/mo | Video highlights | Cloud only |
+| **Read.ai** | $20/mo | Meeting analytics | Cloud only |
+| **MeetGeek** | $15/mo | Auto-recording | Cloud only |
+| **Sembly.ai** | $10/mo | Cheap, decent AI | Cloud only |
+
+### Audio/Video Editing with Transcription
+
+| App | Price | Strengths | Weaknesses |
+|-----|-------|-----------|------------|
+| **Descript** | $15-30/mo | Edit audio by editing text | Subscription, cloud |
+| **Riverside** | $15/mo | Podcast recording | Cloud focused |
+| **ScreenApp** | $12/mo | Screen recording + transcript | Cloud |
+
+### Enterprise/Specialized
+
+| App | Market | Notes |
+|-----|--------|-------|
+| **Gong** | Sales | $100+/user/mo, sales calls |
+| **Chorus** | Sales | Acquired by ZoomInfo |
+| **Verbit** | Legal/Enterprise | Human + AI hybrid |
+| **Rev** | Professional | Human transcription, $1.50/min |
+
+---
+
+## Competitive Analysis
+
+### vs Cloud Services (Otter, Fireflies, etc.)
+
+**Their strengths:**
+- Live transcription during meetings
+- Bot joins calls automatically
+- Team collaboration
+- CRM integrations
+- Established brands
+
+**Their weaknesses:**
+- Privacy - audio goes to cloud
+- Subscription pricing ($15-30/mo)
+- Bot joining calls feels creepy
+- Vendor lock-in
+- Require internet
+
+**Our advantage:**
+- 100% local, private
+- One-time purchase
+- No bot in meetings
+- Works offline
+- Own your data forever
+
+### vs MacWhisper (Direct Competitor)
+
+**Their strengths:**
+- 2+ years head start
+- Very polished
+- Fast (Parakeet v2)
+- Good integrations
+
+**Their weaknesses:**
+- macOS only
+- No AI insights
+- No RAG/chat
+- No meeting intelligence
+
+**Our advantage:**
+- Cross-platform (macOS, Windows, Linux)
+- AI-native (RAG, summaries, insights)
+- Meeting intelligence
+- Chat with your transcripts
+
+### vs Open Source (Buzz)
+
+**Their strengths:**
+- Free
+- Open source
+- Cross-platform
+
+**Their weaknesses:**
+- Basic UI
+- No AI features
+- No integrations
+- Slow development
+
+**Our advantage:**
+- Much better UX
+- Full AI suite
+- Integrations (Obsidian, Notion, etc.)
+
+---
+
+## Market Position
+
+```
+                    LOCAL                          CLOUD
+                      │                              │
+         ┌────────────┼────────────┐   ┌────────────┼────────────┐
+         │            │            │   │            │            │
+    BASIC│   Buzz     │            │   │            │   Rev      │
+         │   Vibe     │            │   │            │            │
+         │            │            │   │            │            │
+         ├────────────┼────────────┤   ├────────────┼────────────┤
+         │            │            │   │            │            │
+FEATURES │ MacWhisper │            │   │  Otter     │ Fireflies  │
+         │            │ PRIVATE    │   │  Fathom    │ Gong       │
+         │            │ TRANSCRIPT │   │            │            │
+         │            │            │   │            │            │
+         ├────────────┼────────────┤   ├────────────┼────────────┤
+         │            │            │   │            │            │
+      AI │            │     ★      │   │            │ Descript   │
+  NATIVE │            │            │   │            │            │
+         │            │            │   │            │            │
+         └────────────┴────────────┘   └────────────┴────────────┘
+```
+
+**We're targeting the empty quadrant: Local + AI-Native**
+
+---
+
+## Feature Comparison
+
+| Feature | Otter | Fireflies | MacWhisper | Buzz | Private Transcript |
+|---------|-------|-----------|------------|------|-------------------|
+| 100% Local | ❌ | ❌ | ✅ | ✅ | ✅ |
+| AI Summaries | ✅ | ✅ | ❌ | ❌ | ✅ |
+| Local RAG | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Chat with transcripts | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Cross-meeting insights | ❌ | ✅ | ❌ | ❌ | ✅ |
+| Cross-platform | ✅ | ✅ | ❌ | ✅ | ✅ |
+| One-time price | ❌ | ❌ | ✅ | Free | ✅ |
+| Meeting auto-detect | ❌ | ✅ | ❌ | ❌ | ✅ |
+| Video support | ✅ | ✅ | ✅ | ❌ | ✅ |
+| System audio capture | ❌ | ❌ | ✅ | ❌ | ✅ |
+
+---
+
+## Who to Watch
+
+| Competitor | Why Watch |
+|------------|-----------|
+| **MacWhisper** | Direct competitor, sets feature expectations |
+| **Otter.ai** | Market leader, see what features users want |
+| **Fathom** | Free tier strategy, good AI summaries |
+| **Descript** | UX innovation (edit audio by editing text) |
+| **Buzz** | Open source community, potential integration |
+
+---
+
+## Our Tagline
+
+> **"The AI meeting brain that never leaves your computer."**
+
+Or:
+
+> **"Otter's intelligence. MacWhisper's privacy. One price forever."**
+
+---
+
 ## Features
 
 ### Core Features
