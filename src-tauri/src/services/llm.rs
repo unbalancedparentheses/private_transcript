@@ -51,7 +51,20 @@ pub async fn generate_note(app: &AppHandle, transcript: &str, template_id: &str)
         }
         "local" => {
             // Use external Ollama server
-            generate_with_ollama(&settings.ollama_endpoint, &settings.llm_model, &prompt).await
+            // Auto-select model if not set
+            let model = if settings.llm_model.is_empty() {
+                let status = check_ollama_status().await?;
+                if !status.connected {
+                    return Err(anyhow::anyhow!("Ollama is not running"));
+                }
+                if status.models.is_empty() {
+                    return Err(anyhow::anyhow!("No models available in Ollama"));
+                }
+                status.models[0].clone()
+            } else {
+                settings.llm_model.clone()
+            };
+            generate_with_ollama(&settings.ollama_endpoint, &model, &prompt).await
         }
         "cloud" => {
             // Use OpenRouter cloud API
@@ -86,11 +99,31 @@ pub async fn generate_note_streaming(
         }
         "local" => {
             // Use external Ollama server with streaming
+            // Auto-select model if not set or not available
+            let model = if settings.llm_model.is_empty() {
+                // No model configured, try to auto-select
+                let status = check_ollama_status().await?;
+                if !status.connected {
+                    return Err(anyhow::anyhow!(
+                        "Ollama is not running. Please start Ollama first."
+                    ));
+                }
+                if status.models.is_empty() {
+                    return Err(anyhow::anyhow!(
+                        "No models available in Ollama. Please pull a model first (e.g., 'ollama pull llama3.2')"
+                    ));
+                }
+                println!("[LLM] Auto-selected model: {}", status.models[0]);
+                status.models[0].clone()
+            } else {
+                settings.llm_model.clone()
+            };
+
             generate_with_ollama_streaming(
                 app,
                 session_id,
                 &settings.ollama_endpoint,
-                &settings.llm_model,
+                &model,
                 &prompt,
             )
             .await

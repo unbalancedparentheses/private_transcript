@@ -96,7 +96,8 @@ pub struct AudioPermissions {
 #[serde(tag = "type", rename_all = "camelCase")]
 enum WorkerMessage {
     Status {
-        state: String,
+        #[serde(rename = "state")]
+        _state: String, // Required for deserialization but not used
         #[serde(rename = "duration_ms")]
         duration_ms: u64,
         #[serde(rename = "mic_level")]
@@ -106,7 +107,7 @@ enum WorkerMessage {
     },
     Complete {
         #[serde(rename = "output_path")]
-        output_path: String,
+        _output_path: String, // Required for deserialization but not used
         #[serde(rename = "duration_ms")]
         duration_ms: u64,
     },
@@ -120,7 +121,6 @@ enum WorkerMessage {
 
 /// Active recording state
 struct ActiveRecording {
-    session_id: String,
     output_path: PathBuf,
     child: Child,
     status: RecordingStatus,
@@ -272,7 +272,6 @@ pub fn start_recording(
 
     // Store the active recording
     *state = Some(ActiveRecording {
-        session_id: session_id.to_string(),
         output_path: output_path.clone(),
         child,
         status: RecordingStatus {
@@ -294,7 +293,7 @@ pub fn start_recording(
                 if let Ok(msg) = serde_json::from_str::<WorkerMessage>(&line) {
                     match msg {
                         WorkerMessage::Status {
-                            state: _,
+                            _state: _,
                             duration_ms,
                             mic_level,
                             system_level,
@@ -321,7 +320,7 @@ pub fn start_recording(
                             let _ = app_clone.emit("recording-progress", &event);
                         }
                         WorkerMessage::Complete {
-                            output_path: _,
+                            _output_path: _,
                             duration_ms,
                         } => {
                             println!(

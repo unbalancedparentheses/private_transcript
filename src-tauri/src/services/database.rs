@@ -284,10 +284,12 @@ pub async fn update_folder(_app: &AppHandle, request: UpdateFolderRequest) -> Re
 }
 
 pub async fn delete_folder(app: &AppHandle, id: &str) -> Result<()> {
+    println!("[Database] delete_folder called with id: {}", id);
     let pool = get_pool()?;
 
     // First, get all sessions in this folder to delete their audio files
     let sessions = get_sessions(app, id).await?;
+    println!("[Database] Found {} sessions in folder to delete", sessions.len());
 
     // Delete audio files for all sessions
     for session in &sessions {
@@ -301,17 +303,19 @@ pub async fn delete_folder(app: &AppHandle, id: &str) -> Result<()> {
     }
 
     // Delete all sessions in this folder
-    sqlx::query("DELETE FROM sessions WHERE folder_id = ?")
+    let delete_result = sqlx::query("DELETE FROM sessions WHERE folder_id = ?")
         .bind(id)
         .execute(pool)
         .await?;
+    println!("[Database] Deleted {} session records", delete_result.rows_affected());
 
     // Soft-delete the folder
-    sqlx::query("UPDATE folders SET is_active = 0, updated_at = ? WHERE id = ?")
+    let update_result = sqlx::query("UPDATE folders SET is_active = 0, updated_at = ? WHERE id = ?")
         .bind(now())
         .bind(id)
         .execute(pool)
         .await?;
+    println!("[Database] Soft-deleted folder, rows affected: {}", update_result.rows_affected());
 
     Ok(())
 }
@@ -453,6 +457,34 @@ pub async fn delete_session(app: &AppHandle, id: &str) -> Result<()> {
         .await?;
 
     Ok(())
+}
+
+/// Search sessions across all folders by title, transcript, or generated notes
+pub async fn search_sessions(_app: &AppHandle, query: &str, limit: i32) -> Result<Vec<Session>> {
+    let pool = get_pool()?;
+
+    // Use LIKE for basic search across title, transcript, and generated_note
+    // The % wildcards allow matching anywhere in the string
+    let search_pattern = format!("%{}%", query);
+
+    let rows = sqlx::query(
+        r#"
+        SELECT * FROM sessions
+        WHERE title LIKE ?
+           OR transcript LIKE ?
+           OR generated_note LIKE ?
+        ORDER BY updated_at DESC
+        LIMIT ?
+        "#
+    )
+    .bind(&search_pattern)
+    .bind(&search_pattern)
+    .bind(&search_pattern)
+    .bind(limit)
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows.into_iter().map(session_from_row).collect())
 }
 
 // Template operations

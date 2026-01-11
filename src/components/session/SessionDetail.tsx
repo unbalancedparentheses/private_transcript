@@ -122,6 +122,7 @@ export function SessionDetail() {
       segments = removeFillerWordsFromSegments(segments).map((s, i) => ({
         ...s,
         originalIndex: segments[i]?.originalIndex ?? i,
+        favorited: segments[i]?.favorited ?? false,
       }));
     }
     // Filter if showing favorites only

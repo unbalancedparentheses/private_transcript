@@ -18,18 +18,6 @@ impl<T> IntoTauriResult<T> for Result<T> {
     }
 }
 
-/// Extension trait for converting `Option<T>` to `Result<T, String>` with a custom error message.
-pub trait OptionExt<T> {
-    /// Converts an Option to a Result with the given error message.
-    fn ok_or_err(self, msg: &str) -> Result<T, String>;
-}
-
-impl<T> OptionExt<T> for Option<T> {
-    fn ok_or_err(self, msg: &str) -> Result<T, String> {
-        self.ok_or_else(|| msg.to_string())
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -48,19 +36,5 @@ mod tests {
         let tauri_result = result.into_tauri_result();
         assert!(tauri_result.is_err());
         assert_eq!(tauri_result.unwrap_err(), "test error");
-    }
-
-    #[test]
-    fn test_option_ext_some() {
-        let opt: Option<i32> = Some(42);
-        let result = opt.ok_or_err("not found");
-        assert_eq!(result, Ok(42));
-    }
-
-    #[test]
-    fn test_option_ext_none() {
-        let opt: Option<i32> = None;
-        let result = opt.ok_or_err("not found");
-        assert_eq!(result, Err("not found".to_string()));
     }
 }

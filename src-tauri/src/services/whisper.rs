@@ -39,9 +39,27 @@ fn get_worker_path(app: &AppHandle) -> Result<PathBuf> {
         }
     }
 
+    // Get the architecture suffix for the current platform
+    let arch_suffix = if cfg!(target_arch = "aarch64") {
+        "aarch64-apple-darwin"
+    } else if cfg!(target_arch = "x86_64") {
+        "x86_64-apple-darwin"
+    } else {
+        "unknown"
+    };
+
     // Try various locations for the worker binary
     let possible_paths = [
+        // Development: binaries folder with architecture suffix (Tauri sidecar format)
+        Some(PathBuf::from(format!(
+            "binaries/whisperkit-worker-{}",
+            arch_suffix
+        ))),
         // Development: built whisperkit-worker in the whisperkit-worker folder
+        Some(PathBuf::from(
+            "whisperkit-worker/.build/release/whisperkit-worker",
+        )),
+        // Development: relative from src-tauri
         Some(PathBuf::from(
             "../whisperkit-worker/.build/release/whisperkit-worker",
         )),
@@ -54,6 +72,7 @@ fn get_worker_path(app: &AppHandle) -> Result<PathBuf> {
     ];
 
     for path in possible_paths.iter().flatten() {
+        println!("[WhisperKit] Checking path: {:?}", path);
         if path.exists() {
             println!("[WhisperKit] Found worker at: {:?}", path);
             return Ok(path.clone());

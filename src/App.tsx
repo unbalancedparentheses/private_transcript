@@ -1,20 +1,39 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Sidebar } from './components/layout/Sidebar';
 import { MainContent } from './components/layout/MainContent';
 import { OnboardingView } from './components/onboarding/OnboardingView';
+import { GlobalSearch } from './components/search/GlobalSearch';
 import { useAppStore } from './stores/appStore';
+import { logger } from './lib/logger';
 
 function App() {
   const { initialized, initialize, onboardingComplete } = useAppStore();
   const [loading, setLoading] = useState(true);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   useEffect(() => {
     const init = async () => {
+      logger.info('App initializing...', { context: 'App' });
       await initialize();
+      logger.info('App initialized successfully', { context: 'App' });
       setLoading(false);
     };
     init();
   }, [initialize]);
+
+  // Global keyboard shortcut for search (Cmd+K / Ctrl+K)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  const handleCloseSearch = useCallback(() => setSearchOpen(false), []);
 
   if (loading) {
     return (
@@ -36,6 +55,7 @@ function App() {
     <div className="flex h-screen bg-background">
       <Sidebar />
       <MainContent />
+      <GlobalSearch isOpen={searchOpen} onClose={handleCloseSearch} />
     </div>
   );
 }

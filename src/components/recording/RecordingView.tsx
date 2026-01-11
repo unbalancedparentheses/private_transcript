@@ -30,8 +30,7 @@ export function RecordingView() {
   const [audioDevices, setAudioDevices] = useState<AudioDevice[]>([]);
   const [selectedMicId, setSelectedMicId] = useState<string | undefined>();
   const [isNativeRecording, setIsNativeRecording] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [nativeSessionId, setNativeSessionId] = useState<string | null>(null);
+  const [_nativeSessionId, setNativeSessionId] = useState<string | null>(null);
   const [hasScreenRecordingPermission, setHasScreenRecordingPermission] = useState<boolean | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);

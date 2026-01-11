@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import { invoke } from '@tauri-apps/api/core';
 import type { Workspace, Folder, WorkspaceType } from '../types';
+import { logger } from '../lib/logger';
 
 interface WorkspaceState {
   workspaces: Workspace[];
@@ -83,12 +84,23 @@ export const useWorkspaceStore = create<WorkspaceState>()(
     },
 
     deleteFolder: async (id) => {
-      await invoke('delete_folder', { id });
+      logger.info(`Deleting folder: ${id}`, { context: 'WorkspaceStore' });
+      try {
+        await invoke('delete_folder', { id });
+        logger.info('Folder deleted successfully', { context: 'WorkspaceStore' });
+      } catch (error) {
+        logger.error(`Failed to delete folder: ${error}`, { context: 'WorkspaceStore', data: error });
+        throw error;
+      }
       const { currentFolder } = get();
-      set((state) => ({
-        folders: state.folders.filter((f) => f.id !== id),
-        currentFolder: currentFolder?.id === id ? null : currentFolder,
-      }));
+      set((state) => {
+        const newFolders = state.folders.filter((f) => f.id !== id);
+        logger.debug(`Folders updated: ${state.folders.length} -> ${newFolders.length}`, { context: 'WorkspaceStore' });
+        return {
+          folders: newFolders,
+          currentFolder: currentFolder?.id === id ? null : currentFolder,
+        };
+      });
     },
 
     clearFolderSelection: () => set({ currentFolder: null }),

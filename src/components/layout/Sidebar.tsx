@@ -5,6 +5,7 @@ import { WORKSPACE_CONFIG } from '../../types';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { useToast } from '../ui/Toast';
+import { logger } from '../../lib/logger';
 
 export function Sidebar() {
   const {
@@ -22,6 +23,7 @@ export function Sidebar() {
 
   const [showNewFolder, setShowNewFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null);
 
   const config = currentWorkspace
     ? WORKSPACE_CONFIG[currentWorkspace.workspaceType as keyof typeof WORKSPACE_CONFIG]
@@ -34,20 +36,31 @@ export function Sidebar() {
     setShowNewFolder(false);
   };
 
-  const handleDeleteFolder = async (e: React.MouseEvent, folderId: string, folderName: string) => {
+  const handleDeleteFolder = (e: React.MouseEvent, folderId: string, folderName: string) => {
     e.stopPropagation(); // Prevent selecting the folder
+    logger.info(`Delete folder clicked: ${folderName} (${folderId})`, { context: 'Sidebar' });
+    setPendingDelete({ id: folderId, name: folderName });
+  };
 
-    if (!window.confirm(`Are you sure you want to delete "${folderName}"? All sessions in this folder will be deleted. This action cannot be undone.`)) {
-      return;
-    }
+  const confirmDelete = async () => {
+    if (!pendingDelete) return;
 
     try {
-      await deleteFolder(folderId);
+      logger.info('Calling deleteFolder...', { context: 'Sidebar' });
+      await deleteFolder(pendingDelete.id);
+      logger.info(`Delete succeeded`, { context: 'Sidebar' });
       addToast('Folder deleted successfully', 'success');
     } catch (error) {
-      console.error('Failed to delete folder:', error);
+      logger.error(`Failed to delete folder: ${error}`, { context: 'Sidebar', data: error });
       addToast('Failed to delete folder', 'error');
+    } finally {
+      setPendingDelete(null);
     }
+  };
+
+  const cancelDelete = () => {
+    logger.info('Delete cancelled by user', { context: 'Sidebar' });
+    setPendingDelete(null);
   };
 
   return (
@@ -210,6 +223,38 @@ export function Sidebar() {
           <span>Settings</span>
         </button>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      {pendingDelete && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-[var(--card)] rounded-lg shadow-xl p-4 max-w-sm w-full mx-4 border border-[var(--border)]">
+            <h3 className="text-[15px] font-semibold text-[var(--foreground)] mb-2">
+              Delete Folder
+            </h3>
+            <p className="text-[13px] text-[var(--muted-foreground)] mb-4">
+              Are you sure you want to delete "{pendingDelete.name}"? This will also delete all sessions inside this folder.
+            </p>
+            <div className="flex gap-2 justify-end">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={cancelDelete}
+                className="text-[13px]"
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={confirmDelete}
+                className="text-[13px]"
+              >
+                Delete
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </aside>
   );
 }

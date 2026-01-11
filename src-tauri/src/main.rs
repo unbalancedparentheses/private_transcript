@@ -38,6 +38,7 @@ fn main() {
             commands::session::get_session,
             commands::session::update_session,
             commands::session::delete_session,
+            commands::session::search_sessions,
             // Template commands
             commands::template::get_templates,
             commands::template::get_template,
@@ -66,6 +67,8 @@ fn main() {
             // Settings commands
             commands::settings::get_settings,
             commands::settings::update_settings,
+            commands::settings::get_storage_usage,
+            commands::settings::show_in_folder,
             // Model management commands
             commands::models::get_available_whisper_models,
             commands::models::get_available_llm_models,

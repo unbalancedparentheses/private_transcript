@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useAppStore } from '../../stores/appStore';
 import { ModelManager } from './ModelManager';
 import { Button } from '../ui/Button';
+import { logger, type LogEntry, type LogLevel } from '../../lib/logger';
 import type { OllamaStatus } from '../../types';
 
-type Tab = 'models' | 'general' | 'about';
+type Tab = 'models' | 'general' | 'storage' | 'logs' | 'about';
 
 export function SettingsView() {
   const { setView } = useAppStore();
@@ -40,6 +41,12 @@ export function SettingsView() {
           <TabButton active={activeTab === 'general'} onClick={() => setActiveTab('general')}>
             General
           </TabButton>
+          <TabButton active={activeTab === 'storage'} onClick={() => setActiveTab('storage')}>
+            Storage
+          </TabButton>
+          <TabButton active={activeTab === 'logs'} onClick={() => setActiveTab('logs')}>
+            Logs
+          </TabButton>
           <TabButton active={activeTab === 'about'} onClick={() => setActiveTab('about')}>
             About
           </TabButton>
@@ -50,6 +57,8 @@ export function SettingsView() {
       <div className="flex-1 overflow-y-auto">
         {activeTab === 'models' && <ModelManager />}
         {activeTab === 'general' && <GeneralSettings />}
+        {activeTab === 'storage' && <StorageSection />}
+        {activeTab === 'logs' && <LogsSection />}
         {activeTab === 'about' && <AboutSection />}
       </div>
     </div>
@@ -383,6 +392,284 @@ function GeneralSettings() {
           </div>
         </div>
       </section>
+    </div>
+  );
+}
+
+interface StorageItem {
+  name: string;
+  size: number;
+  fileCount: number;
+  path: string;
+}
+
+interface StorageUsage {
+  totalSize: number;
+  items: StorageItem[];
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+function StorageSection() {
+  const [storageUsage, setStorageUsage] = useState<StorageUsage | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadStorageUsage();
+  }, []);
+
+  const loadStorageUsage = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const usage = await invoke<StorageUsage>('get_storage_usage');
+      setStorageUsage(usage);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="p-4 max-w-xl">
+        <div className="flex items-center justify-center py-8">
+          <div className="w-5 h-5 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
+          <span className="ml-2 text-[13px] text-[var(--muted-foreground)]">Calculating storage...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-4 max-w-xl">
+        <div className="p-3 rounded-lg border border-[var(--destructive)] bg-[var(--destructive)]/10">
+          <p className="text-[13px] text-[var(--destructive)]">Failed to load storage usage: {error}</p>
+          <Button size="sm" variant="secondary" onClick={loadStorageUsage} className="mt-2">
+            Retry
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-4 max-w-xl space-y-4">
+      {/* Total Storage */}
+      <div className="p-4 rounded-lg border border-[var(--border)] bg-[var(--card)]">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-[15px] font-semibold">Total Storage Used</h3>
+          <Button size="sm" variant="ghost" onClick={loadStorageUsage}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M23 4v6h-6M1 20v-6h6" />
+              <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
+            </svg>
+          </Button>
+        </div>
+        <p className="text-[28px] font-bold text-[var(--primary)]">
+          {formatBytes(storageUsage?.totalSize || 0)}
+        </p>
+      </div>
+
+      {/* Storage Breakdown */}
+      <section className="space-y-2">
+        <h3 className="text-[11px] font-medium text-[var(--muted-foreground)] uppercase tracking-wide px-1">
+          Storage Breakdown
+        </h3>
+        <div className="space-y-2">
+          {storageUsage?.items.map((item, index) => (
+            <div
+              key={index}
+              className="p-3 rounded-lg border border-[var(--border)] bg-[var(--card)]"
+            >
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[13px] font-medium">{item.name}</span>
+                <span className="text-[13px] font-semibold text-[var(--primary)]">
+                  {formatBytes(item.size)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] text-[var(--muted-foreground)]">
+                  {item.fileCount} {item.fileCount === 1 ? 'file' : 'files'}
+                </span>
+                <button
+                  onClick={() => {
+                    // Open the folder in Finder using our backend command
+                    invoke('show_in_folder', { path: item.path }).catch((err) => {
+                      console.error('Failed to open folder:', err);
+                      // Fallback: copy path to clipboard
+                      navigator.clipboard.writeText(item.path);
+                    });
+                  }}
+                  className="text-[11px] text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:underline"
+                  title={item.path}
+                >
+                  Show in Finder
+                </button>
+              </div>
+              {/* Progress bar showing percentage of total */}
+              {storageUsage && storageUsage.totalSize > 0 && (
+                <div className="mt-2 h-1.5 bg-[var(--secondary)] rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-[var(--primary)] rounded-full transition-all"
+                    style={{
+                      width: `${Math.max(1, (item.size / storageUsage.totalSize) * 100)}%`,
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+          ))}
+
+          {storageUsage?.items.length === 0 && (
+            <div className="p-3 rounded-lg border border-[var(--border)] bg-[var(--card)] text-center">
+              <p className="text-[13px] text-[var(--muted-foreground)]">No data stored yet</p>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Tips */}
+      <section className="space-y-2">
+        <h3 className="text-[11px] font-medium text-[var(--muted-foreground)] uppercase tracking-wide px-1">
+          Tips
+        </h3>
+        <div className="p-3 rounded-lg border border-[var(--border)] bg-[var(--card)]">
+          <ul className="text-[12px] text-[var(--muted-foreground)] space-y-1">
+            <li>• Delete old recordings to free up space</li>
+            <li>• Audio recordings are typically the largest files</li>
+            <li>• Model files can be redownloaded if needed</li>
+          </ul>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+const LOG_LEVEL_COLORS: Record<LogLevel, string> = {
+  debug: 'text-[var(--muted-foreground)]',
+  info: 'text-blue-500',
+  warn: 'text-yellow-500',
+  error: 'text-red-500',
+};
+
+function LogsSection() {
+  const [logs, setLogs] = useState<LogEntry[]>(() => logger.getEntries());
+  const [filter, setFilter] = useState<LogLevel | 'all'>('all');
+  const [autoScroll, setAutoScroll] = useState(true);
+  const logsEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const unsubscribe = logger.subscribe((entries) => {
+      setLogs(entries);
+    });
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
+    if (autoScroll && logsEndRef.current) {
+      logsEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [logs, autoScroll]);
+
+  const filteredLogs = filter === 'all' ? logs : logs.filter((log) => log.level === filter);
+
+  const handleCopyLogs = () => {
+    const text = filteredLogs
+      .map((log) => `${log.timestamp} [${log.level.toUpperCase()}]${log.context ? ` [${log.context}]` : ''} ${log.message}${log.data ? ` ${JSON.stringify(log.data)}` : ''}`)
+      .join('\n');
+    navigator.clipboard.writeText(text);
+  };
+
+  const handleClearLogs = () => {
+    logger.clear();
+    setLogs([]);
+  };
+
+  return (
+    <div className="p-4 h-full flex flex-col">
+      {/* Toolbar */}
+      <div className="flex items-center gap-3 mb-3">
+        <div className="flex items-center gap-2">
+          <label className="text-[11px] text-[var(--muted-foreground)]">Filter:</label>
+          <select
+            value={filter}
+            onChange={(e) => setFilter(e.target.value as LogLevel | 'all')}
+            className="h-6 px-2 text-[12px] rounded border border-[var(--border)] bg-[var(--background)]"
+          >
+            <option value="all">All</option>
+            <option value="debug">Debug</option>
+            <option value="info">Info</option>
+            <option value="warn">Warn</option>
+            <option value="error">Error</option>
+          </select>
+        </div>
+
+        <label className="flex items-center gap-1.5 text-[12px] text-[var(--muted-foreground)]">
+          <input
+            type="checkbox"
+            checked={autoScroll}
+            onChange={(e) => setAutoScroll(e.target.checked)}
+            className="rounded"
+          />
+          Auto-scroll
+        </label>
+
+        <div className="flex-1" />
+
+        <Button size="sm" variant="ghost" onClick={handleCopyLogs}>
+          Copy All
+        </Button>
+        <Button size="sm" variant="ghost" onClick={handleClearLogs}>
+          Clear
+        </Button>
+      </div>
+
+      {/* Logs */}
+      <div className="flex-1 min-h-0 rounded-lg border border-[var(--border)] bg-[#1a1a1a] overflow-auto font-mono text-[11px]">
+        {filteredLogs.length === 0 ? (
+          <div className="p-4 text-center text-[var(--muted-foreground)]">
+            No logs yet. Logs will appear here as you use the app.
+          </div>
+        ) : (
+          <div className="p-2 space-y-0.5">
+            {filteredLogs.map((log, index) => (
+              <div key={index} className="flex gap-2 hover:bg-white/5 px-1 rounded">
+                <span className="text-[var(--muted-foreground)] shrink-0">
+                  {new Date(log.timestamp).toLocaleTimeString()}
+                </span>
+                <span className={`shrink-0 uppercase w-12 ${LOG_LEVEL_COLORS[log.level]}`}>
+                  [{log.level}]
+                </span>
+                {log.context && (
+                  <span className="text-purple-400 shrink-0">[{log.context}]</span>
+                )}
+                <span className="text-gray-300 break-all">{log.message}</span>
+                {log.data !== undefined && (
+                  <span className="text-gray-500 break-all">{String(JSON.stringify(log.data))}</span>
+                )}
+              </div>
+            ))}
+            <div ref={logsEndRef} />
+          </div>
+        )}
+      </div>
+
+      {/* Stats */}
+      <div className="mt-2 flex items-center gap-4 text-[11px] text-[var(--muted-foreground)]">
+        <span>{filteredLogs.length} entries</span>
+        <span className="text-red-400">{logs.filter((l) => l.level === 'error').length} errors</span>
+        <span className="text-yellow-400">{logs.filter((l) => l.level === 'warn').length} warnings</span>
+      </div>
     </div>
   );
 }

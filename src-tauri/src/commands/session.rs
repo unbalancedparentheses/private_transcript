@@ -41,3 +41,14 @@ pub async fn delete_session(app: AppHandle, id: String) -> Result<(), String> {
         .await
         .into_tauri_result()
 }
+
+#[tauri::command]
+pub async fn search_sessions(
+    app: AppHandle,
+    query: String,
+    limit: Option<i32>,
+) -> Result<Vec<Session>, String> {
+    database::search_sessions(&app, &query, limit.unwrap_or(50))
+        .await
+        .into_tauri_result()
+}
