@@ -20,9 +20,14 @@ export function RecordingView() {
   const [isSaving, setIsSaving] = useState(false);
   const [transcriptionProgress, setTranscriptionProgress] = useState<TranscriptionProgress | null>(null);
   const [isTranscribing, setIsTranscribing] = useState(false);
+  const [audioLevel, setAudioLevel] = useState(0);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<number | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
   // Listen for transcription progress events
   useEffect(() => {
@@ -56,6 +61,16 @@ export function RecordingView() {
       if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
         mediaRecorderRef.current.stop();
       }
+      // Clean up audio analysis
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+      }
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+      }
     };
   }, []);
 
@@ -80,9 +95,60 @@ export function RecordingView() {
     return '';
   };
 
+  // Audio level analysis
+  const startAudioAnalysis = (stream: MediaStream) => {
+    console.log('[Audio] Starting audio level analysis');
+    const audioContext = new AudioContext();
+    const analyser = audioContext.createAnalyser();
+    const source = audioContext.createMediaStreamSource(stream);
+
+    analyser.fftSize = 256;
+    analyser.smoothingTimeConstant = 0.8;
+    source.connect(analyser);
+
+    audioContextRef.current = audioContext;
+    analyserRef.current = analyser;
+
+    const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+    const updateLevel = () => {
+      if (!analyserRef.current) return;
+
+      analyserRef.current.getByteFrequencyData(dataArray);
+
+      // Calculate RMS level
+      let sum = 0;
+      for (let i = 0; i < dataArray.length; i++) {
+        sum += dataArray[i] * dataArray[i];
+      }
+      const rms = Math.sqrt(sum / dataArray.length);
+      const normalizedLevel = Math.min(100, (rms / 128) * 100);
+
+      setAudioLevel(normalizedLevel);
+      animationFrameRef.current = requestAnimationFrame(updateLevel);
+    };
+
+    updateLevel();
+  };
+
+  const stopAudioAnalysis = () => {
+    console.log('[Audio] Stopping audio level analysis');
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+    if (audioContextRef.current) {
+      audioContextRef.current.close();
+      audioContextRef.current = null;
+    }
+    analyserRef.current = null;
+    setAudioLevel(0);
+  };
+
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
 
       const mimeType = getSupportedMimeType();
       const options: MediaRecorderOptions = mimeType ? { mimeType } : {};
@@ -92,6 +158,9 @@ export function RecordingView() {
 
       mediaRecorderRef.current = mediaRecorder;
       chunksRef.current = [];
+
+      // Start audio level analysis
+      startAudioAnalysis(stream);
 
       mediaRecorder.ondataavailable = (e) => {
         if (e.data.size > 0) {
@@ -103,6 +172,7 @@ export function RecordingView() {
         const blob = new Blob(chunksRef.current, { type: actualMimeType });
         setAudioBlob(blob);
         stream.getTracks().forEach((track) => track.stop());
+        stopAudioAnalysis();
       };
 
       mediaRecorder.start(1000);
@@ -265,6 +335,36 @@ export function RecordingView() {
                 </svg>
               )}
             </div>
+
+            {/* Audio Level Meter */}
+            {isRecording && (
+              <div className="mt-4 flex items-center justify-center gap-1">
+                {[...Array(20)].map((_, i) => {
+                  const threshold = (i / 20) * 100;
+                  const isActive = audioLevel > threshold;
+                  const isHigh = i >= 16; // Last 4 bars are "high" level (red)
+                  const isMedium = i >= 10 && i < 16; // Middle bars are "medium" (yellow)
+
+                  return (
+                    <div
+                      key={i}
+                      className={`w-2 rounded-sm transition-all duration-75 ${
+                        isActive
+                          ? isHigh
+                            ? 'bg-red-500'
+                            : isMedium
+                            ? 'bg-yellow-500'
+                            : 'bg-green-500'
+                          : 'bg-muted'
+                      }`}
+                      style={{
+                        height: `${8 + i * 1.5}px`,
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Duration */}

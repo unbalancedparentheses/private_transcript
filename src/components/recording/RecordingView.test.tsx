@@ -147,6 +147,15 @@ describe('RecordingView - No Folder Selected', () => {
   });
 });
 
+describe('Audio Level Meter', () => {
+  it('should not show level meter when not recording', () => {
+    render(<RecordingView />);
+    // The level meter bars should not be visible when not recording
+    const levelMeterBars = document.querySelectorAll('.bg-green-500, .bg-yellow-500, .bg-red-500');
+    expect(levelMeterBars.length).toBe(0);
+  });
+});
+
 describe('Transcription Progress Event Handling', () => {
   it('should handle complete status', async () => {
     let progressCallback: ((event: { payload: unknown }) => void) | null = null;
