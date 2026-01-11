@@ -573,11 +573,11 @@ For now, we prioritize **privacy and accuracy** over real-time. Post-recording t
 | Settings UI with model selection | 🔥🔥 | Low | **DONE** | UI |
 | Bundle whisper.cpp | 🔥🔥 | Medium | Pending | Technical |
 | OpenRouter integration | 🔥🔥 | Low | Pending | AI |
-| Video player + subtitles | 🔥🔥🔥 | Medium | **NEW** | UI |
-| YouTube transcription | 🔥🔥🔥 | Low | **NEW** | Recording |
-| Batch transcription | 🔥🔥 | Low | **NEW** | Workflow |
-| Watch folder auto-transcribe | 🔥🔥 | Low | **NEW** | Workflow |
-| Menubar app mode | 🔥🔥 | Low | **NEW** | UI |
+| Video player + subtitles | 🔥🔥🔥 | Medium | Planned | UI |
+| YouTube transcription | 🔥🔥🔥 | Low | Planned | Recording |
+| Batch transcription | 🔥🔥 | Low | Planned | Workflow |
+| Watch folder auto-transcribe | 🔥🔥 | Low | Planned | Workflow |
+| Menubar app mode | 🔥🔥 | Low | Planned | UI |
 | Fast engine: WhisperKit (Mac) / Parakeet (NVIDIA) | 🔥🔥🔥 | Medium | **DONE** (Mac) | Transcription |
 | Audio-transcript sync playback | 🔥🔥🔥 | Medium | **DONE** | UI |
 | Transcription progress tracking | 🔥🔥🔥 | Very Low | **DONE** | UI |
@@ -585,9 +585,12 @@ For now, we prioritize **privacy and accuracy** over real-time. Post-recording t
 | Pause/resume recording | 🔥🔥 | Low | **DONE** | Recording |
 | Microphone test/level meter | 🔥🔥 | Low | **DONE** | Recording |
 | Search within transcript | 🔥🔥 | Very Low | **DONE** | UI |
-| AI Privacy Redaction | 🔥🔥🔥 | Medium | **NEW** | Privacy |
-| Conversation Analytics Dashboard | 🔥🔥🔥 | Medium | **NEW** | AI |
-| Quick Capture Mode | 🔥🔥🔥 | Low | **NEW** | Recording |
+| Star/favorite segments | 🔥🔥 | Low | **DONE** | UI |
+| Compact mode | 🔥🔥 | Very Low | **DONE** | UI |
+| Filler word removal | 🔥🔥 | Low | **DONE** | Transcription |
+| AI Privacy Redaction | 🔥🔥🔥 | Medium | Planned | Privacy |
+| Conversation Analytics Dashboard | 🔥🔥🔥 | Medium | Planned | AI |
+| Quick Capture Mode | 🔥🔥🔥 | Low | Planned | Recording |
 
 ---
 
@@ -595,8 +598,8 @@ For now, we prioritize **privacy and accuracy** over real-time. Post-recording t
 
 ### Recording
 
-- [ ] **Pause/resume recording** (not just start/stop)
-- [ ] **Microphone test/level meter** (visual feedback)
+- [x] **Pause/resume recording** (not just start/stop)
+- [x] **Microphone test/level meter** (visual feedback)
 - [ ] **Recording quality selector** (choose sample rate / bitrate)
 - [ ] **Always-on background mode** (run as menu bar app)
 - [ ] **Quick Capture Mode** (one-tap voice journal, zero friction, auto-transcribe)
@@ -620,17 +623,17 @@ For now, we prioritize **privacy and accuracy** over real-time. Post-recording t
 
 ### Transcription Quality
 
-- [ ] **Rename speakers** (change "Speaker 1" to "John")
+- [x] **Rename speakers** (change "Speaker 1" to "John")
 - [ ] **Merge/split speaker segments** (fix diarization errors)
 - [ ] **Auto-language detection**
-- [ ] Real-time transcription progress via Tauri events
-- [ ] Speaker diarization (pyannote-audio or whisper-diarize)
+- [x] Real-time transcription progress via Tauri events
+- [x] Speaker diarization (heuristic-based)
 - [ ] Timestamp format options (HH:MM:SS vs MM:SS)
 - [ ] Batch transcription for multiple files
 - [ ] Custom vocabulary (medical, legal, technical)
 - [ ] Word-level confidence scores
-- [ ] Filler word detection and removal
-- [ ] Export as SRT/VTT subtitles
+- [x] Filler word detection and removal
+- [x] Export as SRT/VTT subtitles
 
 ### AI Features (Ollama / Local Models / OpenRouter)
 
@@ -654,24 +657,24 @@ For now, we prioritize **privacy and accuracy** over real-time. Post-recording t
 
 ### Export & Sharing
 
-- [ ] **Obsidian/Logseq sync** (auto-export to vault)
+- [x] **Obsidian/Logseq sync** (auto-export to vault)
 - [ ] **Notion export** (export to Notion pages)
 - [ ] **Apple Notes sync**
 - [ ] **Email transcript**
-- [ ] Export transcripts as PDF
-- [ ] Export as plain text or Markdown
-- [ ] Copy to clipboard
+- [x] Export transcripts as PDF
+- [x] Export as plain text or Markdown
+- [x] Copy to clipboard
 - [ ] Export audio clip from selection
-- [ ] SRT/VTT subtitle export
+- [x] SRT/VTT subtitle export
 - [ ] CSV export
 - [ ] HTML export
 
 ### User Interface
 
-- [ ] **Audio-transcript sync playback** (click text → jump to audio)
-- [ ] **Playback speed control** (0.5x, 1x, 1.5x, 2x)
-- [ ] **Search within transcript** (Ctrl+F)
-- [ ] **Bookmarks/highlights**
+- [x] **Audio-transcript sync playback** (click text → jump to audio)
+- [x] **Playback speed control** (0.5x, 1x, 1.5x, 2x)
+- [x] **Search within transcript** (Ctrl+F)
+- [x] **Bookmarks/highlights** (star/favorite segments)
 - [ ] **Notification when transcription done**
 - [ ] **Privacy/blur mode**
 - [ ] **Recent files quick access**
@@ -679,7 +682,7 @@ For now, we prioritize **privacy and accuracy** over real-time. Post-recording t
 - [ ] Dark/light theme toggle
 - [ ] Adjustable font size
 - [ ] Keyboard-only navigation
-- [ ] Compact mode (hide timestamps)
+- [x] Compact mode (hide timestamps)
 - [ ] Video player with subtitles
 
 ### Platform
