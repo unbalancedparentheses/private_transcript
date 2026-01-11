@@ -12,6 +12,9 @@ import {
   renameSpeaker,
   segmentsToText,
   getSpeakerColor,
+  estimateSegmentTimestamps,
+  findSegmentAtTime,
+  formatTimestamp,
 } from '../../lib/speakerDetection';
 
 function formatTime(seconds: number): string {
@@ -43,6 +46,14 @@ export function SessionDetail() {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const transcriptRef = useRef<HTMLDivElement>(null);
 
+  // Audio player state (declared early because other hooks depend on it)
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [audioSrc, setAudioSrc] = useState<string | null>(null);
+  const [audioError, setAudioError] = useState<string | null>(null);
+
   // Speaker labels state
   const [showSpeakerView, setShowSpeakerView] = useState(false);
   const [speakerSegments, setSpeakerSegments] = useState<TranscriptSegment[]>([]);
@@ -54,12 +65,34 @@ export function SessionDetail() {
     if (showSpeakerView && currentSession?.transcript) {
       // Check if transcript already has speaker labels (e.g., "Name: text")
       const hasInlineLabels = /^[A-Z][a-zA-Z\s]*?:\s/m.test(currentSession.transcript);
-      const segments = hasInlineLabels
+      let segments = hasInlineLabels
         ? parseInlineSpeakerLabels(currentSession.transcript)
         : parseTranscriptIntoSegments(currentSession.transcript);
+
+      // Estimate timestamps if we have audio duration
+      if (duration > 0) {
+        segments = estimateSegmentTimestamps(segments, duration);
+      }
       setSpeakerSegments(segments);
     }
-  }, [showSpeakerView, currentSession?.transcript]);
+  }, [showSpeakerView, currentSession?.transcript, duration]);
+
+  // Track which segment is currently playing
+  const activeSegmentIndex = useMemo(() => {
+    if (!showSpeakerView || speakerSegments.length === 0) return -1;
+    return findSegmentAtTime(speakerSegments, currentTime);
+  }, [showSpeakerView, speakerSegments, currentTime]);
+
+  // Handle clicking on a segment to seek
+  const handleSegmentClick = useCallback((segment: TranscriptSegment) => {
+    if (audioRef.current && segment.start > 0) {
+      audioRef.current.currentTime = segment.start;
+      setCurrentTime(segment.start);
+      if (!isPlaying) {
+        audioRef.current.play();
+      }
+    }
+  }, [isPlaying]);
 
   // Get unique speakers for the rename dropdown
   const uniqueSpeakers = useMemo(() => {
@@ -75,14 +108,6 @@ export function SessionDetail() {
       setNewSpeakerName('');
     }
   };
-
-  // Audio player state
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [audioSrc, setAudioSrc] = useState<string | null>(null);
-  const [audioError, setAudioError] = useState<string | null>(null);
 
   // Compute search matches
   const searchMatches = useMemo((): SearchMatch[] => {
@@ -712,21 +737,63 @@ export function SessionDetail() {
 
                 {/* Speaker Segments */}
                 <div className="space-y-3">
-                  {speakerSegments.map((segment, index) => (
-                    <div key={index} className="flex gap-3 animate-fade-in" style={{ animationDelay: `${index * 20}ms` }}>
-                      <div className="flex-shrink-0 pt-0.5">
-                        <span
-                          className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-semibold text-white"
-                          style={{ backgroundColor: getSpeakerColor(segment.speaker || 'Speaker 1') }}
-                        >
-                          {segment.speaker || 'Speaker 1'}
-                        </span>
+                  {speakerSegments.map((segment, index) => {
+                    const isActive = index === activeSegmentIndex;
+                    const hasTimestamp = segment.start > 0;
+
+                    return (
+                      <div
+                        key={index}
+                        className={`flex gap-3 animate-fade-in rounded-lg p-2 -mx-2 transition-all duration-200 ${
+                          hasTimestamp ? 'cursor-pointer hover:bg-[var(--muted)]/50' : ''
+                        } ${isActive ? 'bg-[var(--primary)]/10 ring-1 ring-[var(--primary)]/30' : ''}`}
+                        style={{ animationDelay: `${index * 20}ms` }}
+                        onClick={() => hasTimestamp && handleSegmentClick(segment)}
+                        role={hasTimestamp ? 'button' : undefined}
+                        tabIndex={hasTimestamp ? 0 : undefined}
+                        onKeyDown={(e) => {
+                          if (hasTimestamp && (e.key === 'Enter' || e.key === ' ')) {
+                            e.preventDefault();
+                            handleSegmentClick(segment);
+                          }
+                        }}
+                      >
+                        <div className="flex-shrink-0 pt-0.5">
+                          <span
+                            className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-semibold text-white"
+                            style={{ backgroundColor: getSpeakerColor(segment.speaker || 'Speaker 1') }}
+                          >
+                            {segment.speaker || 'Speaker 1'}
+                          </span>
+                          {hasTimestamp && (
+                            <span className="block text-[9px] text-[var(--muted-foreground)] mt-1 tabular-nums">
+                              {formatTimestamp(segment.start)}
+                            </span>
+                          )}
+                        </div>
+                        <p className={`flex-1 text-sm leading-relaxed whitespace-pre-wrap ${
+                          isActive ? 'text-[var(--foreground)]' : ''
+                        }`}>
+                          {segment.text}
+                        </p>
+                        {hasTimestamp && (
+                          <div className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <svg
+                              width="14"
+                              height="14"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              className={`text-[var(--muted-foreground)] ${isActive ? 'text-[var(--primary)]' : ''}`}
+                            >
+                              <polygon points="5 3 19 12 5 21 5 3" />
+                            </svg>
+                          </div>
+                        )}
                       </div>
-                      <p className="flex-1 text-sm leading-relaxed whitespace-pre-wrap">
-                        {segment.text}
-                      </p>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             ) : (

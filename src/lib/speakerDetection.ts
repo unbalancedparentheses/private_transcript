@@ -256,3 +256,60 @@ export function getSpeakerColor(speaker: string): string {
 
   return colors[Math.abs(hash) % colors.length];
 }
+
+/**
+ * Estimate timestamps for segments based on text position and audio duration.
+ * This is a simple linear estimation - assumes constant speaking rate.
+ */
+export function estimateSegmentTimestamps(
+  segments: TranscriptSegment[],
+  audioDuration: number
+): TranscriptSegment[] {
+  if (segments.length === 0 || audioDuration <= 0) return segments;
+
+  // Calculate total text length
+  const totalLength = segments.reduce((sum, s) => sum + s.text.length, 0);
+  if (totalLength === 0) return segments;
+
+  // Estimate timestamps based on proportional text length
+  let currentPosition = 0;
+  return segments.map((segment) => {
+    const startTime = (currentPosition / totalLength) * audioDuration;
+    currentPosition += segment.text.length;
+    const endTime = (currentPosition / totalLength) * audioDuration;
+
+    return {
+      ...segment,
+      start: startTime,
+      end: endTime,
+    };
+  });
+}
+
+/**
+ * Find the segment that corresponds to a given audio timestamp
+ */
+export function findSegmentAtTime(
+  segments: TranscriptSegment[],
+  currentTime: number
+): number {
+  for (let i = 0; i < segments.length; i++) {
+    if (currentTime >= segments[i].start && currentTime < segments[i].end) {
+      return i;
+    }
+  }
+  // If after all segments, return last one
+  if (segments.length > 0 && currentTime >= segments[segments.length - 1].start) {
+    return segments.length - 1;
+  }
+  return -1;
+}
+
+/**
+ * Format seconds into mm:ss format
+ */
+export function formatTimestamp(seconds: number): string {
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+}

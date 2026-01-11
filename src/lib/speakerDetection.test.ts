@@ -7,6 +7,9 @@ import {
   renameSpeaker,
   segmentsToText,
   getSpeakerColor,
+  estimateSegmentTimestamps,
+  findSegmentAtTime,
+  formatTimestamp,
 } from './speakerDetection';
 import type { TranscriptSegment } from '../types';
 
@@ -263,6 +266,127 @@ Guest: Thank you for having me.`;
       const color = getSpeakerColor('Test Speaker');
 
       expect(color).toMatch(/^(var\(--|\#)/);
+    });
+  });
+
+  describe('estimateSegmentTimestamps', () => {
+    it('should return empty array for empty segments', () => {
+      expect(estimateSegmentTimestamps([], 60)).toEqual([]);
+    });
+
+    it('should return segments unchanged if duration is 0 or negative', () => {
+      const segments: TranscriptSegment[] = [
+        { start: 0, end: 0, text: 'Hello', speaker: 'Alice' },
+      ];
+      expect(estimateSegmentTimestamps(segments, 0)).toEqual(segments);
+      expect(estimateSegmentTimestamps(segments, -10)).toEqual(segments);
+    });
+
+    it('should estimate timestamps proportionally based on text length', () => {
+      const segments: TranscriptSegment[] = [
+        { start: 0, end: 0, text: 'Hello', speaker: 'Alice' }, // 5 chars
+        { start: 0, end: 0, text: 'World', speaker: 'Bob' },   // 5 chars
+      ];
+
+      const result = estimateSegmentTimestamps(segments, 100);
+
+      // First segment: 0-50% of 100 = 0-50
+      expect(result[0].start).toBe(0);
+      expect(result[0].end).toBe(50);
+
+      // Second segment: 50-100% of 100 = 50-100
+      expect(result[1].start).toBe(50);
+      expect(result[1].end).toBe(100);
+    });
+
+    it('should handle unequal text lengths', () => {
+      const segments: TranscriptSegment[] = [
+        { start: 0, end: 0, text: 'Hi', speaker: 'Alice' },      // 2 chars
+        { start: 0, end: 0, text: 'Hello World', speaker: 'Bob' }, // 11 chars
+      ];
+      // Total: 13 chars
+
+      const result = estimateSegmentTimestamps(segments, 130);
+
+      // First: 0-2/13 of 130 = 0-20
+      expect(result[0].start).toBeCloseTo(0);
+      expect(result[0].end).toBeCloseTo(20);
+
+      // Second: 2/13-13/13 of 130 = 20-130
+      expect(result[1].start).toBeCloseTo(20);
+      expect(result[1].end).toBeCloseTo(130);
+    });
+
+    it('should preserve speaker information', () => {
+      const segments: TranscriptSegment[] = [
+        { start: 0, end: 0, text: 'Hello', speaker: 'Alice' },
+      ];
+
+      const result = estimateSegmentTimestamps(segments, 60);
+
+      expect(result[0].speaker).toBe('Alice');
+      expect(result[0].text).toBe('Hello');
+    });
+  });
+
+  describe('findSegmentAtTime', () => {
+    const segments: TranscriptSegment[] = [
+      { start: 0, end: 10, text: 'First', speaker: 'A' },
+      { start: 10, end: 20, text: 'Second', speaker: 'B' },
+      { start: 20, end: 30, text: 'Third', speaker: 'A' },
+    ];
+
+    it('should return -1 for empty segments', () => {
+      expect(findSegmentAtTime([], 5)).toBe(-1);
+    });
+
+    it('should find correct segment for time within range', () => {
+      expect(findSegmentAtTime(segments, 0)).toBe(0);
+      expect(findSegmentAtTime(segments, 5)).toBe(0);
+      expect(findSegmentAtTime(segments, 10)).toBe(1);
+      expect(findSegmentAtTime(segments, 15)).toBe(1);
+      expect(findSegmentAtTime(segments, 20)).toBe(2);
+      expect(findSegmentAtTime(segments, 25)).toBe(2);
+    });
+
+    it('should return last segment for time after all segments', () => {
+      expect(findSegmentAtTime(segments, 35)).toBe(2);
+      expect(findSegmentAtTime(segments, 100)).toBe(2);
+    });
+
+    it('should return -1 for time before first segment when start > 0', () => {
+      const laterSegments: TranscriptSegment[] = [
+        { start: 10, end: 20, text: 'First', speaker: 'A' },
+      ];
+      expect(findSegmentAtTime(laterSegments, 5)).toBe(-1);
+    });
+  });
+
+  describe('formatTimestamp', () => {
+    it('should format 0 seconds as 0:00', () => {
+      expect(formatTimestamp(0)).toBe('0:00');
+    });
+
+    it('should format seconds under a minute', () => {
+      expect(formatTimestamp(5)).toBe('0:05');
+      expect(formatTimestamp(30)).toBe('0:30');
+      expect(formatTimestamp(59)).toBe('0:59');
+    });
+
+    it('should format minutes correctly', () => {
+      expect(formatTimestamp(60)).toBe('1:00');
+      expect(formatTimestamp(90)).toBe('1:30');
+      expect(formatTimestamp(125)).toBe('2:05');
+    });
+
+    it('should handle large values', () => {
+      expect(formatTimestamp(3600)).toBe('60:00');
+      expect(formatTimestamp(3661)).toBe('61:01');
+    });
+
+    it('should handle decimal values by flooring', () => {
+      expect(formatTimestamp(5.9)).toBe('0:05');
+      expect(formatTimestamp(65.5)).toBe('1:05');
     });
   });
 });
