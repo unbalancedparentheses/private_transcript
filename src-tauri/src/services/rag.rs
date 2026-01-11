@@ -45,6 +45,9 @@ pub struct ChatConversation {
     pub updated_at: i64,
 }
 
+/// Internal type for chunk search results: (id, session_id, session_title, text, speaker, similarity)
+type ChunkSearchResult = (String, String, Option<String>, String, Option<String>, f32);
+
 /// Index a session's transcript for RAG search
 /// Chunks the transcript and generates embeddings for each chunk
 pub async fn index_session(pool: &SqlitePool, session_id: &str) -> Result<usize> {
@@ -204,7 +207,7 @@ pub async fn search_chunks(
     .await?;
 
     // Calculate similarities
-    let mut results: Vec<(String, String, Option<String>, String, Option<String>, f32)> = rows
+    let mut results: Vec<ChunkSearchResult> = rows
         .iter()
         .filter_map(|row| {
             let id: String = row.get("id");

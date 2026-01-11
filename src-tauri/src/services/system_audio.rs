@@ -288,9 +288,8 @@ pub fn start_recording(
     thread::spawn(move || {
         let reader = BufReader::new(stdout);
 
-        for line in reader.lines() {
-            if let Ok(line) = line {
-                if let Ok(msg) = serde_json::from_str::<WorkerMessage>(&line) {
+        for line in reader.lines().map_while(Result::ok) {
+            if let Ok(msg) = serde_json::from_str::<WorkerMessage>(&line) {
                     match msg {
                         WorkerMessage::Status {
                             _state: _,
@@ -366,7 +365,6 @@ pub fn start_recording(
                     }
                 }
             }
-        }
     });
 
     println!("[SystemAudio] Recording started successfully");

@@ -283,8 +283,11 @@ pub fn start_worker(app: &AppHandle) -> Result<()> {
     if let Some(stderr) = stderr {
         thread::spawn(move || {
             let reader = BufReader::new(stderr);
-            for line in reader.lines().flatten() {
-                println!("[WhisperKit-Worker] {}", line);
+            for line in reader.lines() {
+                match line {
+                    Ok(text) => println!("[WhisperKit-Worker] {}", text),
+                    Err(_) => break, // Stop on read error
+                }
             }
         });
     }

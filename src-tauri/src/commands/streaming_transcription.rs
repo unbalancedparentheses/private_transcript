@@ -44,7 +44,7 @@ pub async fn feed_live_audio(sessionId: String, samples: Vec<f32>) -> Result<(),
     // Log every 10th chunk to avoid too much noise
     static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
     let count = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-    if count % 10 == 0 {
+    if count.is_multiple_of(10) {
         println!("[Command] feed_live_audio: session={}, samples={}, chunk#{}", sessionId, samples.len(), count);
     }
     streaming_transcription::feed_audio(&sessionId, &samples).map_err(|e| {

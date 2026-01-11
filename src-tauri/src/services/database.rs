@@ -334,7 +334,7 @@ pub async fn create_session(_app: &AppHandle, request: CreateSessionRequest) -> 
     .bind(&request.folder_id)
     .bind(&request.title)
     .bind(&request.audio_path)
-    .bind(&request.audio_duration)
+    .bind(request.audio_duration)
     .bind(now)
     .bind(now)
     .execute(pool)

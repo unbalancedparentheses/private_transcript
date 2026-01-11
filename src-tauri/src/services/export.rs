@@ -94,7 +94,7 @@ pub async fn export_pdf(content: &str, filename: &str) -> Result<String> {
         for word in text.split_whitespace() {
             if current_line.len() + word.len() + 1 > max_chars_per_line && !current_line.is_empty() {
                 layer.use_text(&current_line, size, x, *y, font);
-                *y = *y - line_height;
+                *y -= line_height;
                 current_line = word.to_string();
             } else {
                 if !current_line.is_empty() {
@@ -105,18 +105,18 @@ pub async fn export_pdf(content: &str, filename: &str) -> Result<String> {
         }
         if !current_line.is_empty() {
             layer.use_text(&current_line, size, x, *y, font);
-            *y = *y - line_height;
+            *y -= line_height;
         }
     };
 
     // Add title
     current_layer.use_text(&title, 20.0, left_margin, y_position, &font_bold);
-    y_position = y_position - Mm(15.0);
+    y_position -= Mm(15.0);
 
     // Add transcript section
     if !transcript.is_empty() {
         current_layer.use_text("Transcript", 14.0, left_margin, y_position, &font_bold);
-        y_position = y_position - Mm(8.0);
+        y_position -= Mm(8.0);
 
         for line in transcript.lines() {
             add_text(&current_layer, line, left_margin, &mut y_position, &font, 11.0);
@@ -127,13 +127,13 @@ pub async fn export_pdf(content: &str, filename: &str) -> Result<String> {
                 break;
             }
         }
-        y_position = y_position - Mm(10.0);
+        y_position -= Mm(10.0);
     }
 
     // Add notes section
     if !notes.is_empty() && y_position > Mm(40.0) {
         current_layer.use_text("Notes", 14.0, left_margin, y_position, &font_bold);
-        y_position = y_position - Mm(8.0);
+        y_position -= Mm(8.0);
 
         for line in notes.lines() {
             add_text(&current_layer, line, left_margin, &mut y_position, &font, 11.0);
