@@ -41,22 +41,31 @@ export function OnboardingView() {
 
   // Listen for download progress events
   useEffect(() => {
-    console.log('Setting up download progress listener');
-    const unlisten = listen<DownloadProgress>('model-download-progress', (event) => {
-      console.log('Received download progress:', event.payload);
-      setDownloadProgress((prev) => ({
-        ...prev,
-        [event.payload.modelId]: event.payload,
-      }));
+    let unlistenFn: (() => void) | null = null;
 
-      // Check if download completed
-      if (event.payload.status === 'complete') {
-        checkModelsReady();
-      }
-    });
+    const setupListener = async () => {
+      console.log('[OnboardingView] Setting up download progress listener...');
+      unlistenFn = await listen<DownloadProgress>('model-download-progress', (event) => {
+        console.log('[OnboardingView] Received download progress:', event.payload);
+        setDownloadProgress((prev) => ({
+          ...prev,
+          [event.payload.modelId]: event.payload,
+        }));
+
+        // Check if download completed
+        if (event.payload.status === 'complete') {
+          checkModelsReady();
+        }
+      });
+      console.log('[OnboardingView] Download progress listener ready');
+    };
+
+    setupListener();
 
     return () => {
-      unlisten.then((fn) => fn());
+      if (unlistenFn) {
+        unlistenFn();
+      }
     };
   }, []);
 

@@ -218,17 +218,27 @@ fn transcribe_sync(audio_data: &[f32]) -> Result<String> {
 
     // Extract segments
     println!("[Whisper] transcribe_sync: getting segments...");
-    let num_segments = state
-        .full_n_segments()
-        .map_err(|e| anyhow!("Failed to get segments: {}", e))?;
+    let num_segments = state.full_n_segments();
     println!("[Whisper] transcribe_sync: found {} segments", num_segments);
 
     let mut transcript = String::new();
 
     for i in 0..num_segments {
-        let segment_text = state
-            .full_get_segment_text(i)
-            .map_err(|e| anyhow!("Failed to get segment {}: {}", i, e))?;
+        let segment = match state.get_segment(i) {
+            Some(seg) => seg,
+            None => {
+                println!("[Whisper] Warning: Failed to get segment {}", i);
+                continue;
+            }
+        };
+
+        let segment_text = match segment.to_str() {
+            Ok(text) => text.to_string(),
+            Err(e) => {
+                println!("[Whisper] Warning: Failed to decode segment {} text: {}", i, e);
+                continue;
+            }
+        };
 
         // Add space between segments
         if !transcript.is_empty() && !segment_text.starts_with(' ') {
@@ -247,4 +257,3 @@ fn transcribe_sync(audio_data: &[f32]) -> Result<String> {
 
     Ok(result)
 }
-
