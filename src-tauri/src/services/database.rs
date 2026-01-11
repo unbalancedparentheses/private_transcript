@@ -283,13 +283,36 @@ pub async fn update_folder(_app: &AppHandle, request: UpdateFolderRequest) -> Re
     Ok(folder_from_row(row))
 }
 
-pub async fn delete_folder(_app: &AppHandle, id: &str) -> Result<()> {
+pub async fn delete_folder(app: &AppHandle, id: &str) -> Result<()> {
     let pool = get_pool()?;
+
+    // First, get all sessions in this folder to delete their audio files
+    let sessions = get_sessions(app, id).await?;
+
+    // Delete audio files for all sessions
+    for session in &sessions {
+        if let Err(e) = std::fs::remove_file(&session.audio_path) {
+            // Log but don't fail if file doesn't exist or can't be deleted
+            eprintln!(
+                "Warning: Could not delete audio file {}: {}",
+                session.audio_path, e
+            );
+        }
+    }
+
+    // Delete all sessions in this folder
+    sqlx::query("DELETE FROM sessions WHERE folder_id = ?")
+        .bind(id)
+        .execute(pool)
+        .await?;
+
+    // Soft-delete the folder
     sqlx::query("UPDATE folders SET is_active = 0, updated_at = ? WHERE id = ?")
         .bind(now())
         .bind(id)
         .execute(pool)
         .await?;
+
     Ok(())
 }
 
@@ -408,12 +431,27 @@ pub async fn update_session(_app: &AppHandle, request: UpdateSessionRequest) -> 
     Ok(session_from_row(row))
 }
 
-pub async fn delete_session(_app: &AppHandle, id: &str) -> Result<()> {
+pub async fn delete_session(app: &AppHandle, id: &str) -> Result<()> {
     let pool = get_pool()?;
+
+    // First, get the session to retrieve the audio path
+    let session = get_session(app, id).await?;
+
+    // Delete the audio file
+    if let Err(e) = std::fs::remove_file(&session.audio_path) {
+        // Log but don't fail if file doesn't exist or can't be deleted
+        eprintln!(
+            "Warning: Could not delete audio file {}: {}",
+            session.audio_path, e
+        );
+    }
+
+    // Delete the database record
     sqlx::query("DELETE FROM sessions WHERE id = ?")
         .bind(id)
         .execute(pool)
         .await?;
+
     Ok(())
 }
 
