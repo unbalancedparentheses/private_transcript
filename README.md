@@ -419,31 +419,56 @@ Only after these are fixed, proceed to new features below.
 
 ## Implementation Gaps (Details)
 
-### Quick Wins (High Impact, Low Effort)
-| Issue | Problem | Fix |
-|-------|---------|-----|
-| Transcription progress tracking | Shows 0%, stubbed out | Wire up actual progress events |
-| Real PDF/DOCX export | Exports are text files with wrong extensions | Use proper PDF/DOCX libraries |
-| Audio playback in session view | Can't listen while reviewing transcript | Add audio player to session view |
-| Microphone level meter | No visual feedback during recording | Add real-time level visualization |
-| Better error messages | Uses browser alerts instead of UI | Replace with toast notifications |
+### Quick Wins - ✅ COMPLETED
+| Issue | Status |
+|-------|--------|
+| Transcription progress tracking | ✅ Done |
+| Real PDF/DOCX export | ✅ Done |
+| Audio playback in session view | ✅ Done |
+| Microphone level meter | ✅ Done |
+| Toast notifications | ✅ Done |
 
-### Medium Effort, High Impact
-| Issue | Problem | Fix |
-|-------|---------|-----|
-| Pause/resume recording | Only start/stop available | Implement pause state in audio module |
-| Settings page for models | Can only select in onboarding | Add dedicated settings page |
-| Search within transcript | No Ctrl+F equivalent | Add inline search component |
-| Speaker identification UI | Segments stored but not shown | Display speaker labels in transcript |
-| Ollama status indicator | Backend checks but UI doesn't show | Add connection status to UI |
+### Medium Effort - ✅ COMPLETED
+| Issue | Status |
+|-------|--------|
+| Pause/resume recording | ✅ Done |
+| Settings page for models | ✅ Done |
+| Search within transcript | ✅ Done |
+| Speaker identification UI | ✅ Done |
+| Ollama status indicator | Pending |
 
-### Strategic (High Effort)
+### Strategic (High Effort) - IN PROGRESS
 | Issue | Problem | Fix |
 |-------|---------|-----|
 | System audio capture | Can't record Zoom/Teams/Meet | Implement ScreenCaptureKit (macOS) |
-| Audio-transcript sync | Can't click to seek | Wire up timestamps to audio player |
 | Database encryption | SQLCipher mentioned but not implemented | Enable SQLCipher encryption |
 | Streaming LLM output | Waits for full response | Implement SSE/streaming |
+
+---
+
+## Should We Add Live Transcription?
+
+**Current approach:** WhisperKit processes the complete audio file after recording ends. It's optimized for accuracy, not real-time.
+
+### Options
+
+| Approach | How It Works | Pros | Cons |
+|----------|--------------|------|------|
+| **Whisper streaming** | Segment audio into 5-10s chunks, transcribe each incrementally | Stays local, no cloud | Latency, reduced accuracy at chunk boundaries |
+| **Whisper + VAD** | Use Voice Activity Detection to send segments as they complete | Semi-live experience, local | Still has some delay |
+| **Cloud streaming API** | Deepgram, AssemblyAI, AWS Transcribe | True real-time, low latency | Breaks privacy promise, adds costs |
+
+### Trade-offs
+
+- **Accuracy vs Speed:** Live transcription typically has lower accuracy than post-recording transcription
+- **Privacy:** Cloud streaming APIs would break the "100% local" promise
+- **Complexity:** Streaming adds significant code complexity for chunk management, overlap handling, and real-time UI updates
+
+### Our Stance
+
+For now, we prioritize **privacy and accuracy** over real-time. Post-recording transcription with WhisperKit is fast enough (near real-time on Apple Silicon) that the wait is minimal.
+
+**Future consideration:** If users strongly request it, we could add an optional "semi-live" mode using Whisper + VAD that stays fully local.
 
 ### Code Quality
 | Issue | Problem | Fix |
