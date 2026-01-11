@@ -6,6 +6,7 @@ authors = ["you"]
 license = "MIT"
 repository = ""
 edition = "2021"
+default-run = "private-transcript"
 
 [build-dependencies]
 tauri-build = { version = "2.0", features = [] }
@@ -25,8 +26,8 @@ tokio = { version = "1.35", features = ["full"] }
 # Database
 sqlx = { version = "0.7", features = ["runtime-tokio", "sqlite"] }
 
-# Whisper transcription (native bindings)
-whisper-rs = { version = "0.15", features = ["metal"] }
+# Whisper transcription: Now using WhisperKit (Swift/CoreML) via subprocess
+# whisper-rs removed - caused BLAS crashes on M4 in Tauri/WebKit context
 
 # LLM inference (native bindings)
 llama-cpp-2 = "0.1"
@@ -53,6 +54,8 @@ anyhow = "1.0"
 dirs = "5.0"
 rand = "0.8"
 futures = "0.3"
+
+# Note: whisper-worker binary removed - now using WhisperKit Swift subprocess
 
 [features]
 default = ["custom-protocol"]

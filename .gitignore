@@ -40,6 +40,17 @@ pnpm-debug.log*
 # Testing
 coverage/
 
+# WhisperKit Swift build
+whisperkit-worker/.build/
+whisperkit-worker/.swiftpm/
+whisperkit-worker/Package.resolved
+
+# Downloaded models (for testing)
+*.gguf
+*.bin
+*.mlmodel
+*.mlmodelc/
+
 # Misc
 *.bak
 *.tmp

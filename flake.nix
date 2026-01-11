@@ -23,6 +23,7 @@
         darwinDeps = with pkgs; pkgs.lib.optionals pkgs.stdenv.isDarwin [
           apple-sdk_15
           libiconv
+          openblas  # For whisper-rs openblas feature
         ];
 
         linuxDeps = with pkgs; pkgs.lib.optionals pkgs.stdenv.isLinux [
@@ -79,6 +80,10 @@
           OPENSSL_DIR = "${pkgs.openssl.dev}";
           OPENSSL_LIB_DIR = "${pkgs.openssl.out}/lib";
           OPENSSL_INCLUDE_DIR = "${pkgs.openssl.dev}/include";
+
+          # For whisper-rs openblas
+          BLAS_INCLUDE_DIRS = "${pkgs.openblas.dev}/include";
+          OPENBLAS_LIB = "${pkgs.openblas}/lib";
         };
       }
     );
