@@ -349,6 +349,91 @@ fn test_11_multiple_transcriptions() {
     println!("[Test] PASSED: All transcriptions completed");
 }
 
+/// Test with tokio spawn_blocking like the app
+#[tokio::test]
+async fn test_12_tokio_spawn_blocking() {
+    println!("\n=== TEST 12: Tokio spawn_blocking ===");
+
+    let model_path = get_model_path().expect("No model found");
+    let model_path_str = model_path.to_string_lossy().to_string();
+
+    println!("[Test] Loading model in spawn_blocking...");
+    let model_path_clone = model_path_str.clone();
+    tokio::task::spawn_blocking(move || {
+        let ctx_params = WhisperContextParameters::default();
+        let ctx = WhisperContext::new_with_params(&model_path_clone, ctx_params)
+            .expect("Failed to load model");
+        println!("[Test] Model loaded, creating state...");
+        let mut state = ctx.create_state().expect("Failed to create state");
+
+        let audio = generate_silent_audio(0.5);
+        let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
+        params.set_language(Some("en"));
+        params.set_n_threads(4);
+
+        println!("[Test] Running transcription...");
+        state.full(params, &audio).expect("Transcription failed");
+        println!("[Test] Done");
+    })
+    .await
+    .expect("Task panicked");
+
+    println!("[Test] PASSED: spawn_blocking transcription works");
+}
+
+/// Test with multiple spawn_blocking calls (like app does)
+#[tokio::test]
+async fn test_13_multiple_spawn_blocking() {
+    println!("\n=== TEST 13: Multiple spawn_blocking calls ===");
+
+    use std::sync::Arc;
+    use parking_lot::Mutex;
+    use once_cell::sync::OnceCell;
+
+    static ASYNC_CONTEXT: OnceCell<Arc<Mutex<Option<WhisperContext>>>> = OnceCell::new();
+
+    fn get_async_context() -> &'static Arc<Mutex<Option<WhisperContext>>> {
+        ASYNC_CONTEXT.get_or_init(|| Arc::new(Mutex::new(None)))
+    }
+
+    let model_path = get_model_path().expect("No model found");
+    let model_path_str = model_path.to_string_lossy().to_string();
+
+    // Load model in spawn_blocking (like app's load_model)
+    println!("[Test] Step 1: Loading model...");
+    let model_path_clone = model_path_str.clone();
+    tokio::task::spawn_blocking(move || {
+        let ctx_params = WhisperContextParameters::default();
+        let ctx = WhisperContext::new_with_params(&model_path_clone, ctx_params)
+            .expect("Failed to load model");
+        let mut lock = get_async_context().lock();
+        *lock = Some(ctx);
+        println!("[Test] Model stored in global state");
+    })
+    .await
+    .expect("Load task panicked");
+
+    // Transcribe in spawn_blocking (like app's transcribe)
+    println!("[Test] Step 2: Transcribing...");
+    tokio::task::spawn_blocking(move || {
+        let ctx_lock = get_async_context().lock();
+        let ctx = ctx_lock.as_ref().expect("Context not loaded");
+        let mut state = ctx.create_state().expect("Failed to create state");
+
+        let audio = generate_silent_audio(0.5);
+        let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
+        params.set_language(Some("en"));
+        params.set_n_threads(4);
+
+        state.full(params, &audio).expect("Transcription failed");
+        println!("[Test] Transcription complete");
+    })
+    .await
+    .expect("Transcribe task panicked");
+
+    println!("[Test] PASSED: Multiple spawn_blocking calls work");
+}
+
 /// Print environment info
 #[test]
 fn test_00_environment_info() {
