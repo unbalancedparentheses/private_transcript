@@ -46,30 +46,31 @@ pub fn clear_progress(session_id: &str) {
 }
 
 #[tauri::command]
+#[allow(non_snake_case)]
 pub async fn transcribe_audio(
     app: AppHandle,
-    session_id: String,
-    audio_path: String,
+    sessionId: String,
+    audioPath: String,
 ) -> Result<String, String> {
     println!(
         "[Transcription] Starting transcription for session: {}",
-        session_id
+        sessionId
     );
-    println!("[Transcription] Audio path: {}", audio_path);
+    println!("[Transcription] Audio path: {}", audioPath);
 
     // Initialize progress tracking
-    update_progress(&session_id, 0.0, "starting");
+    update_progress(&sessionId, 0.0, "starting");
 
     // Check if file exists
-    let path = std::path::Path::new(&audio_path);
+    let path = std::path::Path::new(&audioPath);
     if !path.exists() {
-        let err = format!("Audio file does not exist: {}", audio_path);
+        let err = format!("Audio file does not exist: {}", audioPath);
         println!("[Transcription] ERROR: {}", err);
-        update_progress(&session_id, 0.0, "error");
+        update_progress(&sessionId, 0.0, "error");
         return Err(err);
     }
 
-    let file_size = std::fs::metadata(&audio_path)
+    let file_size = std::fs::metadata(&audioPath)
         .map(|m| m.len())
         .unwrap_or(0);
     println!(
@@ -86,14 +87,14 @@ pub async fn transcribe_audio(
             .map_err(|e| {
                 let err = format!("Failed to set model: {}", e);
                 println!("[Transcription] ERROR: {}", err);
-                update_progress(&session_id, 0.0, "error");
+                update_progress(&sessionId, 0.0, "error");
                 err
             })?;
     }
 
-    update_progress(&session_id, 10.0, "transcribing");
+    update_progress(&sessionId, 10.0, "transcribing");
     println!("[Transcription] Starting WhisperKit transcription...");
-    let result = whisper::transcribe(&app, &session_id, &audio_path).await;
+    let result = whisper::transcribe(&app, &sessionId, &audioPath).await;
 
     match &result {
         Ok(transcript) => {
@@ -105,16 +106,16 @@ pub async fn transcribe_audio(
                 "[Transcription] First 200 chars: {}",
                 &transcript.chars().take(200).collect::<String>()
             );
-            update_progress(&session_id, 100.0, "complete");
+            update_progress(&sessionId, 100.0, "complete");
         }
         Err(e) => {
             println!("[Transcription] ERROR during transcription: {}", e);
-            update_progress(&session_id, 0.0, "error");
+            update_progress(&sessionId, 0.0, "error");
         }
     }
 
     // Clean up progress tracking after a short delay
-    let session_id_clone = session_id.clone();
+    let session_id_clone = sessionId.clone();
     tokio::spawn(async move {
         tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
         clear_progress(&session_id_clone);
