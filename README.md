@@ -1626,6 +1626,31 @@ sudo apt install libwebkit2gtk-4.0-dev libgtk-3-dev libayatana-appindicator3-dev
 
 ---
 
+## Testing Notes
+
+The following features require manual testing and have not been fully validated in automated tests:
+
+### System Audio Capture
+The system audio capture feature uses ScreenCaptureKit on macOS and requires manual testing:
+1. Build the audio-capture-worker: `cd audio-capture-worker && swift build -c release`
+2. Test device listing: `./audio-capture-worker list-devices`
+3. Test microphone recording: `./audio-capture-worker record --output /tmp/test.wav`
+4. Test system audio capture: `./audio-capture-worker record --system-audio --output /tmp/test_sys.wav`
+5. Verify the screen recording permission flow works correctly (revoke and re-grant permissions)
+
+**Status**: Never tested end-to-end. Requires macOS with screen recording permissions.
+
+### Speaker Diarization
+The speaker detection feature uses heuristic-based segmentation and needs verification:
+1. Record a conversation with 2+ speakers
+2. Verify speakers are correctly segmented and labeled
+3. Test the speaker rename functionality
+4. Verify speaker colors are consistent across segments
+
+**Status**: Heuristic implementation complete, needs real-world testing with multi-speaker audio.
+
+---
+
 ## Contributing
 
 Contributions are welcome! Please read our contributing guidelines before submitting PRs.
