@@ -1039,12 +1039,60 @@ Friday 4 PM - Week demo
 
 ---
 
-## Post-Launch (Week 4+)
+## Platform Strategy
 
-After V1.0, prioritize based on user feedback:
-- iOS/Android native apps
-- More integrations
-- Niche features (legal, medical, etc.)
+### Why Mac First
+
+| Reason | Details |
+|--------|---------|
+| **Direct competitor** | MacWhisper is Mac-only, we're taking their market |
+| **Best hardware for local AI** | Apple Silicon crushes local transcription |
+| **Privacy-conscious users** | Therapists, lawyers, researchers skew Mac |
+| **Willingness to pay** | Mac users pay for quality software |
+| **Smaller, faster validation** | Ship faster, iterate with feedback |
+
+### Platform Rollout Order
+
+```
+1. macOS        ████████████████████  Week 1-3 (launch)
+2. Windows      ████████████████      Week 4-5
+3. iOS          ████████████          Week 6-8
+4. Android      ████████              Week 9+
+5. Linux        ████                  Free with Tauri
+```
+
+### Platform Analysis
+
+| Platform | Market Size | Effort | Revenue Potential | Notes |
+|----------|-------------|--------|-------------------|-------|
+| **macOS** | 15% desktop | Low (Tauri) | High ($$) | Beachhead market |
+| **Windows** | 70% desktop | Low (Tauri) | Medium ($) | Bigger market, more competition |
+| **iOS** | 50% mobile | Medium (Swift) | High ($$) | Companion app, on-the-go recording |
+| **Android** | 50% mobile | Medium (Kotlin) | Low ($) | Fragmented, less willing to pay |
+| **Linux** | 3% desktop | Free (Tauri) | Low | Developer niche, good PR |
+
+### Transcription Engines by Platform
+
+| Platform | Primary Engine | Fallback |
+|----------|---------------|----------|
+| **macOS** | WhisperKit (CoreML, 300x realtime) | whisper.cpp, Groq cloud |
+| **Windows** | Parakeet TDT (NVIDIA) or whisper.cpp | Groq cloud |
+| **Linux** | Parakeet TDT (NVIDIA) or whisper.cpp | Groq cloud |
+| **iOS** | WhisperKit (CoreML) | Groq cloud |
+| **Android** | whisper.cpp | Groq cloud |
+
+### Post-Launch Priorities
+
+**After macOS V1.0:**
+
+1. **Windows (Week 4-5)** - Same Tauri codebase, 70% of desktop market
+2. **iOS (Week 6-8)** - Companion app for on-the-go recording
+3. **Linux** - Ships free with Windows (Tauri)
+4. **Android** - Only if demand warrants
+
+**Feature priorities after platform expansion:**
+- More integrations (CRM, calendar, etc.)
+- Niche features (legal, medical templates)
 - Advanced AI features
 - Team/collaboration features
 
