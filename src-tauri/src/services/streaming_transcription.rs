@@ -529,6 +529,7 @@ fn handle_worker_event(app: &AppHandle, line: &str) -> Result<()> {
             text,
             timestamp,
         } => {
+            println!("[LIVE] (tentative) \"{}\"", text);
             let _ = app.emit(
                 "live-transcription",
                 LiveTranscriptionEvent {
@@ -546,6 +547,7 @@ fn handle_worker_event(app: &AppHandle, line: &str) -> Result<()> {
             start_time,
             end_time: _,
         } => {
+            println!("[LIVE] ✓ CONFIRMED: \"{}\"", text);
             let _ = app.emit(
                 "live-transcription",
                 LiveTranscriptionEvent {
@@ -561,6 +563,8 @@ fn handle_worker_event(app: &AppHandle, line: &str) -> Result<()> {
             session_id,
             full_text,
         } => {
+            println!("[LIVE] === SESSION COMPLETE ===");
+            println!("[LIVE] Full transcript: \"{}\"", full_text);
             println!(
                 "[StreamingTranscription] Session complete: {} ({} chars)",
                 session_id,
