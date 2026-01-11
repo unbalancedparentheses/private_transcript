@@ -2,6 +2,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { RecordingView } from './RecordingView';
 import { listen } from '@tauri-apps/api/event';
+import { ToastProvider } from '../ui/Toast';
+
+// Helper to render with ToastProvider
+const renderWithToast = (ui: React.ReactElement) => {
+  return render(<ToastProvider>{ui}</ToastProvider>);
+};
 
 // Mock the app store
 const mockSetView = vi.fn();
@@ -55,33 +61,33 @@ describe('RecordingView', () => {
   });
 
   it('should render the recording view', () => {
-    render(<RecordingView />);
+    renderWithToast(<RecordingView />);
     expect(screen.getByText('New Recording')).toBeInTheDocument();
   });
 
   it('should show instructions to start recording', () => {
-    render(<RecordingView />);
+    renderWithToast(<RecordingView />);
     expect(screen.getByText(/Tap to start recording/i)).toBeInTheDocument();
   });
 
   it('should show duration as 00:00 initially', () => {
-    render(<RecordingView />);
+    renderWithToast(<RecordingView />);
     expect(screen.getByText('00:00')).toBeInTheDocument();
   });
 
   it('should have a back button', () => {
-    render(<RecordingView />);
+    renderWithToast(<RecordingView />);
     expect(screen.getByText('Back')).toBeInTheDocument();
   });
 
   it('should call setView when back button is clicked', () => {
-    render(<RecordingView />);
+    renderWithToast(<RecordingView />);
     fireEvent.click(screen.getByText('Back'));
     expect(mockSetView).toHaveBeenCalledWith('list');
   });
 
   it('should setup transcription progress listener on mount', async () => {
-    render(<RecordingView />);
+    renderWithToast(<RecordingView />);
 
     await waitFor(() => {
       expect(listen).toHaveBeenCalledWith('transcription-progress', expect.any(Function));
@@ -90,7 +96,7 @@ describe('RecordingView', () => {
 
   describe('Transcription Progress', () => {
     it('should display progress bar when transcribing', async () => {
-      render(<RecordingView />);
+      renderWithToast(<RecordingView />);
 
       // Simulate having an audio blob and starting transcription
       // This tests the UI state when isTranscribing is true
@@ -107,7 +113,7 @@ describe('RecordingView', () => {
         return () => {};
       });
 
-      render(<RecordingView />);
+      renderWithToast(<RecordingView />);
 
       await waitFor(() => {
         expect(progressCallback).not.toBeNull();
@@ -150,7 +156,7 @@ describe('RecordingView - No Folder Selected', () => {
 
 describe('Audio Level Meter', () => {
   it('should not show level meter when not recording', () => {
-    render(<RecordingView />);
+    renderWithToast(<RecordingView />);
     // The level meter bars should not be visible when not recording
     const levelMeterBars = document.querySelectorAll('.bg-green-500, .bg-yellow-500, .bg-red-500');
     expect(levelMeterBars.length).toBe(0);
@@ -201,7 +207,7 @@ describe('Pause/Resume Recording', () => {
     (globalThis as unknown as { MediaRecorder: { isTypeSupported: unknown } }).MediaRecorder.isTypeSupported = vi.fn(() => true);
 
     // Mock requestAnimationFrame
-    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((_callback) => {
       return 1;
     });
   });
@@ -211,18 +217,18 @@ describe('Pause/Resume Recording', () => {
   });
 
   it('should show instruction for starting recording initially', () => {
-    render(<RecordingView />);
+    renderWithToast(<RecordingView />);
     expect(screen.getByText(/Tap to start recording/)).toBeInTheDocument();
   });
 
   it('should show start button initially', () => {
-    render(<RecordingView />);
+    renderWithToast(<RecordingView />);
     const startButton = screen.getByTitle('Start recording');
     expect(startButton).toBeInTheDocument();
   });
 
   it('should show pause and stop buttons when recording', async () => {
-    render(<RecordingView />);
+    renderWithToast(<RecordingView />);
     const startButton = screen.getByTitle('Start recording');
     fireEvent.click(startButton);
 
@@ -233,7 +239,7 @@ describe('Pause/Resume Recording', () => {
   });
 
   it('should update instruction when recording', async () => {
-    render(<RecordingView />);
+    renderWithToast(<RecordingView />);
     const startButton = screen.getByTitle('Start recording');
     fireEvent.click(startButton);
 
@@ -253,7 +259,7 @@ describe('Transcription Progress Event Handling', () => {
       return () => {};
     });
 
-    render(<RecordingView />);
+    renderWithToast(<RecordingView />);
 
     await waitFor(() => {
       expect(progressCallback).not.toBeNull();
@@ -283,7 +289,7 @@ describe('Transcription Progress Event Handling', () => {
       return () => {};
     });
 
-    render(<RecordingView />);
+    renderWithToast(<RecordingView />);
 
     await waitFor(() => {
       expect(progressCallback).not.toBeNull();
@@ -308,7 +314,7 @@ describe('Transcription Progress Event Handling', () => {
     const unlistenMock = vi.fn();
     vi.mocked(listen).mockResolvedValue(unlistenMock);
 
-    const { unmount } = render(<RecordingView />);
+    const { unmount } = renderWithToast(<RecordingView />);
 
     await waitFor(() => {
       expect(listen).toHaveBeenCalled();

@@ -3,7 +3,6 @@ import { invoke } from '@tauri-apps/api/core';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { useAppStore } from '../../stores/appStore';
 import { Button } from '../ui/Button';
-import { Input } from '../ui/Input';
 import { useToast } from '../ui/Toast';
 import type { TranscriptSegment } from '../../types';
 import {
@@ -55,6 +54,8 @@ export function SessionDetail() {
   const [duration, setDuration] = useState(0);
   const [audioSrc, setAudioSrc] = useState<string | null>(null);
   const [audioError, setAudioError] = useState<string | null>(null);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1);
+  const [compactMode, setCompactMode] = useState(false);
 
   // Speaker labels state (enabled by default)
   const [showSpeakerView, setShowSpeakerView] = useState(true);
@@ -288,6 +289,47 @@ export function SessionDetail() {
     }
   };
 
+  const handlePlaybackSpeedChange = (speed: number) => {
+    setPlaybackSpeed(speed);
+    if (audioRef.current) {
+      audioRef.current.playbackRate = speed;
+    }
+  };
+
+  const playbackSpeeds = [0.5, 0.75, 1, 1.25, 1.5, 2];
+
+  const handleRegenerateTranscript = async () => {
+    if (!currentSession?.audioPath) {
+      addToast('No audio file available for re-transcription', 'error');
+      return;
+    }
+
+    if (!window.confirm('Are you sure you want to regenerate the transcript? This will replace the current transcript.')) {
+      return;
+    }
+
+    try {
+      addToast('Starting transcription...', 'info');
+      await updateSession(currentSession.id, { status: 'transcribing' });
+
+      const transcript = await invoke<string>('transcribe_audio', {
+        audioPath: currentSession.audioPath,
+        sessionId: currentSession.id,
+      });
+
+      await updateSession(currentSession.id, {
+        transcript,
+        status: 'complete',
+      });
+
+      addToast('Transcript regenerated successfully', 'success');
+    } catch (error) {
+      console.error('Regenerate transcript failed:', error);
+      await updateSession(currentSession.id, { status: 'error' });
+      addToast('Failed to regenerate transcript', 'error');
+    }
+  };
+
   if (!currentSession) {
     return null;
   }
@@ -331,21 +373,27 @@ export function SessionDetail() {
     setEditingNote(false);
   };
 
-  const handleExport = async (format: 'markdown' | 'pdf' | 'docx') => {
+  const handleExport = async (format: 'markdown' | 'pdf' | 'docx' | 'srt' | 'vtt') => {
     const content = `# ${currentSession.title || 'Session'}\n\n## Transcript\n\n${currentSession.transcript || ''}\n\n## Notes\n\n${currentSession.generatedNote || ''}`;
     const filename = `session-${currentSession.id.slice(0, 8)}`;
 
     try {
       const path = await invoke<string>(`export_${format}`, { content, filename });
-      alert(`Exported to: ${path}`);
+      addToast(`Exported to: ${path}`, 'success');
     } catch (error) {
       console.error('Export failed:', error);
-      alert('Export failed');
+      addToast('Export failed. Please try again.', 'error');
     }
   };
 
   const handleCopy = async (text: string) => {
-    await navigator.clipboard.writeText(text);
+    try {
+      await navigator.clipboard.writeText(text);
+      addToast('Copied to clipboard', 'success');
+    } catch (error) {
+      console.error('Copy failed:', error);
+      addToast('Failed to copy to clipboard', 'error');
+    }
   };
 
   const handleDeleteSession = async () => {
@@ -532,6 +580,29 @@ export function SessionDetail() {
             <span className="text-xs text-[var(--muted-foreground)] font-mono w-10 tabular-nums">
               {formatTime(duration)}
             </span>
+
+            {/* Playback Speed */}
+            <div className="relative group">
+              <button
+                className="px-2 py-1 text-xs font-medium rounded bg-[var(--muted)] hover:bg-[var(--muted)]/80 transition-colors min-w-[45px]"
+                title="Playback speed"
+              >
+                {playbackSpeed}x
+              </button>
+              <div className="absolute right-0 bottom-full mb-1 py-1 bg-[var(--card)] border border-[var(--border)] rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
+                {playbackSpeeds.map((speed) => (
+                  <button
+                    key={speed}
+                    onClick={() => handlePlaybackSpeedChange(speed)}
+                    className={`w-full px-3 py-1 text-xs text-left hover:bg-[var(--muted)] transition-colors ${
+                      playbackSpeed === speed ? 'text-[var(--primary)] font-medium' : ''
+                    }`}
+                  >
+                    {speed}x
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
           {audioError && (
             <p className="text-xs text-[var(--destructive)] mt-2">{audioError}</p>
@@ -650,6 +721,33 @@ export function SessionDetail() {
                   <path d="M16 3.13a4 4 0 0 1 0 7.75" />
                 </svg>
               </button>
+              {/* Compact Mode Toggle */}
+              <button
+                onClick={() => setCompactMode(!compactMode)}
+                className={`w-7 h-7 flex items-center justify-center rounded transition-colors ${
+                  compactMode
+                    ? 'bg-[var(--primary)] text-white'
+                    : 'hover:bg-[var(--muted)]'
+                }`}
+                title={compactMode ? 'Show timestamps' : 'Hide timestamps (compact)'}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M4 6h16M4 12h10M4 18h16" />
+                </svg>
+              </button>
+              {/* Regenerate Transcript */}
+              {currentSession.audioPath && (
+                <button
+                  onClick={handleRegenerateTranscript}
+                  className="w-7 h-7 flex items-center justify-center rounded hover:bg-[var(--muted)] transition-colors"
+                  title="Regenerate transcript"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M1 4v6h6M23 20v-6h-6" />
+                    <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" />
+                  </svg>
+                </button>
+              )}
               <Button
                 variant="ghost"
                 size="sm"
@@ -795,7 +893,7 @@ export function SessionDetail() {
                           >
                             {segment.speaker || 'Speaker 1'}
                           </span>
-                          {hasTimestamp && (
+                          {hasTimestamp && !compactMode && (
                             <span className="block text-[9px] text-[var(--muted-foreground)] mt-1 tabular-nums">
                               {formatTimestamp(segment.start)}
                             </span>

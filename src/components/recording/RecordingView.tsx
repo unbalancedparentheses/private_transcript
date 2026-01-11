@@ -4,6 +4,7 @@ import { listen, UnlistenFn } from '@tauri-apps/api/event';
 import { useAppStore } from '../../stores/appStore';
 import { Button } from '../ui/Button';
 import { Progress } from '../ui/Progress';
+import { useToast } from '../ui/Toast';
 
 interface TranscriptionProgress {
   sessionId: string;
@@ -14,6 +15,7 @@ interface TranscriptionProgress {
 
 export function RecordingView() {
   const { currentFolder, createSession, setView, updateSession } = useAppStore();
+  const { addToast } = useToast();
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [duration, setDuration] = useState(0);
@@ -181,7 +183,7 @@ export function RecordingView() {
       }, 1000);
     } catch (error) {
       console.error('Failed to start recording:', error);
-      alert('Failed to access microphone. Please check permissions in System Preferences > Security & Privacy > Microphone.');
+      addToast('Failed to access microphone. Please check permissions in System Preferences > Security & Privacy > Microphone.', 'error');
     }
   };
 
@@ -290,7 +292,7 @@ export function RecordingView() {
       setView('list');
     } catch (error) {
       console.error('Failed to save recording:', error);
-      alert('Failed to save recording.');
+      addToast('Failed to save recording. Please try again.', 'error');
     } finally {
       setIsSaving(false);
       setIsTranscribing(false);

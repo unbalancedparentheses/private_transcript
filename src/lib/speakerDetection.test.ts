@@ -10,6 +10,10 @@ import {
   estimateSegmentTimestamps,
   findSegmentAtTime,
   formatTimestamp,
+  removeFillerWords,
+  removeFillerWordsFromSegments,
+  segmentsToSRT,
+  segmentsToVTT,
 } from './speakerDetection';
 import type { TranscriptSegment } from '../types';
 
@@ -1010,6 +1014,226 @@ A: Paris was founded in the third century BC.`;
         expect(speakers).toContain('A');
         expect(segments).toHaveLength(4);
       });
+    });
+  });
+
+  describe('removeFillerWords', () => {
+    it('should return empty string for empty input', () => {
+      expect(removeFillerWords('')).toBe('');
+    });
+
+    it('should return original text if no filler words', () => {
+      const text = 'The quick brown fox jumps over the lazy dog.';
+      expect(removeFillerWords(text)).toBe(text);
+    });
+
+    it('should remove common filler words', () => {
+      const text = 'Um, I think that, uh, we should go.';
+      const result = removeFillerWords(text);
+      expect(result).not.toContain('Um');
+      expect(result).not.toContain('uh');
+      expect(result).toContain('think');
+      expect(result).toContain('go');
+    });
+
+    it('should remove multiple filler words', () => {
+      const text = 'So, like, you know, I basically just wanted to, um, say hello.';
+      const result = removeFillerWords(text);
+      expect(result).not.toContain('So,');
+      expect(result).not.toContain('like');
+      expect(result).not.toContain('you know');
+      expect(result).not.toContain('basically');
+      expect(result).not.toContain('um');
+      expect(result).toContain('wanted');
+      expect(result).toContain('say hello');
+    });
+
+    it('should preserve sentence structure', () => {
+      const text = 'I think, um, we should go. Right, so what do you think?';
+      const result = removeFillerWords(text);
+      expect(result).toContain('.');
+      expect(result).toContain('?');
+    });
+
+    it('should handle text with only filler words', () => {
+      const text = 'Um, uh, like, you know.';
+      const result = removeFillerWords(text);
+      // Should not throw an error and should handle gracefully
+      expect(typeof result).toBe('string');
+    });
+
+    it('should be case insensitive', () => {
+      const text = 'UM I think UH we should BASICALLY go.';
+      const result = removeFillerWords(text);
+      expect(result).not.toMatch(/um/i);
+      expect(result).not.toMatch(/uh/i);
+      expect(result).not.toMatch(/basically/i);
+    });
+
+    it('should remove filler word "actually"', () => {
+      const text = 'I actually think this is great.';
+      const result = removeFillerWords(text);
+      expect(result).not.toContain('actually');
+      expect(result).toContain('think this is great');
+    });
+
+    it('should remove filler word "literally"', () => {
+      const text = 'This is literally the best.';
+      const result = removeFillerWords(text);
+      expect(result).not.toContain('literally');
+      expect(result).toContain('the best');
+    });
+  });
+
+  describe('removeFillerWordsFromSegments', () => {
+    it('should return empty array for empty input', () => {
+      expect(removeFillerWordsFromSegments([])).toEqual([]);
+    });
+
+    it('should remove filler words from all segments', () => {
+      const segments: TranscriptSegment[] = [
+        { start: 0, end: 5, text: 'Um, hello there.', speaker: 'Speaker 1' },
+        { start: 5, end: 10, text: 'Uh, how are you?', speaker: 'Speaker 2' },
+      ];
+
+      const result = removeFillerWordsFromSegments(segments);
+
+      expect(result).toHaveLength(2);
+      expect(result[0].text).not.toContain('Um');
+      expect(result[1].text).not.toContain('Uh');
+      expect(result[0].speaker).toBe('Speaker 1');
+      expect(result[1].speaker).toBe('Speaker 2');
+    });
+
+    it('should preserve segment metadata', () => {
+      const segments: TranscriptSegment[] = [
+        { start: 10, end: 20, text: 'Like, this is cool.', speaker: 'John' },
+      ];
+
+      const result = removeFillerWordsFromSegments(segments);
+
+      expect(result[0].start).toBe(10);
+      expect(result[0].end).toBe(20);
+      expect(result[0].speaker).toBe('John');
+    });
+  });
+
+  describe('segmentsToSRT', () => {
+    it('should return empty string for empty segments', () => {
+      expect(segmentsToSRT([])).toBe('');
+    });
+
+    it('should format single segment correctly', () => {
+      const segments: TranscriptSegment[] = [
+        { start: 0, end: 5, text: 'Hello world.', speaker: 'Speaker 1' },
+      ];
+
+      const result = segmentsToSRT(segments);
+
+      expect(result).toContain('1\n');
+      expect(result).toContain('00:00:00,000 --> 00:00:05,000');
+      expect(result).toContain('Speaker 1: Hello world.');
+    });
+
+    it('should format multiple segments with sequential numbers', () => {
+      const segments: TranscriptSegment[] = [
+        { start: 0, end: 5, text: 'First line.', speaker: 'Speaker 1' },
+        { start: 5, end: 10, text: 'Second line.', speaker: 'Speaker 2' },
+        { start: 10, end: 15, text: 'Third line.', speaker: 'Speaker 1' },
+      ];
+
+      const result = segmentsToSRT(segments);
+
+      expect(result).toContain('1\n');
+      expect(result).toContain('2\n');
+      expect(result).toContain('3\n');
+    });
+
+    it('should format timestamps with hours, minutes, seconds, and milliseconds', () => {
+      const segments: TranscriptSegment[] = [
+        { start: 3661.5, end: 3665.75, text: 'Test.', speaker: 'Speaker 1' },
+      ];
+
+      const result = segmentsToSRT(segments);
+
+      // 3661.5s = 1hr 1min 1sec 500ms
+      expect(result).toContain('01:01:01,500');
+      // 3665.75s = 1hr 1min 5sec 750ms
+      expect(result).toContain('01:01:05,750');
+    });
+
+    it('should include speaker label in text', () => {
+      const segments: TranscriptSegment[] = [
+        { start: 0, end: 5, text: 'Hello.', speaker: 'John' },
+      ];
+
+      const result = segmentsToSRT(segments);
+
+      expect(result).toContain('John: Hello.');
+    });
+  });
+
+  describe('segmentsToVTT', () => {
+    it('should return header for empty segments', () => {
+      const result = segmentsToVTT([]);
+      expect(result).toBe('WEBVTT\n\n');
+    });
+
+    it('should include WEBVTT header', () => {
+      const segments: TranscriptSegment[] = [
+        { start: 0, end: 5, text: 'Hello.', speaker: 'Speaker 1' },
+      ];
+
+      const result = segmentsToVTT(segments);
+
+      expect(result.startsWith('WEBVTT')).toBe(true);
+    });
+
+    it('should format timestamps with period separator for milliseconds', () => {
+      const segments: TranscriptSegment[] = [
+        { start: 0, end: 5.5, text: 'Test.', speaker: 'Speaker 1' },
+      ];
+
+      const result = segmentsToVTT(segments);
+
+      // VTT uses period, not comma
+      expect(result).toContain('00:00:00.000 --> 00:00:05.500');
+    });
+
+    it('should use voice span for speaker labels', () => {
+      const segments: TranscriptSegment[] = [
+        { start: 0, end: 5, text: 'Hello.', speaker: 'John' },
+      ];
+
+      const result = segmentsToVTT(segments);
+
+      expect(result).toContain('<v John>Hello.');
+    });
+
+    it('should format multiple segments correctly', () => {
+      const segments: TranscriptSegment[] = [
+        { start: 0, end: 5, text: 'First.', speaker: 'Speaker 1' },
+        { start: 5, end: 10, text: 'Second.', speaker: 'Speaker 2' },
+      ];
+
+      const result = segmentsToVTT(segments);
+
+      expect(result).toContain('1\n');
+      expect(result).toContain('2\n');
+      expect(result).toContain('<v Speaker 1>First.');
+      expect(result).toContain('<v Speaker 2>Second.');
+    });
+
+    it('should handle segments without speaker', () => {
+      const segments: TranscriptSegment[] = [
+        { start: 0, end: 5, text: 'No speaker.', speaker: '' },
+      ];
+
+      const result = segmentsToVTT(segments);
+
+      // Without speaker, should just have the text
+      expect(result).toContain('No speaker.');
+      expect(result).not.toContain('<v >');
     });
   });
 });

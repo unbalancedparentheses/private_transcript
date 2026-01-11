@@ -82,8 +82,7 @@ export function parseTranscriptIntoSegments(transcript: string): TranscriptSegme
     const text = paragraphs[i];
     const previousText = i > 0 ? paragraphs[i - 1] : null;
 
-    // Check if this looks like a new speaker
-    const isParagraphBreak = true; // We're already split by paragraphs
+    // Check if this looks like a new speaker (we're already split by paragraphs)
     const hasDialoguePattern = isLikelySpeakerChange(text, previousText);
 
     // Simple alternating for dialogue-like content
@@ -312,4 +311,115 @@ export function formatTimestamp(seconds: number): string {
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
   return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+/**
+ * Common filler words to remove from transcripts
+ */
+const FILLER_WORDS = [
+  'um', 'uh', 'uhm', 'umm', 'er', 'ah', 'ahh', 'eh',
+  'like', 'you know', 'i mean', 'sort of', 'kind of',
+  'basically', 'actually', 'literally', 'honestly',
+  'right', 'okay', 'so', 'well', 'anyway', 'anyways'
+];
+
+/**
+ * Remove filler words from text
+ * Preserves sentence structure and punctuation
+ */
+export function removeFillerWords(text: string): string {
+  if (!text) return text;
+
+  let result = text;
+
+  // Remove filler words (case insensitive, word boundaries)
+  for (const filler of FILLER_WORDS) {
+    // Match filler words with optional comma after and preserve spacing
+    const pattern = new RegExp(
+      `\\b${filler}\\b,?\\s*`,
+      'gi'
+    );
+    result = result.replace(pattern, '');
+  }
+
+  // Clean up extra spaces
+  result = result.replace(/\s+/g, ' ').trim();
+
+  // Fix spacing after punctuation
+  result = result.replace(/\s+([.,!?])/g, '$1');
+
+  // Ensure space after punctuation
+  result = result.replace(/([.,!?])([A-Za-z])/g, '$1 $2');
+
+  // Capitalize first letter of sentences
+  result = result.replace(/(^|[.!?]\s+)([a-z])/g, (_, p1, p2) => p1 + p2.toUpperCase());
+
+  return result;
+}
+
+/**
+ * Remove filler words from all segments
+ */
+export function removeFillerWordsFromSegments(segments: TranscriptSegment[]): TranscriptSegment[] {
+  return segments.map(segment => ({
+    ...segment,
+    text: removeFillerWords(segment.text)
+  }));
+}
+
+/**
+ * Convert segments to SRT subtitle format
+ */
+export function segmentsToSRT(segments: TranscriptSegment[]): string {
+  return segments.map((segment, index) => {
+    const startTime = formatSRTTime(segment.start);
+    const endTime = formatSRTTime(segment.end);
+    const text = segment.speaker
+      ? `${segment.speaker}: ${segment.text}`
+      : segment.text;
+
+    return `${index + 1}\n${startTime} --> ${endTime}\n${text}\n`;
+  }).join('\n');
+}
+
+/**
+ * Convert segments to VTT subtitle format
+ */
+export function segmentsToVTT(segments: TranscriptSegment[]): string {
+  const header = 'WEBVTT\n\n';
+  const cues = segments.map((segment, index) => {
+    const startTime = formatVTTTime(segment.start);
+    const endTime = formatVTTTime(segment.end);
+    const text = segment.speaker
+      ? `<v ${segment.speaker}>${segment.text}`
+      : segment.text;
+
+    return `${index + 1}\n${startTime} --> ${endTime}\n${text}\n`;
+  }).join('\n');
+
+  return header + cues;
+}
+
+/**
+ * Format time for SRT (HH:MM:SS,mmm)
+ */
+function formatSRTTime(seconds: number): string {
+  const hrs = Math.floor(seconds / 3600);
+  const mins = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
+  const ms = Math.floor((seconds % 1) * 1000);
+
+  return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')},${ms.toString().padStart(3, '0')}`;
+}
+
+/**
+ * Format time for VTT (HH:MM:SS.mmm)
+ */
+function formatVTTTime(seconds: number): string {
+  const hrs = Math.floor(seconds / 3600);
+  const mins = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
+  const ms = Math.floor((seconds % 1) * 1000);
+
+  return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(3, '0')}`;
 }
