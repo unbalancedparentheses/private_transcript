@@ -263,6 +263,74 @@ FEATURES │ MacWhisper │            │   │  Otter     │ Fireflies  │
 
 ---
 
+## Current Competitive Position
+
+### Where We're BETTER
+
+#### vs MacWhisper (Done Now)
+| Advantage | Details |
+|-----------|---------|
+| **AI note generation** | Auto-generate notes from templates (they require manual prompts) |
+| **Niche templates** | Built-in SOAP, DAP, legal, research templates |
+| **Multiple LLM providers** | Ollama + OpenRouter + bundled model (they have limited AI) |
+| **Speaker rename** | Rename "Speaker 1" → "John" |
+
+#### vs Cloud Services (Otter, Fireflies)
+| Advantage | Details |
+|-----------|---------|
+| **100% local** | Audio never leaves device |
+| **One-time $39** | vs $200+/year subscriptions |
+| **No creepy bot** | Doesn't visibly join calls |
+| **Works offline** | No internet required |
+| **Own your data** | No vendor lock-in |
+
+### Where We're WORSE
+
+#### vs MacWhisper (They Have, We Don't)
+| Missing Feature | Effort | Impact |
+|-----------------|--------|--------|
+| System audio capture | 2 days | **High** - can't record Zoom/Meet |
+| Video player + subtitles | 2 days | Medium |
+| YouTube transcription | 1 day | Medium |
+| Batch transcription | 1 day | Medium |
+| Watch folder | 1 day | Low |
+| Menubar app | 1 day | Medium |
+| Translation (DeepL) | 1 day | Low |
+
+#### vs Cloud Services (They Have, We Don't)
+| Missing Feature | Impact |
+|-----------------|--------|
+| **Live/real-time transcription** | High |
+| **Auto-join meetings** | High |
+| **Mobile apps** | High |
+| **Team collaboration** | Medium |
+| **CRM integrations** | Medium (enterprise) |
+| **Calendar integration** | Medium |
+
+### Summary Scorecard
+
+```
+Feature Category          Us vs MacWhisper    Us vs Cloud
+─────────────────────────────────────────────────────────
+Transcription speed       ✅ Equal            ✅ Equal
+AI features               ✅ Better           🟡 Different
+Privacy                   ✅ Equal            ✅ Much better
+Price                     ✅ Cheaper ($39)    ✅ Much cheaper
+System audio              ❌ Missing          ❌ Missing
+Real-time                 ❌ Missing          ❌ Missing
+Mobile                    ❌ Missing          ❌ Missing
+Video support             ❌ Missing          🟡 They have it
+Integrations              ❌ Missing          ❌ Missing
+```
+
+**Biggest gaps to close:**
+1. System audio capture (can't record Zoom/Meet)
+2. Real-time transcription (or decide not to do it)
+3. Video player with subtitles
+4. Integrations (Obsidian, Notion)
+
+---
+
 ## Feature Comparison
 
 | Feature | Otter | Fireflies | MacWhisper | Buzz | Private Transcript |
@@ -372,14 +440,14 @@ Only after these are fixed, proceed to new features below.
 | Watch folder auto-transcribe | ✅ Pro | ❌ | 1 day | Planned |
 | Menubar app | ✅ Pro | ❌ | 1 day | Planned |
 | Global spotlight mode | ✅ Pro | ❌ | 1 day | Planned |
-| Filler word removal | ✅ | ❌ | 2 hrs | Planned |
-| All export formats (srt, vtt, csv, docx, pdf, md, html) | ✅ | 🟡 | 1 day | Partial (md, pdf, docx done) |
+| Filler word removal | ✅ | ✅ | - | **Done** |
+| All export formats (srt, vtt, csv, docx, pdf, md, html) | ✅ | 🟡 | 4 hrs | Partial (md, pdf, docx, srt, vtt done) |
 | Multiple Whisper models (tiny→large-v3) | ✅ | ✅ | - | **Done** |
-| Star/favorite segments | ✅ | ❌ | 3 hrs | Planned |
+| Star/favorite segments | ✅ | ✅ | - | **Done** |
 | Edit/delete segments | ✅ | ✅ | - | **Done** (delete) |
-| Playback speed (0.5x-3x) | ✅ | ❌ | 2 hrs | Planned |
+| Playback speed (0.5x-3x) | ✅ | ✅ | - | **Done** |
 | 100 language support | ✅ | ✅ | - | **Done** (Whisper) |
-| Compact mode (hide timestamps) | ✅ | ❌ | 1 hr | Planned |
+| Compact mode (hide timestamps) | ✅ | ✅ | - | **Done** |
 | Drag from Voice Memos | ✅ | ❌ | 2 hrs | Planned |
 
 ### Must Match (Pro Features)
@@ -391,7 +459,7 @@ Only after these are fixed, proceed to new features below.
 | DeepL translation | ✅ | ❌ | 1 day | Planned |
 | Multiple AI providers | ✅ | ✅ | - | **Done** (Ollama, OpenRouter, bundled) |
 | Notion integration | ✅ | ❌ | 4 hrs | Planned |
-| Obsidian integration | ✅ | ❌ | 4 hrs | Planned |
+| Obsidian integration | ✅ | ✅ | - | **Done** |
 | Zapier/n8n/Make webhooks | ✅ | ❌ | 1 day | Planned |
 | Custom GGML models | ✅ | ❌ | 4 hrs | Planned |
 | Translate subtitles | ✅ | ❌ | 4 hrs | Planned |
@@ -437,7 +505,7 @@ Only after these are fixed, proceed to new features below.
 | Settings page for models | ✅ Done |
 | Search within transcript | ✅ Done |
 | Speaker identification UI | ✅ Done |
-| Ollama status indicator | Pending |
+| Ollama status indicator | ✅ Done |
 
 ### Strategic (High Effort) - IN PROGRESS
 | Issue | Problem | Fix |
@@ -486,7 +554,7 @@ For now, we prioritize **privacy and accuracy** over real-time. Post-recording t
 | Feature | Value | Effort | Status | Category |
 |---------|-------|--------|--------|----------|
 | Local RAG / Semantic Search | 🔥🔥🔥 | Medium | Pending | AI |
-| Obsidian/Logseq sync | 🔥🔥🔥 | Low | Pending | Export |
+| Obsidian/Logseq sync | 🔥🔥🔥 | Low | **DONE** | Export |
 | Real-time caption overlay | 🔥🔥🔥 | High | Pending | Accessibility |
 | System audio capture | 🔥🔥🔥 | High | Pending | Recording |
 | Real-time transcription | 🔥🔥🔥 | High | Pending | Recording |
@@ -498,7 +566,7 @@ For now, we prioritize **privacy and accuracy** over real-time. Post-recording t
 | Wake word bookmarking | 🔥🔥 | Low | Pending | Recording |
 | Auto-generate email draft | 🔥🔥 | Low | Pending | AI |
 | Windows/Linux builds | 🔥🔥 | Medium | Pending | Platform |
-| Settings UI with model selection | 🔥🔥 | Low | **PARTIAL** | UI |
+| Settings UI with model selection | 🔥🔥 | Low | **DONE** | UI |
 | Bundle whisper.cpp | 🔥🔥 | Medium | Pending | Technical |
 | OpenRouter integration | 🔥🔥 | Low | Pending | AI |
 | Video player + subtitles | 🔥🔥🔥 | Medium | **NEW** | UI |
@@ -780,7 +848,7 @@ For now, we prioritize **privacy and accuracy** over real-time. Post-recording t
 - [x] Settings page exists with model selection
 - [x] Search within transcript works
 - [x] Speaker labels display in UI
-- [ ] Ollama status shows in UI
+- [x] Ollama status shows in UI
 - [x] Pause/resume recording works
 - [x] Click transcript → audio seeks
 
