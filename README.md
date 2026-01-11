@@ -363,52 +363,54 @@ Only after these are fixed, proceed to new features below.
 
 | Feature | MacWhisper | Us | Effort | Status |
 |---------|------------|-----|--------|--------|
-| Audio-transcript sync playback | ✅ | ❌ | 6 hrs | Fixing in Week 0 |
+| Audio-transcript sync playback | ✅ | ✅ | - | **Done** |
 | System audio capture | ✅ Pro | ❌ | 2 days | Planned |
-| Speaker diarization | ✅ Pro | 🟡 | 1 day | Partial - needs UI |
-| Video player + subtitles | ✅ | ❌ | 2 days | **NEW** |
-| YouTube transcription | ✅ Pro | ❌ | 1 day | **NEW** |
-| Batch transcription | ✅ Pro | ❌ | 1 day | **NEW** |
-| Watch folder auto-transcribe | ✅ Pro | ❌ | 1 day | **NEW** |
-| Menubar app | ✅ Pro | ❌ | 1 day | **NEW** |
-| Global spotlight mode | ✅ Pro | ❌ | 1 day | **NEW** |
-| Filler word removal | ✅ | ❌ | 2 hrs | **NEW** |
-| All export formats (srt, vtt, csv, docx, pdf, md, html) | ✅ | 🟡 | 1 day | Partial |
-| Multiple Whisper models (tiny→large-v3) | ✅ | ✅ | - | Done |
-| Star/favorite segments | ✅ | ❌ | 3 hrs | **NEW** |
-| Edit/delete segments | ✅ | ❌ | 4 hrs | **NEW** |
+| Speaker diarization | ✅ Pro | ✅ | - | **Done** (heuristic) |
+| Video player + subtitles | ✅ | ❌ | 2 days | Planned |
+| YouTube transcription | ✅ Pro | ❌ | 1 day | Planned |
+| Batch transcription | ✅ Pro | ❌ | 1 day | Planned |
+| Watch folder auto-transcribe | ✅ Pro | ❌ | 1 day | Planned |
+| Menubar app | ✅ Pro | ❌ | 1 day | Planned |
+| Global spotlight mode | ✅ Pro | ❌ | 1 day | Planned |
+| Filler word removal | ✅ | ❌ | 2 hrs | Planned |
+| All export formats (srt, vtt, csv, docx, pdf, md, html) | ✅ | 🟡 | 1 day | Partial (md, pdf, docx done) |
+| Multiple Whisper models (tiny→large-v3) | ✅ | ✅ | - | **Done** |
+| Star/favorite segments | ✅ | ❌ | 3 hrs | Planned |
+| Edit/delete segments | ✅ | ✅ | - | **Done** (delete) |
 | Playback speed (0.5x-3x) | ✅ | ❌ | 2 hrs | Planned |
-| 100 language support | ✅ | ✅ | - | Done (Whisper) |
-| Compact mode (hide timestamps) | ✅ | ❌ | 1 hr | **NEW** |
-| Drag from Voice Memos | ✅ | ❌ | 2 hrs | **NEW** |
+| 100 language support | ✅ | ✅ | - | **Done** (Whisper) |
+| Compact mode (hide timestamps) | ✅ | ❌ | 1 hr | Planned |
+| Drag from Voice Memos | ✅ | ❌ | 2 hrs | Planned |
 
 ### Must Match (Pro Features)
 
 | Feature | MacWhisper Pro | Us | Effort | Status |
 |---------|----------------|-----|--------|--------|
-| Fast transcription engine | ✅ | ❌ | 2 days | **NEW** - WhisperKit (Mac), [Parakeet TDT](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2) (NVIDIA) |
-| Cloud transcription fallback | ✅ | ❌ | 1 day | **NEW** (Groq) |
-| DeepL translation | ✅ | ❌ | 1 day | **NEW** |
-| Multiple AI providers | ✅ | 🟡 | 1 day | Partial (add more) |
+| Fast transcription engine | ✅ | ✅ | - | **Done** (WhisperKit) |
+| Cloud transcription fallback | ✅ | ❌ | 1 day | Planned (Groq) |
+| DeepL translation | ✅ | ❌ | 1 day | Planned |
+| Multiple AI providers | ✅ | ✅ | - | **Done** (Ollama, OpenRouter, bundled) |
 | Notion integration | ✅ | ❌ | 4 hrs | Planned |
 | Obsidian integration | ✅ | ❌ | 4 hrs | Planned |
 | Zapier/n8n/Make webhooks | ✅ | ❌ | 1 day | Planned |
-| Custom GGML models | ✅ | ❌ | 4 hrs | **NEW** |
-| Translate subtitles | ✅ | ❌ | 4 hrs | **NEW** |
-| Manual speaker assignment | ✅ | ❌ | 4 hrs | **NEW** |
+| Custom GGML models | ✅ | ❌ | 4 hrs | Planned |
+| Translate subtitles | ✅ | ❌ | 4 hrs | Planned |
+| Manual speaker assignment | ✅ | ✅ | - | **Done** (rename speakers) |
 
 ### We Beat Them Here (Differentiation)
 
 | Feature | MacWhisper | Us | Status |
 |---------|------------|-----|--------|
+| **AI note generation** | ❌ (manual prompts) | ✅ | **Done** |
+| **Niche templates (legal, medical, research)** | ❌ | ✅ | **Done** |
+| **Multiple LLM providers** | ❌ | ✅ | **Done** (Ollama, OpenRouter, bundled) |
 | **Local RAG / Chat with transcripts** | ❌ | ✅ | Planned |
 | **Cross-meeting insights** | ❌ | ✅ | Planned |
-| **AI summaries + action items** | ❌ (manual prompts) | ✅ | Planned |
+| **AI summaries + action items** | ❌ | ✅ | Planned |
 | **Meeting auto-detection** | ❌ | ✅ | Planned |
 | **Windows support** | ❌ | ✅ | Planned |
 | **Linux support** | ❌ | ✅ | Planned |
 | **Team/collaboration features** | ❌ | ✅ | Planned |
-| **Niche templates (legal, medical)** | ❌ | ✅ | Planned |
 | **AI Privacy Redaction** | ❌ | ✅ | Planned |
 | **Conversation Analytics** | ❌ | ✅ | Planned |
 | **Quick Capture Mode** | ❌ | ✅ | Planned |
