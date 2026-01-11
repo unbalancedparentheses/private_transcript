@@ -55,6 +55,10 @@ dirs = "5.0"
 rand = "0.8"
 futures = "0.3"
 
+# Document export
+printpdf = "0.7"
+docx-rs = "0.4"
+
 # Note: whisper-worker binary removed - now using WhisperKit Swift subprocess
 
 [features]
@@ -63,3 +67,10 @@ custom-protocol = ["tauri/custom-protocol"]
 
 # Platform-specific features are handled automatically by whisper-rs and llama-cpp-2
 # Metal acceleration is automatic on macOS
+
+# Dev profile optimizations - keeps your code fast to compile while pre-optimizing heavy deps
+[profile.dev]
+opt-level = 0
+
+[profile.dev.package."*"]
+opt-level = 2  # Optimize dependencies even in dev for faster runtime

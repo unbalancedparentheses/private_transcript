@@ -1,0 +1,27 @@
+# Cargo configuration for faster builds
+# sccache is a build cache that can significantly speed up compilation
+# Install with: cargo install sccache
+# Or via Homebrew: brew install sccache
+
+[build]
+# Uncomment the following line if sccache is installed
+# rustc-wrapper = "sccache"
+
+# Enable incremental compilation (default in dev, but explicit here)
+incremental = true
+
+# Note: Linker optimizations commented out - requires installing lld
+# To use faster linking on macOS, install: brew install lld
+# Then uncomment the rustflags below
+
+# [target.aarch64-apple-darwin]
+# rustflags = ["-C", "link-arg=-fuse-ld=lld"]
+
+# [target.x86_64-apple-darwin]
+# rustflags = ["-C", "link-arg=-fuse-ld=lld"]
+
+# For Linux with mold linker (optional - much faster linking)
+# Install with: cargo install mold or apt install mold
+# [target.x86_64-unknown-linux-gnu]
+# linker = "clang"
+# rustflags = ["-C", "link-arg=-fuse-ld=mold"]

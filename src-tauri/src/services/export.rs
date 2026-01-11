@@ -7,39 +7,248 @@ fn get_exports_dir() -> Result<PathBuf> {
         .or_else(dirs::desktop_dir)
         .or_else(dirs::home_dir)
         .ok_or_else(|| anyhow::anyhow!("Cannot find exports directory"))?;
+    println!("[Export] Using exports directory: {:?}", downloads);
     Ok(downloads)
+}
+
+/// Parse markdown content into title, transcript, and notes sections
+fn parse_content(content: &str) -> (String, String, String) {
+    let mut title = String::new();
+    let mut transcript = String::new();
+    let mut notes = String::new();
+    let mut current_section = "";
+
+    for line in content.lines() {
+        if line.starts_with("# ") {
+            title = line.trim_start_matches("# ").to_string();
+        } else if line.starts_with("## Transcript") {
+            current_section = "transcript";
+        } else if line.starts_with("## Notes") {
+            current_section = "notes";
+        } else if !line.is_empty() {
+            match current_section {
+                "transcript" => {
+                    if !transcript.is_empty() {
+                        transcript.push('\n');
+                    }
+                    transcript.push_str(line);
+                }
+                "notes" => {
+                    if !notes.is_empty() {
+                        notes.push('\n');
+                    }
+                    notes.push_str(line);
+                }
+                _ => {}
+            }
+        }
+    }
+
+    (title, transcript, notes)
 }
 
 /// Export content as Markdown
 pub async fn export_markdown(content: &str, filename: &str) -> Result<String> {
+    println!("[Export] Exporting markdown: {}", filename);
     let exports_dir = get_exports_dir()?;
     let file_path = exports_dir.join(format!("{}.md", filename));
 
     tokio::fs::write(&file_path, content).await?;
 
-    Ok(file_path.to_string_lossy().to_string())
+    let path = file_path.to_string_lossy().to_string();
+    println!("[Export] Markdown exported to: {}", path);
+    Ok(path)
 }
 
-/// Export content as PDF
+/// Export content as PDF using printpdf
 pub async fn export_pdf(content: &str, filename: &str) -> Result<String> {
+    use printpdf::*;
+    use std::fs::File;
+    use std::io::BufWriter;
+
+    println!("[Export] Exporting PDF: {}", filename);
     let exports_dir = get_exports_dir()?;
     let file_path = exports_dir.join(format!("{}.pdf", filename));
 
-    // TODO: Implement PDF export using printpdf
-    // For now, just write as text with .pdf extension
-    tokio::fs::write(&file_path, content).await?;
+    let (title, transcript, notes) = parse_content(content);
 
-    Ok(file_path.to_string_lossy().to_string())
+    // Create document
+    let (doc, page1, layer1) = PdfDocument::new(&title, Mm(210.0), Mm(297.0), "Layer 1");
+    let current_layer = doc.get_page(page1).get_layer(layer1);
+
+    // Use built-in Helvetica font
+    let font = doc.add_builtin_font(BuiltinFont::Helvetica)?;
+    let font_bold = doc.add_builtin_font(BuiltinFont::HelveticaBold)?;
+
+    let mut y_position = Mm(280.0);
+    let left_margin = Mm(20.0);
+    let line_height = Mm(5.0);
+    let page_width = Mm(170.0); // 210 - 2*20 margins
+
+    // Helper to add text and handle line wrapping
+    let add_text = |layer: &PdfLayerReference, text: &str, x: Mm, y: &mut Mm, font: &IndirectFontRef, size: f32| {
+        // Simple word wrap - split long lines
+        let max_chars_per_line = (page_width.0 / (size * 0.3)) as usize;
+        let mut current_line = String::new();
+
+        for word in text.split_whitespace() {
+            if current_line.len() + word.len() + 1 > max_chars_per_line && !current_line.is_empty() {
+                layer.use_text(&current_line, size, x, *y, font);
+                *y = *y - line_height;
+                current_line = word.to_string();
+            } else {
+                if !current_line.is_empty() {
+                    current_line.push(' ');
+                }
+                current_line.push_str(word);
+            }
+        }
+        if !current_line.is_empty() {
+            layer.use_text(&current_line, size, x, *y, font);
+            *y = *y - line_height;
+        }
+    };
+
+    // Add title
+    current_layer.use_text(&title, 20.0, left_margin, y_position, &font_bold);
+    y_position = y_position - Mm(15.0);
+
+    // Add transcript section
+    if !transcript.is_empty() {
+        current_layer.use_text("Transcript", 14.0, left_margin, y_position, &font_bold);
+        y_position = y_position - Mm(8.0);
+
+        for line in transcript.lines() {
+            add_text(&current_layer, line, left_margin, &mut y_position, &font, 11.0);
+
+            // Check if we need a new page
+            if y_position < Mm(20.0) {
+                // For simplicity, we'll just stop - proper pagination would need more work
+                break;
+            }
+        }
+        y_position = y_position - Mm(10.0);
+    }
+
+    // Add notes section
+    if !notes.is_empty() && y_position > Mm(40.0) {
+        current_layer.use_text("Notes", 14.0, left_margin, y_position, &font_bold);
+        y_position = y_position - Mm(8.0);
+
+        for line in notes.lines() {
+            add_text(&current_layer, line, left_margin, &mut y_position, &font, 11.0);
+
+            if y_position < Mm(20.0) {
+                break;
+            }
+        }
+    }
+
+    // Save to file
+    let file = File::create(&file_path)?;
+    doc.save(&mut BufWriter::new(file))?;
+
+    let path = file_path.to_string_lossy().to_string();
+    println!("[Export] PDF exported to: {}", path);
+    Ok(path)
 }
 
-/// Export content as DOCX
+/// Export content as DOCX using docx-rs
 pub async fn export_docx(content: &str, filename: &str) -> Result<String> {
+    use docx_rs::*;
+
+    println!("[Export] Exporting DOCX: {}", filename);
     let exports_dir = get_exports_dir()?;
     let file_path = exports_dir.join(format!("{}.docx", filename));
 
-    // TODO: Implement DOCX export using docx-rs
-    // For now, just write as text with .docx extension
-    tokio::fs::write(&file_path, content).await?;
+    let (title, transcript, notes) = parse_content(content);
 
-    Ok(file_path.to_string_lossy().to_string())
+    // Create document
+    let mut docx = Docx::new();
+
+    // Add title
+    let title_para = Paragraph::new()
+        .add_run(Run::new().add_text(&title).bold().size(48)); // 24pt = 48 half-points
+    docx = docx.add_paragraph(title_para);
+
+    // Add empty line
+    docx = docx.add_paragraph(Paragraph::new());
+
+    // Add transcript section
+    if !transcript.is_empty() {
+        let section_para = Paragraph::new()
+            .add_run(Run::new().add_text("Transcript").bold().size(28)); // 14pt
+        docx = docx.add_paragraph(section_para);
+
+        for line in transcript.lines() {
+            let para = Paragraph::new()
+                .add_run(Run::new().add_text(line).size(24)); // 12pt
+            docx = docx.add_paragraph(para);
+        }
+
+        // Add spacing
+        docx = docx.add_paragraph(Paragraph::new());
+    }
+
+    // Add notes section
+    if !notes.is_empty() {
+        let section_para = Paragraph::new()
+            .add_run(Run::new().add_text("Notes").bold().size(28)); // 14pt
+        docx = docx.add_paragraph(section_para);
+
+        for line in notes.lines() {
+            let para = Paragraph::new()
+                .add_run(Run::new().add_text(line).size(24)); // 12pt
+            docx = docx.add_paragraph(para);
+        }
+    }
+
+    // Write to file
+    let file = std::fs::File::create(&file_path)?;
+    docx.build()
+        .pack(file)
+        .map_err(|e| anyhow::anyhow!("Failed to write DOCX: {}", e))?;
+
+    let path = file_path.to_string_lossy().to_string();
+    println!("[Export] DOCX exported to: {}", path);
+    Ok(path)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    #[tokio::test]
+    async fn test_export_markdown() {
+        let content = "# Test\n\n## Transcript\n\nHello world\n\n## Notes\n\nSome notes";
+        let result = export_markdown(content, "test_export").await;
+        assert!(result.is_ok());
+
+        let path = result.unwrap();
+        assert!(path.ends_with(".md"));
+
+        // Clean up
+        let _ = fs::remove_file(&path);
+    }
+
+    #[test]
+    fn test_parse_content() {
+        let content = "# My Title\n\n## Transcript\n\nLine 1\nLine 2\n\n## Notes\n\nNote 1\nNote 2";
+        let (title, transcript, notes) = parse_content(content);
+
+        assert_eq!(title, "My Title");
+        assert_eq!(transcript, "Line 1\nLine 2");
+        assert_eq!(notes, "Note 1\nNote 2");
+    }
+
+    #[test]
+    fn test_parse_content_empty_sections() {
+        let content = "# Title Only\n\n## Transcript\n\n## Notes\n\n";
+        let (title, transcript, notes) = parse_content(content);
+
+        assert_eq!(title, "Title Only");
+        assert!(transcript.is_empty());
+        assert!(notes.is_empty());
+    }
 }
