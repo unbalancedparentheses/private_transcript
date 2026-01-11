@@ -498,6 +498,62 @@ describe('SessionDetail', () => {
   });
 });
 
+describe('SessionDetail - Speaker Labels', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('should show speaker toggle button', () => {
+    render(<SessionDetail />);
+    const speakerButton = screen.getByTitle(/speaker labels/i);
+    expect(speakerButton).toBeInTheDocument();
+  });
+
+  it('should show plain text by default', () => {
+    render(<SessionDetail />);
+
+    // Plain text should be visible
+    expect(screen.getByText(/This is a test transcript/)).toBeInTheDocument();
+  });
+
+  it('should toggle button appearance when speaker view is active', async () => {
+    render(<SessionDetail />);
+    const speakerButton = screen.getByTitle(/speaker labels/i);
+
+    // Initially not active
+    expect(speakerButton.className).not.toContain('bg-[var(--primary)]');
+
+    // Click to enable speaker view
+    fireEvent.click(speakerButton);
+
+    // Button should now have primary color
+    await waitFor(() => {
+      expect(speakerButton.className).toContain('bg-[var(--primary)]');
+    });
+  });
+
+  it('should toggle back to plain text view', async () => {
+    render(<SessionDetail />);
+    const speakerButton = screen.getByTitle(/speaker labels/i);
+
+    // Enable speaker view
+    fireEvent.click(speakerButton);
+    await waitFor(() => {
+      expect(speakerButton.className).toContain('bg-[var(--primary)]');
+    });
+
+    // Disable speaker view
+    fireEvent.click(speakerButton);
+    await waitFor(() => {
+      expect(speakerButton.className).not.toContain('bg-[var(--primary)]');
+    });
+  });
+});
+
 describe('SessionDetail - No Session', () => {
   beforeEach(() => {
     vi.clearAllMocks();

@@ -4,6 +4,15 @@ import { convertFileSrc } from '@tauri-apps/api/core';
 import { useAppStore } from '../../stores/appStore';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
+import type { TranscriptSegment } from '../../types';
+import {
+  parseTranscriptIntoSegments,
+  parseInlineSpeakerLabels,
+  getUniqueSpeakers,
+  renameSpeaker,
+  segmentsToText,
+  getSpeakerColor,
+} from '../../lib/speakerDetection';
 
 function formatTime(seconds: number): string {
   const mins = Math.floor(seconds / 60);
@@ -33,6 +42,39 @@ export function SessionDetail() {
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const transcriptRef = useRef<HTMLDivElement>(null);
+
+  // Speaker labels state
+  const [showSpeakerView, setShowSpeakerView] = useState(false);
+  const [speakerSegments, setSpeakerSegments] = useState<TranscriptSegment[]>([]);
+  const [editingSpeaker, setEditingSpeaker] = useState<string | null>(null);
+  const [newSpeakerName, setNewSpeakerName] = useState('');
+
+  // Parse transcript into speaker segments when speaker view is enabled
+  useEffect(() => {
+    if (showSpeakerView && currentSession?.transcript) {
+      // Check if transcript already has speaker labels (e.g., "Name: text")
+      const hasInlineLabels = /^[A-Z][a-zA-Z\s]*?:\s/m.test(currentSession.transcript);
+      const segments = hasInlineLabels
+        ? parseInlineSpeakerLabels(currentSession.transcript)
+        : parseTranscriptIntoSegments(currentSession.transcript);
+      setSpeakerSegments(segments);
+    }
+  }, [showSpeakerView, currentSession?.transcript]);
+
+  // Get unique speakers for the rename dropdown
+  const uniqueSpeakers = useMemo(() => {
+    return getUniqueSpeakers(speakerSegments);
+  }, [speakerSegments]);
+
+  // Handle speaker rename
+  const handleRenameSpeaker = () => {
+    if (editingSpeaker && newSpeakerName.trim()) {
+      const updatedSegments = renameSpeaker(speakerSegments, editingSpeaker, newSpeakerName.trim());
+      setSpeakerSegments(updatedSegments);
+      setEditingSpeaker(null);
+      setNewSpeakerName('');
+    }
+  };
 
   // Audio player state
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -536,10 +578,27 @@ export function SessionDetail() {
                   </svg>
                 </button>
               )}
+              {/* Speaker View Toggle */}
+              <button
+                onClick={() => setShowSpeakerView(!showSpeakerView)}
+                className={`w-7 h-7 flex items-center justify-center rounded transition-colors ${
+                  showSpeakerView
+                    ? 'bg-[var(--primary)] text-white'
+                    : 'hover:bg-[var(--muted)]'
+                }`}
+                title={showSpeakerView ? 'Show plain text' : 'Show speaker labels'}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                </svg>
+              </button>
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => handleCopy(currentSession.transcript || '')}
+                onClick={() => handleCopy(showSpeakerView ? segmentsToText(speakerSegments) : currentSession.transcript || '')}
                 className="h-7 px-2 text-xs"
               >
                 Copy
@@ -581,6 +640,95 @@ export function SessionDetail() {
                 className="w-full h-full p-3 rounded-lg border border-[var(--border)] bg-[var(--background)] text-sm resize-none
                            focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]"
               />
+            ) : showSpeakerView && speakerSegments.length > 0 ? (
+              <div className="space-y-4">
+                {/* Speaker Legend */}
+                <div className="flex flex-wrap gap-2 pb-3 border-b border-[var(--border)]">
+                  {uniqueSpeakers.map((speaker) => (
+                    <button
+                      key={speaker}
+                      onClick={() => {
+                        setEditingSpeaker(speaker);
+                        setNewSpeakerName(speaker);
+                      }}
+                      className="flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium
+                                 bg-[var(--muted)] hover:bg-[var(--muted)]/80 transition-colors group"
+                      title="Click to rename speaker"
+                    >
+                      <span
+                        className="w-2 h-2 rounded-full"
+                        style={{ backgroundColor: getSpeakerColor(speaker) }}
+                      />
+                      {speaker}
+                      <svg
+                        width="10"
+                        height="10"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        className="opacity-0 group-hover:opacity-50 transition-opacity"
+                      >
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                      </svg>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Speaker Rename Dialog */}
+                {editingSpeaker && (
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-[var(--muted)]/50 animate-fade-in">
+                    <span className="text-xs text-[var(--muted-foreground)]">Rename:</span>
+                    <input
+                      type="text"
+                      value={newSpeakerName}
+                      onChange={(e) => setNewSpeakerName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleRenameSpeaker();
+                        if (e.key === 'Escape') {
+                          setEditingSpeaker(null);
+                          setNewSpeakerName('');
+                        }
+                      }}
+                      className="h-7 px-2 text-xs rounded border border-[var(--border)] bg-[var(--background)]
+                                 focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20"
+                      autoFocus
+                    />
+                    <Button size="sm" onClick={handleRenameSpeaker} className="h-7 px-2 text-xs">
+                      Save
+                    </Button>
+                    <button
+                      onClick={() => {
+                        setEditingSpeaker(null);
+                        setNewSpeakerName('');
+                      }}
+                      className="text-xs text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
+
+                {/* Speaker Segments */}
+                <div className="space-y-3">
+                  {speakerSegments.map((segment, index) => (
+                    <div key={index} className="flex gap-3 animate-fade-in" style={{ animationDelay: `${index * 20}ms` }}>
+                      <div className="flex-shrink-0 pt-0.5">
+                        <span
+                          className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-semibold text-white"
+                          style={{ backgroundColor: getSpeakerColor(segment.speaker || 'Speaker 1') }}
+                        >
+                          {segment.speaker || 'Speaker 1'}
+                        </span>
+                      </div>
+                      <p className="flex-1 text-sm leading-relaxed whitespace-pre-wrap">
+                        {segment.text}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
             ) : (
               <div className="prose prose-sm max-w-none">
                 {currentSession.transcript ? (
