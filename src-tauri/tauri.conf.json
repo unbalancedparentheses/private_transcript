@@ -24,7 +24,11 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' http://localhost:11434 https://openrouter.ai; media-src 'self' blob: mediastream:"
+      "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' http://localhost:11434 https://openrouter.ai; media-src 'self' blob: mediastream: asset: https://asset.localhost"
+    },
+    "assetProtocol": {
+      "enable": true,
+      "scope": ["**"]
     }
   },
   "bundle": {

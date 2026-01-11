@@ -34,11 +34,12 @@ export function SessionDetail() {
     if (currentSession?.audioPath) {
       try {
         const src = convertFileSrc(currentSession.audioPath);
+        console.log('[Audio] Converted path:', currentSession.audioPath, '→', src);
         setAudioSrc(src);
         setAudioError(null);
       } catch (err) {
         setAudioError('Failed to load audio file');
-        console.error('Audio conversion error:', err);
+        console.error('[Audio] Conversion error:', err);
       }
     }
   }, [currentSession?.audioPath]);
@@ -212,7 +213,13 @@ export function SessionDetail() {
             onPlay={() => setIsPlaying(true)}
             onPause={() => setIsPlaying(false)}
             onEnded={() => setIsPlaying(false)}
-            onError={() => setAudioError('Failed to play audio')}
+            onError={(e) => {
+              const audio = e.currentTarget;
+              const errorCode = audio.error?.code;
+              const errorMessage = audio.error?.message || 'Unknown error';
+              console.error('[Audio] Playback error:', errorCode, errorMessage, audio.src);
+              setAudioError(`Failed to play audio: ${errorMessage}`);
+            }}
           />
           <div className="flex items-center gap-4">
             {/* Play/Pause Controls */}
