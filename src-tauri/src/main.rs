@@ -8,8 +8,6 @@ mod services;
 mod templates;
 mod utils;
 
-use tauri::Manager;
-
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
@@ -59,6 +57,23 @@ fn main() {
             // Settings commands
             commands::settings::get_settings,
             commands::settings::update_settings,
+            // Model management commands
+            commands::models::get_available_whisper_models,
+            commands::models::get_available_llm_models,
+            commands::models::get_all_available_models,
+            commands::models::get_downloaded_models,
+            commands::models::download_model,
+            commands::models::delete_model,
+            commands::models::load_whisper_model,
+            commands::models::unload_whisper_model,
+            commands::models::is_whisper_model_loaded,
+            commands::models::get_loaded_whisper_model,
+            commands::models::load_llm_model,
+            commands::models::unload_llm_model,
+            commands::models::is_llm_model_loaded,
+            commands::models::get_loaded_llm_model,
+            commands::models::get_models_total_size,
+            commands::models::are_models_ready,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

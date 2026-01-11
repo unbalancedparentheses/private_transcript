@@ -1,5 +1,129 @@
 # Private Transcript Roadmap
 
+---
+
+## ⚠️ PRIORITY: Fix Before New Features
+
+**DO NOT start new features until these are fixed.** These are broken/missing core functionalities that affect user experience.
+
+### Week 0: Fix What's Broken
+
+| Priority | Issue | Effort | Owner |
+|----------|-------|--------|-------|
+| P0 | Transcription progress (shows 0%) | 2 hours | |
+| P0 | Audio playback in session view | 4 hours | |
+| P0 | Real PDF/DOCX export (currently fake) | 4 hours | |
+| P1 | Microphone level meter | 3 hours | |
+| P1 | Toast notifications (replace alerts) | 2 hours | |
+| P1 | Settings page for models | 4 hours | |
+| P1 | Search within transcript (Ctrl+F) | 3 hours | |
+| P1 | Speaker labels in UI | 3 hours | |
+| P1 | Ollama connection status | 2 hours | |
+| P2 | Pause/resume recording | 4 hours | |
+| P2 | Audio-transcript sync (click to seek) | 6 hours | |
+
+**Total: ~37 hours = 1 week with 1 dev, or 2-3 days with 3 devs**
+
+Only after these are fixed, proceed to new features below.
+
+---
+
+## 🎯 MacWhisper Parity (Week 1-2)
+
+**Goal: Match MacWhisper's features, then beat them with AI.**
+
+### Must Match (Core Features)
+
+| Feature | MacWhisper | Us | Effort | Status |
+|---------|------------|-----|--------|--------|
+| Audio-transcript sync playback | ✅ | ❌ | 6 hrs | Fixing in Week 0 |
+| System audio capture | ✅ Pro | ❌ | 2 days | Planned |
+| Speaker diarization | ✅ Pro | 🟡 | 1 day | Partial - needs UI |
+| Video player + subtitles | ✅ | ❌ | 2 days | **NEW** |
+| YouTube transcription | ✅ Pro | ❌ | 1 day | **NEW** |
+| Batch transcription | ✅ Pro | ❌ | 1 day | **NEW** |
+| Watch folder auto-transcribe | ✅ Pro | ❌ | 1 day | **NEW** |
+| Menubar app | ✅ Pro | ❌ | 1 day | **NEW** |
+| Global spotlight mode | ✅ Pro | ❌ | 1 day | **NEW** |
+| Filler word removal | ✅ | ❌ | 2 hrs | **NEW** |
+| All export formats (srt, vtt, csv, docx, pdf, md, html) | ✅ | 🟡 | 1 day | Partial |
+| Multiple Whisper models (tiny→large-v3) | ✅ | ✅ | - | Done |
+| Star/favorite segments | ✅ | ❌ | 3 hrs | **NEW** |
+| Edit/delete segments | ✅ | ❌ | 4 hrs | **NEW** |
+| Playback speed (0.5x-3x) | ✅ | ❌ | 2 hrs | Planned |
+| 100 language support | ✅ | ✅ | - | Done (Whisper) |
+| Compact mode (hide timestamps) | ✅ | ❌ | 1 hr | **NEW** |
+| Drag from Voice Memos | ✅ | ❌ | 2 hrs | **NEW** |
+
+### Must Match (Pro Features)
+
+| Feature | MacWhisper Pro | Us | Effort | Status |
+|---------|----------------|-----|--------|--------|
+| Parakeet v2 / WhisperKit (fast) | ✅ | ❌ | 2 days | **NEW** |
+| Cloud transcription fallback | ✅ | ❌ | 1 day | **NEW** (Groq) |
+| DeepL translation | ✅ | ❌ | 1 day | **NEW** |
+| Multiple AI providers | ✅ | 🟡 | 1 day | Partial (add more) |
+| Notion integration | ✅ | ❌ | 4 hrs | Planned |
+| Obsidian integration | ✅ | ❌ | 4 hrs | Planned |
+| Zapier/n8n/Make webhooks | ✅ | ❌ | 1 day | Planned |
+| Custom GGML models | ✅ | ❌ | 4 hrs | **NEW** |
+| Translate subtitles | ✅ | ❌ | 4 hrs | **NEW** |
+| Manual speaker assignment | ✅ | ❌ | 4 hrs | **NEW** |
+
+### We Beat Them Here (Differentiation)
+
+| Feature | MacWhisper | Us | Status |
+|---------|------------|-----|--------|
+| **Local RAG / Chat with transcripts** | ❌ | ✅ | Planned |
+| **Cross-meeting insights** | ❌ | ✅ | Planned |
+| **AI summaries + action items** | ❌ (manual prompts) | ✅ | Planned |
+| **Meeting auto-detection** | ❌ | ✅ | Planned |
+| **Windows support** | ❌ | ✅ | Planned |
+| **Linux support** | ❌ | ✅ | Planned |
+| **Team/collaboration features** | ❌ | ✅ | Planned |
+| **Niche templates (legal, medical)** | ❌ | ✅ | Planned |
+
+**Total parity effort: ~2 weeks with 3 devs**
+
+---
+
+## Implementation Gaps (Details)
+
+### Quick Wins (High Impact, Low Effort)
+| Issue | Problem | Fix |
+|-------|---------|-----|
+| Transcription progress tracking | Shows 0%, stubbed out | Wire up actual progress events |
+| Real PDF/DOCX export | Exports are text files with wrong extensions | Use proper PDF/DOCX libraries |
+| Audio playback in session view | Can't listen while reviewing transcript | Add audio player to session view |
+| Microphone level meter | No visual feedback during recording | Add real-time level visualization |
+| Better error messages | Uses browser alerts instead of UI | Replace with toast notifications |
+
+### Medium Effort, High Impact
+| Issue | Problem | Fix |
+|-------|---------|-----|
+| Pause/resume recording | Only start/stop available | Implement pause state in audio module |
+| Settings page for models | Can only select in onboarding | Add dedicated settings page |
+| Search within transcript | No Ctrl+F equivalent | Add inline search component |
+| Speaker identification UI | Segments stored but not shown | Display speaker labels in transcript |
+| Ollama status indicator | Backend checks but UI doesn't show | Add connection status to UI |
+
+### Strategic (High Effort)
+| Issue | Problem | Fix |
+|-------|---------|-----|
+| System audio capture | Can't record Zoom/Teams/Meet | Implement ScreenCaptureKit (macOS) |
+| Audio-transcript sync | Can't click to seek | Wire up timestamps to audio player |
+| Database encryption | SQLCipher mentioned but not implemented | Enable SQLCipher encryption |
+| Streaming LLM output | Waits for full response | Implement SSE/streaming |
+
+### Code Quality
+| Issue | Problem | Fix |
+|-------|---------|-----|
+| No tests | Zero test coverage | Add unit + integration tests |
+| Store too large | Single Zustand store, mixed concerns | Split into domain-specific stores |
+| No database migrations | Schema runs every startup | Add proper migration system |
+
+---
+
 ## Feature Overview (Value / Effort)
 
 | Feature | Value | Effort | Status | Category |
@@ -12,12 +136,12 @@
 | AI summaries (Ollama/OpenRouter) | 🔥🔥🔥 | Medium | Pending | AI |
 | Cross-meeting insights | 🔥🔥 | Medium | Pending | AI |
 | Rewind mode | 🔥🔥 | Medium | Pending | Recording |
-| Speaker identification | 🔥🔥 | High | Pending | Transcription |
+| Speaker identification | 🔥🔥 | High | **PARTIAL** | Transcription |
 | Chat with your meetings | 🔥🔥 | Medium | Pending | AI |
 | Wake word bookmarking | 🔥🔥 | Low | Pending | Recording |
 | Auto-generate email draft | 🔥🔥 | Low | Pending | AI |
 | Windows/Linux builds | 🔥🔥 | Medium | Pending | Platform |
-| Settings UI with model selection | 🔥🔥 | Low | Pending | UI |
+| Settings UI with model selection | 🔥🔥 | Low | **PARTIAL** | UI |
 | Bundle whisper.cpp | 🔥🔥 | Medium | Pending | Technical |
 | OpenRouter integration | 🔥🔥 | Low | Pending | AI |
 | Meeting type auto-detection | 🔥 | Low | Pending | AI |
@@ -34,7 +158,7 @@
 | Copy as Markdown | 🔥 | Very Low | Pending | Export |
 | Word count / talk time stats | 🔥 | Low | Pending | UI |
 | Filler word counter | 🔥 | Low | Pending | UI |
-| Audio-transcript sync playback | 🔥🔥🔥 | Medium | Pending | UI |
+| Audio-transcript sync playback | 🔥🔥🔥 | Medium | **BROKEN** | UI |
 | Playback speed control | 🔥🔥 | Low | Pending | UI |
 | Auto-language detection | 🔥🔥 | Low | Pending | Transcription |
 | Transcript correction learning | 🔥🔥 | Medium | Pending | AI |
@@ -44,9 +168,9 @@
 | Storage cleanup wizard | 🔥 | Low | Pending | Data |
 | Privacy/blur mode | 🔥 | Low | Pending | UI |
 | Export audio clip from selection | 🔥🔥 | Medium | Pending | Export |
-| Pause/resume recording | 🔥🔥 | Low | Pending | Recording |
-| Microphone test/level meter | 🔥🔥 | Low | Pending | Recording |
-| Search within transcript | 🔥🔥 | Very Low | Pending | UI |
+| Pause/resume recording | 🔥🔥 | Low | **MISSING** | Recording |
+| Microphone test/level meter | 🔥🔥 | Low | **MISSING** | Recording |
+| Search within transcript | 🔥🔥 | Very Low | **MISSING** | UI |
 | Bookmarks/highlights | 🔥🔥 | Low | Pending | UI |
 | Hotkey customization | 🔥 | Low | Pending | UI |
 | Recent files quick access | 🔥 | Very Low | Pending | UI |
@@ -76,6 +200,35 @@
 | Duplicate detection | 🔥 | Low | Pending | Session |
 | Transcript diff/compare | 🔥 | Medium | Pending | UI |
 | Apple Notes sync | 🔥 | Low | Pending | Export |
+| Video player + subtitles | 🔥🔥🔥 | Medium | **NEW** | UI |
+| YouTube transcription | 🔥🔥🔥 | Low | **NEW** | Recording |
+| Batch transcription | 🔥🔥 | Low | **NEW** | Workflow |
+| Watch folder auto-transcribe | 🔥🔥 | Low | **NEW** | Workflow |
+| Menubar app mode | 🔥🔥 | Low | **NEW** | UI |
+| Global spotlight mode | 🔥🔥 | Low | **NEW** | UI |
+| Filler word removal | 🔥🔥 | Very Low | **NEW** | Transcription |
+| Star/favorite segments | 🔥🔥 | Very Low | **NEW** | UI |
+| Edit/delete segments | 🔥🔥 | Low | **NEW** | UI |
+| Compact mode (hide timestamps) | 🔥 | Very Low | **NEW** | UI |
+| Drag from Voice Memos | 🔥 | Very Low | **NEW** | Recording |
+| Parakeet v2 / WhisperKit | 🔥🔥🔥 | Medium | **NEW** | Transcription |
+| Cloud transcription (Groq) | 🔥🔥 | Low | **NEW** | Transcription |
+| DeepL translation | 🔥🔥 | Low | **NEW** | Transcription |
+| Custom GGML models | 🔥 | Low | **NEW** | Transcription |
+| Translate subtitles | 🔥🔥 | Low | **NEW** | Export |
+| Manual speaker assignment | 🔥🔥 | Low | **NEW** | Transcription |
+| SRT/VTT subtitle export | 🔥🔥 | Low | **NEW** | Export |
+| CSV export | 🔥 | Very Low | **NEW** | Export |
+| HTML export | 🔥 | Very Low | **NEW** | Export |
+| Transcription progress tracking | 🔥🔥🔥 | Very Low | **BROKEN** | UI |
+| Real PDF/DOCX export | 🔥🔥 | Low | **BROKEN** | Export |
+| Toast notifications (replace alerts) | 🔥🔥 | Very Low | Pending | UI |
+| Ollama status indicator | 🔥🔥 | Very Low | Pending | UI |
+| Database encryption (SQLCipher) | 🔥🔥 | Medium | Pending | Data |
+| Streaming LLM output | 🔥🔥 | Medium | Pending | AI |
+| Test coverage | 🔥🔥 | Medium | Pending | Technical |
+| Split Zustand stores | 🔥 | Low | Pending | Technical |
+| Database migrations | 🔥🔥 | Low | Pending | Technical |
 
 ---
 
@@ -313,6 +466,14 @@
 
 ## Technical
 
+### Code Quality (Fix These!)
+- [ ] **Add test coverage** (currently zero tests)
+- [ ] **Split Zustand store** (single store with mixed concerns → domain stores)
+- [ ] **Add database migrations** (schema runs every startup → proper versioning)
+- [ ] **Streaming LLM output** (currently waits for full response)
+- [ ] **Database encryption** (SQLCipher mentioned but not implemented)
+
+### Performance & Infrastructure
 - [ ] **Battery optimization** (efficient for long recordings)
 - [ ] Reduce app bundle size
 - [ ] Improve startup time

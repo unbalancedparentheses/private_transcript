@@ -3,6 +3,7 @@ import { WORKSPACE_CONFIG } from '../../types';
 import { Button } from '../ui/Button';
 import { RecordingView } from '../recording/RecordingView';
 import { SessionDetail } from '../session/SessionDetail';
+import { SettingsView } from '../settings/SettingsView';
 import { formatDistanceToNow } from 'date-fns';
 
 export function MainContent() {
@@ -26,6 +27,10 @@ export function MainContent() {
 
   if (view === 'session' && currentSession) {
     return <SessionDetail />;
+  }
+
+  if (view === 'settings') {
+    return <SettingsView />;
   }
 
   return (

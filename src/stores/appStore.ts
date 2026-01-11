@@ -5,6 +5,7 @@ import type { Workspace, Folder, Session, Template, AppSettings, WorkspaceType }
 interface AppState {
   // Initialization
   initialized: boolean;
+  onboardingComplete: boolean;
 
   // Workspaces
   workspaces: Workspace[];
@@ -25,10 +26,11 @@ interface AppState {
   settings: AppSettings | null;
 
   // UI State
-  view: 'list' | 'recording' | 'processing' | 'session';
+  view: 'list' | 'recording' | 'processing' | 'session' | 'settings';
 
   // Actions
   initialize: () => Promise<void>;
+  setOnboardingComplete: (complete: boolean) => void;
 
   // Workspace actions
   createWorkspace: (name: string, type: WorkspaceType) => Promise<Workspace>;
@@ -44,7 +46,7 @@ interface AppState {
   updateSession: (id: string, updates: Partial<Session>) => Promise<void>;
 
   // View actions
-  setView: (view: 'list' | 'recording' | 'processing' | 'session') => void;
+  setView: (view: 'list' | 'recording' | 'processing' | 'session' | 'settings') => void;
 
   // Template actions
   loadTemplates: (workspaceType?: WorkspaceType) => Promise<void>;
@@ -52,6 +54,7 @@ interface AppState {
 
 export const useAppStore = create<AppState>((set, get) => ({
   initialized: false,
+  onboardingComplete: false,
   workspaces: [],
   currentWorkspace: null,
   folders: [],
@@ -70,10 +73,22 @@ export const useAppStore = create<AppState>((set, get) => ({
       // Load settings
       const settings = await invoke<AppSettings>('get_settings');
 
+      // Check if models are ready (at least one of each type downloaded)
+      let modelsReady = false;
+      try {
+        modelsReady = await invoke<boolean>('are_models_ready');
+      } catch {
+        modelsReady = false;
+      }
+
+      // Onboarding is complete if we have workspaces AND models are ready
+      const onboardingComplete = workspaces.length > 0 && modelsReady;
+
       set({
         workspaces,
         settings,
         initialized: true,
+        onboardingComplete,
         currentWorkspace: workspaces.length > 0 ? workspaces[0] : null,
       });
 
@@ -187,6 +202,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   setView: (view) => set({ view }),
+
+  setOnboardingComplete: (complete) => set({ onboardingComplete: complete }),
 
   loadTemplates: async (workspaceType) => {
     const templates = await invoke<Template[]>('get_templates', {

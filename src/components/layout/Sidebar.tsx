@@ -14,6 +14,7 @@ export function Sidebar() {
     selectWorkspace,
     selectFolder,
     createFolder,
+    setView,
   } = useAppStore();
 
   const [showNewFolder, setShowNewFolder] = useState(false);
@@ -138,6 +139,7 @@ export function Sidebar() {
       {/* Bottom Actions */}
       <div className="p-3 border-t border-[var(--border)]">
         <button
+          onClick={() => setView('settings')}
           className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-[var(--muted-foreground)]
                      hover:text-[var(--foreground)] hover:bg-[var(--muted)] rounded-lg transition-all"
         >

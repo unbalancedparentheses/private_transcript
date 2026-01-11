@@ -1,188 +1,182 @@
 use anyhow::{anyhow, Result};
-use std::path::Path;
-use std::process::Command;
+use once_cell::sync::OnceCell;
+use parking_lot::Mutex;
+use std::sync::Arc;
 use tauri::AppHandle;
-use tauri::Manager;
+use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextParameters};
 
-/// Transcribe audio file using whisper.cpp
-pub async fn transcribe(app: &AppHandle, _session_id: &str, audio_path: &str) -> Result<String> {
-    // Get the app data directory for model storage
-    let app_data_dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| anyhow!("Failed to get app data dir: {}", e))?;
+use super::audio::decode_audio_to_whisper_format;
+use super::model_manager::{get_whisper_models, ModelManager};
 
-    let models_dir = app_data_dir.join("models");
-    std::fs::create_dir_all(&models_dir)?;
+/// Global whisper context (lazy loaded, shared across transcriptions)
+static WHISPER_CONTEXT: OnceCell<Arc<Mutex<Option<WhisperContext>>>> = OnceCell::new();
 
-    // Check if whisper is available
-    let whisper_path = find_whisper_binary()?;
+/// Currently loaded model ID
+static LOADED_MODEL_ID: OnceCell<Arc<Mutex<Option<String>>>> = OnceCell::new();
 
-    // Convert audio to WAV format if needed (whisper.cpp requires WAV)
-    let wav_path = convert_to_wav(audio_path).await?;
+/// Get or initialize the whisper context holder
+fn get_whisper_context() -> &'static Arc<Mutex<Option<WhisperContext>>> {
+    WHISPER_CONTEXT.get_or_init(|| Arc::new(Mutex::new(None)))
+}
 
-    // Run whisper transcription
-    let model_path = get_model_path(&models_dir)?;
-    eprintln!("Using whisper model: {}", model_path);
-    eprintln!("Transcribing file: {}", wav_path);
+/// Get or initialize the loaded model ID holder
+fn get_loaded_model_id() -> &'static Arc<Mutex<Option<String>>> {
+    LOADED_MODEL_ID.get_or_init(|| Arc::new(Mutex::new(None)))
+}
 
-    let output = Command::new(&whisper_path)
-        .args([
-            "--model", &model_path,
-            "--output-txt",
-            "--no-prints",
-            "--language", "auto",
-            &wav_path,  // file as positional argument
-        ])
-        .output()
-        .map_err(|e| anyhow!("Failed to run whisper: {}", e))?;
+/// Load whisper model into memory
+pub async fn load_model(app: &AppHandle, model_id: &str) -> Result<()> {
+    let model_info = get_whisper_models()
+        .into_iter()
+        .find(|m| m.id == model_id)
+        .ok_or_else(|| anyhow!("Unknown whisper model: {}", model_id))?;
 
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        eprintln!("Whisper stderr: {}", stderr);
-        eprintln!("Whisper stdout: {}", stdout);
-        return Err(anyhow!("Whisper failed: {}", stderr));
+    let model_manager = ModelManager::new(app).await?;
+
+    let model_path = model_manager
+        .get_model_path(&model_info)
+        .ok_or_else(|| anyhow!("Model not downloaded: {}. Please download it first.", model_id))?;
+
+    let model_path_str = model_path.to_string_lossy().to_string();
+    let model_id_owned = model_id.to_string();
+
+    // Load model in a blocking task (whisper-rs is not async)
+    tokio::task::spawn_blocking(move || {
+        // Create context parameters
+        let ctx_params = WhisperContextParameters::default();
+
+        // Load the model
+        let ctx = WhisperContext::new_with_params(&model_path_str, ctx_params)
+            .map_err(|e| anyhow!("Failed to load whisper model: {}", e))?;
+
+        // Store in global state
+        {
+            let mut lock = get_whisper_context().lock();
+            *lock = Some(ctx);
+        }
+        {
+            let mut lock = get_loaded_model_id().lock();
+            *lock = Some(model_id_owned);
+        }
+
+        Ok::<(), anyhow::Error>(())
+    })
+    .await
+    .map_err(|e| anyhow!("Task join error: {}", e))??;
+
+    Ok(())
+}
+
+/// Unload whisper model from memory
+pub fn unload_model() {
+    {
+        let mut lock = get_whisper_context().lock();
+        *lock = None;
+    }
+    {
+        let mut lock = get_loaded_model_id().lock();
+        *lock = None;
+    }
+}
+
+/// Check if a model is loaded
+pub fn is_model_loaded() -> bool {
+    let lock = get_whisper_context().lock();
+    lock.is_some()
+}
+
+/// Get the currently loaded model ID
+pub fn get_loaded_model() -> Option<String> {
+    let lock = get_loaded_model_id().lock();
+    lock.clone()
+}
+
+/// Transcribe audio file using whisper-rs native bindings
+pub async fn transcribe(_app: &AppHandle, _session_id: &str, audio_path: &str) -> Result<String> {
+    // First check if model is loaded
+    if !is_model_loaded() {
+        return Err(anyhow!(
+            "Whisper model not loaded. Please select and load a model first."
+        ));
     }
 
-    // Read the output text file (whisper-cli creates {input}.txt)
-    let txt_path = format!("{}.txt", wav_path);
-    eprintln!("Looking for transcript at: {}", txt_path);
+    let audio_path_owned = audio_path.to_string();
 
-    let transcript = if Path::new(&txt_path).exists() {
-        let content = std::fs::read_to_string(&txt_path)?;
-        let _ = std::fs::remove_file(&txt_path);
-        content.trim().to_string()
-    } else {
-        // Fallback to stdout
-        eprintln!("Txt file not found, using stdout");
-        String::from_utf8_lossy(&output.stdout).trim().to_string()
-    };
+    // Decode audio to f32 samples at 16kHz mono (blocking operation)
+    let audio_data = tokio::task::spawn_blocking(move || {
+        decode_audio_to_whisper_format(&audio_path_owned)
+    })
+    .await
+    .map_err(|e| anyhow!("Task join error: {}", e))??;
 
-    // Clean up temp WAV file if we created one
-    if wav_path != audio_path {
-        let _ = std::fs::remove_file(&wav_path);
+    if audio_data.is_empty() {
+        return Err(anyhow!("No audio data decoded from file"));
     }
 
-    if transcript.is_empty() {
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        eprintln!("Empty transcript. stdout: {}, stderr: {}", stdout, stderr);
-        return Err(anyhow!("Transcription produced no output"));
-    }
+    // Run transcription (blocking operation)
+    let transcript = tokio::task::spawn_blocking(move || {
+        transcribe_sync(&audio_data)
+    })
+    .await
+    .map_err(|e| anyhow!("Task join error: {}", e))??;
 
     Ok(transcript)
 }
 
-fn find_whisper_binary() -> Result<String> {
-    // Check common locations for whisper-cli binary (from brew install whisper-cpp)
-    let candidates = [
-        "whisper-cli",
-        "/opt/homebrew/bin/whisper-cli",
-        "/usr/local/bin/whisper-cli",
-    ];
+/// Synchronous transcription (called from blocking task)
+fn transcribe_sync(audio_data: &[f32]) -> Result<String> {
+    let ctx_lock = get_whisper_context().lock();
+    let ctx = ctx_lock
+        .as_ref()
+        .ok_or_else(|| anyhow!("Whisper model not loaded"))?;
 
-    for candidate in candidates {
-        if Command::new(candidate).arg("--help").output().is_ok() {
-            return Ok(candidate.to_string());
+    // Create transcription parameters
+    let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
+
+    // Configure for best quality
+    params.set_language(Some("auto"));
+    params.set_translate(false);
+    params.set_no_timestamps(true);
+    params.set_print_special(false);
+    params.set_print_progress(false);
+    params.set_print_realtime(false);
+    params.set_print_timestamps(false);
+    params.set_single_segment(false);
+
+    // Create state and run transcription
+    let mut state = ctx
+        .create_state()
+        .map_err(|e| anyhow!("Failed to create whisper state: {}", e))?;
+
+    state
+        .full(params, audio_data)
+        .map_err(|e| anyhow!("Transcription failed: {}", e))?;
+
+    // Extract segments
+    let num_segments = state
+        .full_n_segments()
+        .map_err(|e| anyhow!("Failed to get segments: {}", e))?;
+
+    let mut transcript = String::new();
+
+    for i in 0..num_segments {
+        let segment_text = state
+            .full_get_segment_text(i)
+            .map_err(|e| anyhow!("Failed to get segment {}: {}", i, e))?;
+
+        // Add space between segments
+        if !transcript.is_empty() && !segment_text.starts_with(' ') {
+            transcript.push(' ');
         }
+        transcript.push_str(&segment_text);
     }
 
-    Err(anyhow!(
-        "Whisper not found. Install with: brew install whisper-cpp"
-    ))
+    let result = transcript.trim().to_string();
+
+    if result.is_empty() {
+        return Err(anyhow!("Transcription produced no output"));
+    }
+
+    Ok(result)
 }
 
-fn get_model_path(models_dir: &Path) -> Result<String> {
-    // Look for existing models in order of preference
-    let model_names = [
-        "ggml-large-v3-turbo.bin",
-        "ggml-large-v3.bin",
-        "ggml-medium.bin",
-        "ggml-small.bin",
-        "ggml-base.bin",
-        "ggml-tiny.bin",
-    ];
-
-    for name in model_names {
-        let path = models_dir.join(name);
-        if path.exists() {
-            return Ok(path.to_string_lossy().to_string());
-        }
-    }
-
-    // Check homebrew model location
-    let homebrew_models = Path::new("/opt/homebrew/share/whisper-cpp/models");
-    if homebrew_models.exists() {
-        for name in model_names {
-            let path = homebrew_models.join(name);
-            if path.exists() {
-                return Ok(path.to_string_lossy().to_string());
-            }
-        }
-    }
-
-    Err(anyhow!(
-        "No Whisper model found. Download with: whisper-cpp-download-ggml-model base"
-    ))
-}
-
-async fn convert_to_wav(audio_path: &str) -> Result<String> {
-    // If already WAV, return as-is
-    if audio_path.ends_with(".wav") {
-        return Ok(audio_path.to_string());
-    }
-
-    // Use ffmpeg to convert to WAV (16kHz mono, required by whisper)
-    let wav_path = format!("{}.wav", audio_path);
-
-    let output = Command::new("ffmpeg")
-        .args([
-            "-y",           // Overwrite output
-            "-i", audio_path,
-            "-ar", "16000", // 16kHz sample rate
-            "-ac", "1",     // Mono
-            "-c:a", "pcm_s16le", // 16-bit PCM
-            &wav_path,
-        ])
-        .output()
-        .map_err(|e| anyhow!("Failed to run ffmpeg: {}. Install with: brew install ffmpeg", e))?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(anyhow!("ffmpeg conversion failed: {}", stderr));
-    }
-
-    Ok(wav_path)
-}
-
-/// Get available Whisper models
-pub fn get_available_models() -> Vec<&'static str> {
-    vec![
-        "tiny",
-        "base",
-        "small",
-        "medium",
-        "large-v3",
-        "large-v3-turbo",
-    ]
-}
-
-/// Download Whisper model if not present
-pub async fn ensure_model(model: &str) -> Result<String> {
-    // Try to download model using whisper-cpp's download script
-    let output = Command::new("whisper-cpp-download-ggml-model")
-        .arg(model)
-        .output();
-
-    match output {
-        Ok(o) if o.status.success() => Ok(format!("Model {} downloaded successfully", model)),
-        Ok(o) => Err(anyhow!(
-            "Failed to download model: {}",
-            String::from_utf8_lossy(&o.stderr)
-        )),
-        Err(_) => Err(anyhow!(
-            "Download script not found. Install whisper-cpp with: brew install whisper-cpp"
-        )),
-    }
-}

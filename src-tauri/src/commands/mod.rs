@@ -2,6 +2,7 @@ pub mod audio;
 pub mod export;
 pub mod folder;
 pub mod generation;
+pub mod models;
 pub mod session;
 pub mod settings;
 pub mod template;

@@ -58,7 +58,7 @@ export interface Template {
 export interface AppSettings {
   theme: 'light' | 'dark' | 'system';
   whisperModel: string;
-  llmProvider: 'local' | 'cloud';
+  llmProvider: 'bundled' | 'local' | 'cloud';
   llmModel: string;
   ollamaEndpoint: string;
   openrouterApiKey?: string;
@@ -67,6 +67,31 @@ export interface AppSettings {
   audioInputDevice?: string;
   exportFormat: 'markdown' | 'pdf' | 'docx';
   autoSave: boolean;
+  bundledWhisperModel?: string;
+  bundledLlmModel?: string;
+}
+
+export type ModelType = 'whisper' | 'llm';
+
+export interface ModelInfo {
+  id: string;
+  name: string;
+  modelType: ModelType;
+  repoId: string;
+  filename: string;
+  sizeBytes: number;
+  description: string;
+}
+
+export type DownloadStatus = 'pending' | 'downloading' | 'verifying' | 'complete' | 'error';
+
+export interface DownloadProgress {
+  modelId: string;
+  downloadedBytes: number;
+  totalBytes: number;
+  percent: number;
+  status: DownloadStatus;
+  errorMessage?: string;
 }
 
 export interface OllamaStatus {

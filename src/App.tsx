@@ -5,7 +5,7 @@ import { OnboardingView } from './components/onboarding/OnboardingView';
 import { useAppStore } from './stores/appStore';
 
 function App() {
-  const { initialized, initialize, workspaces } = useAppStore();
+  const { initialized, initialize, onboardingComplete } = useAppStore();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -27,8 +27,8 @@ function App() {
     );
   }
 
-  // Show onboarding if no workspaces exist
-  if (initialized && workspaces.length === 0) {
+  // Show onboarding if not complete (no workspace or no models)
+  if (initialized && !onboardingComplete) {
     return <OnboardingView />;
   }
 

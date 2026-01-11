@@ -1,14 +1,23 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
+use rubato::{FftFixedIn, Resampler};
 use std::path::PathBuf;
+use symphonia::core::audio::SampleBuffer;
+use symphonia::core::codecs::DecoderOptions;
+use symphonia::core::formats::FormatOptions;
+use symphonia::core::io::MediaSourceStream;
+use symphonia::core::meta::MetadataOptions;
+use symphonia::core::probe::Hint;
 use tauri::AppHandle;
 use tauri::Manager;
+
+const TARGET_SAMPLE_RATE: u32 = 16000;
 
 /// Get the audio directory for storing recordings
 fn get_audio_dir(app: &AppHandle) -> Result<PathBuf> {
     let app_data_dir = app
         .path()
         .app_data_dir()
-        .map_err(|e| anyhow::anyhow!("Failed to get app data dir: {}", e))?;
+        .map_err(|e| anyhow!("Failed to get app data dir: {}", e))?;
     let audio_dir = app_data_dir.join("audio");
     std::fs::create_dir_all(&audio_dir)?;
     Ok(audio_dir)
@@ -35,25 +44,168 @@ pub async fn get_audio_path(app: &AppHandle, session_id: &str) -> Result<String>
     let audio_dir = get_audio_dir(app)?;
 
     // Try common formats
-    for ext in &["webm", "wav", "mp3", "m4a", "ogg"] {
+    for ext in &["webm", "wav", "mp3", "m4a", "ogg", "flac", "aac"] {
         let path = audio_dir.join(format!("{}.{}", session_id, ext));
         if path.exists() {
             return Ok(path.to_string_lossy().to_string());
         }
     }
 
-    Err(anyhow::anyhow!("Audio file not found for session {}", session_id))
+    Err(anyhow!("Audio file not found for session {}", session_id))
 }
 
-/// Convert audio to WAV format (required for Whisper)
-pub async fn convert_to_wav(_input_path: &str, _output_path: &str) -> Result<()> {
-    // TODO: Implement audio conversion using symphonia or ffmpeg
-    // For now, we assume the audio is already in a compatible format
-    Ok(())
+/// Decode any audio file and convert to f32 samples at 16kHz mono
+/// This replaces ffmpeg for audio conversion - pure Rust implementation
+pub fn decode_audio_to_whisper_format(audio_path: &str) -> Result<Vec<f32>> {
+    let file = std::fs::File::open(audio_path)
+        .map_err(|e| anyhow!("Failed to open audio file: {}", e))?;
+    let mss = MediaSourceStream::new(Box::new(file), Default::default());
+
+    // Create a hint to help format detection
+    let mut hint = Hint::new();
+    if let Some(ext) = std::path::Path::new(audio_path).extension() {
+        hint.with_extension(ext.to_str().unwrap_or(""));
+    }
+
+    // Probe the format
+    let format_opts = FormatOptions::default();
+    let metadata_opts = MetadataOptions::default();
+    let probed = symphonia::default::get_probe()
+        .format(&hint, mss, &format_opts, &metadata_opts)
+        .map_err(|e| anyhow!("Failed to probe audio format: {}", e))?;
+
+    let mut format = probed.format;
+
+    // Select the first audio track
+    let track = format
+        .tracks()
+        .iter()
+        .find(|t| t.codec_params.codec != symphonia::core::codecs::CODEC_TYPE_NULL)
+        .ok_or_else(|| anyhow!("No audio track found"))?;
+
+    let track_id = track.id;
+    let codec_params = track.codec_params.clone();
+    let source_sample_rate = codec_params.sample_rate.unwrap_or(44100);
+    let source_channels = codec_params.channels.map(|c| c.count()).unwrap_or(2);
+
+    // Create decoder
+    let decoder_opts = DecoderOptions::default();
+    let mut decoder = symphonia::default::get_codecs()
+        .make(&codec_params, &decoder_opts)
+        .map_err(|e| anyhow!("Failed to create decoder: {}", e))?;
+
+    // Decode all packets
+    let mut all_samples: Vec<f32> = Vec::new();
+
+    loop {
+        let packet = match format.next_packet() {
+            Ok(p) => p,
+            Err(symphonia::core::errors::Error::IoError(e))
+                if e.kind() == std::io::ErrorKind::UnexpectedEof =>
+            {
+                break;
+            }
+            Err(symphonia::core::errors::Error::ResetRequired) => {
+                // Handle format reset (e.g., seeking)
+                decoder.reset();
+                continue;
+            }
+            Err(e) => return Err(anyhow!("Error reading packet: {}", e)),
+        };
+
+        if packet.track_id() != track_id {
+            continue;
+        }
+
+        let decoded = match decoder.decode(&packet) {
+            Ok(d) => d,
+            Err(symphonia::core::errors::Error::DecodeError(e)) => {
+                eprintln!("Decode error (skipping packet): {}", e);
+                continue;
+            }
+            Err(e) => {
+                eprintln!("Decode error (skipping): {}", e);
+                continue;
+            }
+        };
+
+        // Convert to f32 samples
+        let spec = *decoded.spec();
+        let duration = decoded.capacity() as u64;
+        let mut sample_buf = SampleBuffer::<f32>::new(duration, spec);
+        sample_buf.copy_interleaved_ref(decoded);
+
+        let samples = sample_buf.samples();
+
+        // Convert to mono if stereo/multichannel
+        if source_channels > 1 {
+            for chunk in samples.chunks(source_channels) {
+                let mono: f32 = chunk.iter().sum::<f32>() / source_channels as f32;
+                all_samples.push(mono);
+            }
+        } else {
+            all_samples.extend_from_slice(samples);
+        }
+    }
+
+    if all_samples.is_empty() {
+        return Err(anyhow!("No audio samples decoded"));
+    }
+
+    // Resample to 16kHz if necessary
+    if source_sample_rate != TARGET_SAMPLE_RATE {
+        all_samples = resample_audio(
+            &all_samples,
+            source_sample_rate as usize,
+            TARGET_SAMPLE_RATE as usize,
+        )?;
+    }
+
+    Ok(all_samples)
 }
 
-/// Get audio duration in seconds
-pub async fn get_duration(_audio_path: &str) -> Result<i64> {
-    // TODO: Implement using symphonia
-    Ok(0)
+/// Resample audio using rubato (high quality resampling)
+fn resample_audio(samples: &[f32], source_rate: usize, target_rate: usize) -> Result<Vec<f32>> {
+    if source_rate == target_rate {
+        return Ok(samples.to_vec());
+    }
+
+    let chunk_size = 1024;
+    let sub_chunks = 2;
+
+    let mut resampler = FftFixedIn::<f32>::new(source_rate, target_rate, chunk_size, sub_chunks, 1)
+        .map_err(|e| anyhow!("Failed to create resampler: {}", e))?;
+
+    let mut output = Vec::new();
+    let mut input_frames_used = 0;
+
+    // Process in chunks
+    while input_frames_used < samples.len() {
+        let remaining = samples.len() - input_frames_used;
+        let this_chunk = remaining.min(chunk_size);
+
+        // Pad with zeros if we don't have enough samples for a full chunk
+        let mut input_chunk = samples[input_frames_used..input_frames_used + this_chunk].to_vec();
+        if input_chunk.len() < chunk_size {
+            input_chunk.resize(chunk_size, 0.0);
+        }
+
+        let input_vec = vec![input_chunk];
+
+        match resampler.process(&input_vec, None) {
+            Ok(resampled) => {
+                if !resampled.is_empty() && !resampled[0].is_empty() {
+                    output.extend_from_slice(&resampled[0]);
+                }
+            }
+            Err(e) => {
+                eprintln!("Resampling error (skipping chunk): {}", e);
+            }
+        }
+
+        input_frames_used += this_chunk;
+    }
+
+    Ok(output)
 }
+

@@ -1,5 +1,6 @@
 use crate::models::OllamaStatus;
 use crate::services::database;
+use crate::services::local_llm;
 use anyhow::Result;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -15,6 +16,7 @@ struct OllamaGenerateRequest {
 #[derive(Debug, Deserialize)]
 struct OllamaGenerateResponse {
     response: String,
+    #[allow(dead_code)]
     done: bool,
 }
 
@@ -36,15 +38,25 @@ pub async fn generate_note(app: &AppHandle, transcript: &str, template_id: &str)
     let prompt = template.prompt.replace("{transcript}", transcript);
 
     match settings.llm_provider.as_str() {
-        "local" => generate_with_ollama(&settings.ollama_endpoint, &settings.llm_model, &prompt).await,
+        "bundled" => {
+            // Use bundled local LLM (llama-cpp-2)
+            local_llm::generate(&prompt, 2048).await
+        }
+        "local" => {
+            // Use external Ollama server
+            generate_with_ollama(&settings.ollama_endpoint, &settings.llm_model, &prompt).await
+        }
         "cloud" => {
-            if let (Some(api_key), Some(model)) = (&settings.openrouter_api_key, &settings.openrouter_model) {
+            // Use OpenRouter cloud API
+            if let (Some(api_key), Some(model)) =
+                (&settings.openrouter_api_key, &settings.openrouter_model)
+            {
                 generate_with_openrouter(api_key, model, &prompt).await
             } else {
                 Err(anyhow::anyhow!("OpenRouter not configured"))
             }
         }
-        _ => Err(anyhow::anyhow!("Unknown LLM provider")),
+        _ => Err(anyhow::anyhow!("Unknown LLM provider: {}", settings.llm_provider)),
     }
 }
 

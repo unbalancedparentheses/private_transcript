@@ -1,7 +1,14 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { convertFileSrc } from '@tauri-apps/api/core';
 import { useAppStore } from '../../stores/appStore';
 import { Button } from '../ui/Button';
+
+function formatTime(seconds: number): string {
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
 
 export function SessionDetail() {
   const { currentSession, templates, setView, updateSession } = useAppStore();
@@ -13,6 +20,70 @@ export function SessionDetail() {
   const [editingNote, setEditingNote] = useState(false);
   const [transcriptText, setTranscriptText] = useState(currentSession?.transcript || '');
   const [noteText, setNoteText] = useState(currentSession?.generatedNote || '');
+
+  // Audio player state
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [audioSrc, setAudioSrc] = useState<string | null>(null);
+  const [audioError, setAudioError] = useState<string | null>(null);
+
+  // Convert file path to audio source
+  useEffect(() => {
+    if (currentSession?.audioPath) {
+      try {
+        const src = convertFileSrc(currentSession.audioPath);
+        setAudioSrc(src);
+        setAudioError(null);
+      } catch (err) {
+        setAudioError('Failed to load audio file');
+        console.error('Audio conversion error:', err);
+      }
+    }
+  }, [currentSession?.audioPath]);
+
+  const togglePlayPause = () => {
+    if (audioRef.current) {
+      if (isPlaying) {
+        audioRef.current.pause();
+      } else {
+        audioRef.current.play();
+      }
+    }
+  };
+
+  const handleTimeUpdate = () => {
+    if (audioRef.current) {
+      setCurrentTime(audioRef.current.currentTime);
+    }
+  };
+
+  const handleLoadedMetadata = () => {
+    if (audioRef.current) {
+      setDuration(audioRef.current.duration);
+    }
+  };
+
+  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const time = parseFloat(e.target.value);
+    if (audioRef.current) {
+      audioRef.current.currentTime = time;
+      setCurrentTime(time);
+    }
+  };
+
+  const skipBackward = () => {
+    if (audioRef.current) {
+      audioRef.current.currentTime = Math.max(0, audioRef.current.currentTime - 10);
+    }
+  };
+
+  const skipForward = () => {
+    if (audioRef.current) {
+      audioRef.current.currentTime = Math.min(duration, audioRef.current.currentTime + 10);
+    }
+  };
 
   if (!currentSession) {
     return null;
@@ -129,6 +200,93 @@ export function SessionDetail() {
           </div>
         </div>
       </header>
+
+      {/* Audio Player */}
+      {audioSrc && (
+        <div className="px-6 py-4 border-b border-border bg-muted/30">
+          <audio
+            ref={audioRef}
+            src={audioSrc}
+            onTimeUpdate={handleTimeUpdate}
+            onLoadedMetadata={handleLoadedMetadata}
+            onPlay={() => setIsPlaying(true)}
+            onPause={() => setIsPlaying(false)}
+            onEnded={() => setIsPlaying(false)}
+            onError={() => setAudioError('Failed to play audio')}
+          />
+          <div className="flex items-center gap-4">
+            {/* Play/Pause Controls */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={skipBackward}
+                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-muted transition-colors"
+                title="Skip back 10s"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 3v9l-9 9" />
+                  <path d="M12 12V3" />
+                  <path d="M3 12h9" />
+                </svg>
+              </button>
+              <button
+                onClick={togglePlayPause}
+                className="w-10 h-10 flex items-center justify-center rounded-full bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+              >
+                {isPlaying ? (
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <rect x="6" y="4" width="4" height="16" rx="1" />
+                    <rect x="14" y="4" width="4" height="16" rx="1" />
+                  </svg>
+                ) : (
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                )}
+              </button>
+              <button
+                onClick={skipForward}
+                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-muted transition-colors"
+                title="Skip forward 10s"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 3v9l9 9" />
+                  <path d="M12 12V3" />
+                  <path d="M21 12h-9" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Time Display */}
+            <span className="text-sm text-muted-foreground w-12 text-right">
+              {formatTime(currentTime)}
+            </span>
+
+            {/* Progress Bar */}
+            <div className="flex-1">
+              <input
+                type="range"
+                min={0}
+                max={duration || 100}
+                value={currentTime}
+                onChange={handleSeek}
+                className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer
+                         [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3
+                         [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:cursor-pointer
+                         [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:rounded-full
+                         [&::-moz-range-thumb]:bg-primary [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-0"
+              />
+            </div>
+
+            {/* Duration */}
+            <span className="text-sm text-muted-foreground w-12">
+              {formatTime(duration)}
+            </span>
+          </div>
+          {audioError && (
+            <p className="text-xs text-red-500 mt-2">{audioError}</p>
+          )}
+        </div>
+      )}
 
       {/* Two-column layout */}
       <div className="flex-1 flex overflow-hidden">
