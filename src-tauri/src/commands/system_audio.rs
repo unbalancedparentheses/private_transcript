@@ -34,6 +34,12 @@ pub fn get_recording_status() -> RecordingStatus {
 
 /// Check audio permissions
 #[tauri::command]
-pub fn check_audio_permissions() -> AudioPermissions {
-    crate::services::system_audio::check_permissions()
+pub fn check_audio_permissions(app: AppHandle) -> Result<AudioPermissions, String> {
+    crate::services::system_audio::check_permissions(&app).map_err(|e| e.to_string())
+}
+
+/// Open System Settings to Screen Recording pane
+#[tauri::command]
+pub fn open_screen_recording_settings(app: AppHandle) -> Result<(), String> {
+    crate::services::system_audio::open_screen_recording_settings(&app).map_err(|e| e.to_string())
 }

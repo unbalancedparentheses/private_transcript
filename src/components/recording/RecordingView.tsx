@@ -32,6 +32,7 @@ export function RecordingView() {
   const [isNativeRecording, setIsNativeRecording] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [nativeSessionId, setNativeSessionId] = useState<string | null>(null);
+  const [hasScreenRecordingPermission, setHasScreenRecordingPermission] = useState<boolean | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<number | null>(null);
@@ -80,6 +81,33 @@ export function RecordingView() {
     };
     loadDevices();
   }, []);
+
+  // Check screen recording permission when system audio is enabled
+  useEffect(() => {
+    if (captureSystemAudio) {
+      checkScreenRecordingPermission();
+    }
+  }, [captureSystemAudio]);
+
+  const checkScreenRecordingPermission = async () => {
+    try {
+      const permissions = await invoke<{ microphone: boolean; screenRecording: boolean }>('check_audio_permissions');
+      setHasScreenRecordingPermission(permissions.screenRecording);
+    } catch (e) {
+      console.error('Failed to check permissions:', e);
+      setHasScreenRecordingPermission(false);
+    }
+  };
+
+  const openScreenRecordingSettings = async () => {
+    try {
+      await invoke('open_screen_recording_settings');
+      // Re-check permission after a delay (user needs time to grant it)
+      setTimeout(checkScreenRecordingPermission, 1000);
+    } catch (e) {
+      console.error('Failed to open settings:', e);
+    }
+  };
 
   // Listen for native recording progress
   useEffect(() => {
@@ -701,9 +729,32 @@ export function RecordingView() {
                 </div>
               )}
 
-              {captureSystemAudio && (
-                <p className="text-xs text-amber-500 mt-3">
-                  Screen Recording permission required for system audio
+              {captureSystemAudio && hasScreenRecordingPermission === false && (
+                <div className="mt-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                  <p className="text-xs text-amber-500 mb-2">
+                    Screen Recording permission required
+                  </p>
+                  <button
+                    onClick={openScreenRecordingSettings}
+                    className="text-xs font-medium text-amber-500 hover:text-amber-400 underline"
+                  >
+                    Open System Settings
+                  </button>
+                </div>
+              )}
+
+              {captureSystemAudio && hasScreenRecordingPermission === true && (
+                <p className="text-xs text-[var(--success)] mt-3 flex items-center gap-1">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M20 6L9 17l-5-5" />
+                  </svg>
+                  Screen Recording permission granted
+                </p>
+              )}
+
+              {captureSystemAudio && hasScreenRecordingPermission === null && (
+                <p className="text-xs text-[var(--muted-foreground)] mt-3">
+                  Checking permission...
                 </p>
               )}
             </div>

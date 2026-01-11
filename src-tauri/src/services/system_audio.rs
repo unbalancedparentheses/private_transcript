@@ -421,11 +421,39 @@ pub fn get_status() -> RecordingStatus {
 }
 
 /// Check audio permissions (platform-specific)
-pub fn check_permissions() -> AudioPermissions {
-    // On macOS, we can't easily check permissions from Rust
-    // The Swift binary will request them when needed
-    AudioPermissions {
-        microphone: true, // Assume granted, will fail at runtime if not
-        screen_recording: true, // Same
+pub fn check_permissions(app: &AppHandle) -> Result<AudioPermissions> {
+    let worker_path = get_worker_path(app)?;
+
+    let output = Command::new(&worker_path)
+        .arg("check-permission")
+        .output()
+        .map_err(|e| anyhow!("Failed to run worker: {}", e))?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    // Parse JSON response
+    if let Ok(json) = serde_json::from_str::<serde_json::Value>(&stdout) {
+        let granted = json.get("granted").and_then(|v| v.as_bool()).unwrap_or(false);
+        return Ok(AudioPermissions {
+            microphone: true, // Mic permission is checked separately by the OS
+            screen_recording: granted,
+        });
     }
+
+    Ok(AudioPermissions {
+        microphone: true,
+        screen_recording: false,
+    })
+}
+
+/// Open System Settings to Screen Recording pane
+pub fn open_screen_recording_settings(app: &AppHandle) -> Result<()> {
+    let worker_path = get_worker_path(app)?;
+
+    Command::new(&worker_path)
+        .arg("open-settings")
+        .output()
+        .map_err(|e| anyhow!("Failed to open settings: {}", e))?;
+
+    Ok(())
 }

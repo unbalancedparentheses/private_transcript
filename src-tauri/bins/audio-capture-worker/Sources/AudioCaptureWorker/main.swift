@@ -1,5 +1,6 @@
 import Foundation
 import ArgumentParser
+import AppKit
 
 /// Output message types for JSON stdout
 struct StatusMessage: Codable {
@@ -45,7 +46,7 @@ struct AudioCaptureWorker: ParsableCommand {
     static var configuration = CommandConfiguration(
         commandName: "audio-capture-worker",
         abstract: "Captures system audio and microphone, outputs to WAV file",
-        subcommands: [Record.self, ListDevices.self],
+        subcommands: [Record.self, ListDevices.self, CheckPermission.self, OpenSettings.self],
         defaultSubcommand: Record.self
     )
 }
@@ -137,6 +138,52 @@ struct ListDevices: ParsableCommand {
 
         let encoder = JSONEncoder()
         if let data = try? encoder.encode(message),
+           let json = String(data: data, encoding: .utf8) {
+            print(json)
+        }
+    }
+}
+
+/// Check screen recording permission
+struct CheckPermission: ParsableCommand {
+    static var configuration = CommandConfiguration(
+        commandName: "check-permission",
+        abstract: "Check if screen recording permission is granted"
+    )
+
+    mutating func run() throws {
+        let hasPermission: Bool
+        if #available(macOS 13.0, *) {
+            hasPermission = SystemAudioCapture.hasPermission()
+        } else {
+            hasPermission = false
+        }
+
+        let result: [String: Any] = [
+            "type": "permission",
+            "granted": hasPermission
+        ]
+
+        if let data = try? JSONSerialization.data(withJSONObject: result),
+           let json = String(data: data, encoding: .utf8) {
+            print(json)
+        }
+    }
+}
+
+/// Open System Settings to Screen Recording
+struct OpenSettings: ParsableCommand {
+    static var configuration = CommandConfiguration(
+        commandName: "open-settings",
+        abstract: "Open System Settings to Screen Recording pane"
+    )
+
+    mutating func run() throws {
+        let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")!
+        NSWorkspace.shared.open(url)
+
+        let result = ["type": "settings_opened", "success": true] as [String: Any]
+        if let data = try? JSONSerialization.data(withJSONObject: result),
            let json = String(data: data, encoding: .utf8) {
             print(json)
         }

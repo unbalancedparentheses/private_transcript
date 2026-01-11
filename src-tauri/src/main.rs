@@ -56,6 +56,7 @@ fn main() {
             commands::system_audio::stop_system_recording,
             commands::system_audio::get_recording_status,
             commands::system_audio::check_audio_permissions,
+            commands::system_audio::open_screen_recording_settings,
             // Export commands
             commands::export::export_markdown,
             commands::export::export_pdf,
