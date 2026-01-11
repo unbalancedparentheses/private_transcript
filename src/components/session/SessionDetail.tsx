@@ -72,6 +72,9 @@ export function SessionDetail() {
   const [editingSpeaker, setEditingSpeaker] = useState<string | null>(null);
   const [newSpeakerName, setNewSpeakerName] = useState('');
 
+  // Confirmation dialog state
+  const [showRetranscribeConfirm, setShowRetranscribeConfirm] = useState(false);
+
   // Parse transcript into speaker segments when speaker view is enabled
   useEffect(() => {
     if (showSpeakerView && currentSession?.transcript) {
@@ -387,15 +390,17 @@ export function SessionDetail() {
 
   const playbackSpeeds = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
-  const handleRegenerateTranscript = async () => {
+  const handleRegenerateTranscript = () => {
     if (!currentSession?.audioPath) {
       addToast('No audio file available for re-transcription', 'error');
       return;
     }
+    setShowRetranscribeConfirm(true);
+  };
 
-    if (!window.confirm('Are you sure you want to regenerate the transcript? This will replace the current transcript.')) {
-      return;
-    }
+  const confirmRetranscribe = async () => {
+    setShowRetranscribeConfirm(false);
+    if (!currentSession?.audioPath) return;
 
     try {
       addToast('Starting transcription...', 'info');
@@ -1295,6 +1300,38 @@ export function SessionDetail() {
           </div>
         </div>
       </div>
+
+      {/* Retranscribe Confirmation Dialog */}
+      {showRetranscribeConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-[var(--card)] rounded-lg shadow-xl p-4 max-w-sm w-full mx-4 border border-[var(--border)]">
+            <h3 className="text-[15px] font-semibold text-[var(--foreground)] mb-2">
+              Regenerate Transcript
+            </h3>
+            <p className="text-[13px] text-[var(--muted-foreground)] mb-4">
+              Are you sure you want to regenerate the transcript? This will replace the current transcript.
+            </p>
+            <div className="flex gap-2 justify-end">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowRetranscribeConfirm(false)}
+                className="text-[13px]"
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={confirmRetranscribe}
+                className="text-[13px]"
+              >
+                Regenerate
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
