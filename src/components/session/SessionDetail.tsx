@@ -1,11 +1,12 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { convertFileSrc } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import { open } from '@tauri-apps/plugin-shell';
 import { useAppStore } from '../../stores/appStore';
 import { Button } from '../ui/Button';
 import { useToast } from '../ui/Toast';
-import type { TranscriptSegment } from '../../types';
+import type { TranscriptSegment, LlmStreamEvent } from '../../types';
 import {
   parseTranscriptIntoSegments,
   parseInlineSpeakerLabels,
@@ -39,6 +40,7 @@ export function SessionDetail() {
     templates.find((t) => t.isDefault)?.id || templates[0]?.id || ''
   );
   const [generating, setGenerating] = useState(false);
+  const [streamingNote, setStreamingNote] = useState('');
   const [editingTranscript, setEditingTranscript] = useState(false);
   const [editingNote, setEditingNote] = useState(false);
   const [transcriptText, setTranscriptText] = useState(currentSession?.transcript || '');
@@ -374,10 +376,35 @@ export function SessionDetail() {
     if (!selectedTemplate || !currentSession.transcript) return;
 
     setGenerating(true);
+    setStreamingNote('');
+
+    let accumulatedNote = '';
+    let unlisten: (() => void) | null = null;
+
     try {
       await updateSession(currentSession.id, { status: 'generating' });
 
-      const note = await invoke<string>('generate_note', {
+      // Set up listener for streaming tokens
+      unlisten = await listen<LlmStreamEvent>('llm-stream', (event) => {
+        const { sessionId, token, done, error } = event.payload;
+
+        // Only process events for this session
+        if (sessionId !== currentSession.id) return;
+
+        if (error) {
+          console.error('LLM stream error:', error);
+          return;
+        }
+
+        if (!done && token) {
+          accumulatedNote += token;
+          setStreamingNote(accumulatedNote);
+        }
+      });
+
+      // Call the streaming endpoint - it will emit events and return the full text
+      const note = await invoke<string>('generate_note_streaming', {
+        sessionId: currentSession.id,
         transcript: currentSession.transcript,
         templateId: selectedTemplate,
       });
@@ -388,13 +415,16 @@ export function SessionDetail() {
         status: 'complete',
       });
       setNoteText(note);
+      setStreamingNote('');
     } catch (error) {
       console.error('Failed to generate note:', error);
       await updateSession(currentSession.id, {
         status: 'error',
         errorMessage: String(error),
       });
+      setStreamingNote('');
     } finally {
+      if (unlisten) unlisten();
       setGenerating(false);
     }
   };
@@ -1165,7 +1195,18 @@ export function SessionDetail() {
               />
             ) : (
               <div className="prose prose-sm max-w-none">
-                {currentSession.generatedNote ? (
+                {generating && streamingNote ? (
+                  <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                    <div
+                      dangerouslySetInnerHTML={{
+                        __html: streamingNote
+                          .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                          .replace(/\n/g, '<br />'),
+                      }}
+                    />
+                    <span className="inline-block w-2 h-4 ml-0.5 bg-[var(--primary)] animate-pulse" />
+                  </div>
+                ) : currentSession.generatedNote ? (
                   <div
                     className="whitespace-pre-wrap text-sm leading-relaxed"
                     dangerouslySetInnerHTML={{
