@@ -242,16 +242,12 @@ export function SessionDetail() {
   // Convert file path to audio source
   useEffect(() => {
     if (currentSession?.audioPath) {
-      console.log('[Audio] Session audioPath:', currentSession.audioPath);
       try {
         const src = convertFileSrc(currentSession.audioPath);
-        console.log('[Audio] Converted path:', currentSession.audioPath, '→', src);
         setAudioSrc(src);
         setAudioError(null);
       } catch (err) {
-        const errorMsg = `Failed to convert audio path: ${err}`;
-        console.error('[Audio] Conversion error:', err);
-        setAudioError(errorMsg);
+        setAudioError(`Failed to convert audio path: ${err}`);
       }
     } else {
       setAudioSrc(null);

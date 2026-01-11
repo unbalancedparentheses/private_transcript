@@ -35,8 +35,6 @@ export function ToastProvider({ children }: ToastProviderProps) {
 
   const addToast = useCallback((message: string, type: ToastType = 'info', duration: number = 5000) => {
     const id = `toast-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    console.log(`[Toast] Adding toast: ${type} - ${message}`);
-
     const newToast: Toast = { id, message, type, duration };
     setToasts((prev) => [...prev, newToast]);
 
@@ -49,7 +47,6 @@ export function ToastProvider({ children }: ToastProviderProps) {
   }, []);
 
   const removeToast = useCallback((id: string) => {
-    console.log(`[Toast] Removing toast: ${id}`);
     setToasts((prev) => prev.filter((toast) => toast.id !== id));
   }, []);
 

@@ -44,9 +44,7 @@ export function OnboardingView() {
     let unlistenFn: (() => void) | null = null;
 
     const setupListener = async () => {
-      console.log('[OnboardingView] Setting up download progress listener...');
       unlistenFn = await listen<DownloadProgress>('model-download-progress', (event) => {
-        console.log('[OnboardingView] Received download progress:', event.payload);
         setDownloadProgress((prev) => ({
           ...prev,
           [event.payload.modelId]: event.payload,
@@ -57,7 +55,6 @@ export function OnboardingView() {
           checkModelsReady();
         }
       });
-      console.log('[OnboardingView] Download progress listener ready');
     };
 
     setupListener();
@@ -126,14 +123,10 @@ export function OnboardingView() {
     setDownloading(true);
     try {
       // Download and verify Whisper model (backend loads to verify)
-      console.log('Starting Whisper download:', selectedWhisperModel);
       await invoke('download_model', { modelId: selectedWhisperModel });
-      console.log('Whisper model ready');
 
       // Download and verify LLM model (backend loads to verify)
-      console.log('Starting LLM download:', selectedLlmModel);
       await invoke('download_model', { modelId: selectedLlmModel });
-      console.log('LLM model ready');
 
       setModelsReady(true);
     } catch (error) {

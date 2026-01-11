@@ -38,7 +38,6 @@ export function RecordingView() {
 
     const setupListener = async () => {
       unlisten = await listen<TranscriptionProgress>('transcription-progress', (event) => {
-        console.log('[RecordingView] Transcription progress:', event.payload);
         setTranscriptionProgress(event.payload);
 
         if (event.payload.status === 'complete' || event.payload.status === 'error') {
@@ -88,17 +87,14 @@ export function RecordingView() {
     ];
     for (const type of types) {
       if (MediaRecorder.isTypeSupported(type)) {
-        console.log('[Recording] Using audio format:', type);
         return type;
       }
     }
-    console.warn('[Recording] No supported audio format found');
     return '';
   };
 
   // Audio level analysis
   const startAudioAnalysis = (stream: MediaStream) => {
-    console.log('[Audio] Starting audio level analysis');
     const audioContext = new AudioContext();
     const analyser = audioContext.createAnalyser();
     const source = audioContext.createMediaStreamSource(stream);
@@ -132,7 +128,6 @@ export function RecordingView() {
   };
 
   const stopAudioAnalysis = () => {
-    console.log('[Audio] Stopping audio level analysis');
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
       animationFrameRef.current = null;
@@ -260,7 +255,6 @@ export function RecordingView() {
       if (mimeType.includes('mp4')) format = 'm4a';
       else if (mimeType.includes('ogg')) format = 'ogg';
       else if (mimeType.includes('wav')) format = 'wav';
-      console.log('[Recording] Saving with format:', format, 'mimeType:', mimeType);
 
       const audioPath = await invoke<string>('save_audio_file', {
         sessionId: tempId,
