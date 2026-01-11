@@ -3,6 +3,7 @@ pub mod chunking;
 pub mod database;
 pub mod embeddings;
 pub mod export;
+pub mod llama_backend;
 pub mod llm;
 pub mod local_llm;
 pub mod model_manager;

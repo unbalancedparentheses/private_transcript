@@ -1,6 +1,6 @@
+use crate::services::llama_backend;
 use anyhow::{anyhow, Result};
 use llama_cpp_2::context::params::LlamaContextParams;
-use llama_cpp_2::llama_backend::LlamaBackend;
 use llama_cpp_2::model::params::LlamaModelParams;
 use llama_cpp_2::model::LlamaModel;
 use once_cell::sync::OnceCell;
@@ -23,7 +23,6 @@ static EMBEDDING_MODEL: OnceCell<Arc<Mutex<Option<EmbeddingModel>>>> = OnceCell:
 static APP_DATA_DIR: OnceCell<PathBuf> = OnceCell::new();
 
 struct EmbeddingModel {
-    _backend: LlamaBackend,
     model: LlamaModel,
 }
 
@@ -71,20 +70,17 @@ pub fn load_embedding_model(app_data_dir: &PathBuf) -> Result<()> {
 
     println!("[Embeddings] Loading model from: {:?}", model_path);
 
-    // Initialize llama backend
-    let backend = LlamaBackend::init().map_err(|e| anyhow!("Failed to init backend: {}", e))?;
+    // Get shared llama backend
+    let backend = llama_backend::get_backend();
 
     // Create model params - enable embeddings mode
     let model_params = LlamaModelParams::default();
 
     // Load the model
-    let model = LlamaModel::load_from_file(&backend, &model_path, &model_params)
+    let model = LlamaModel::load_from_file(backend, &model_path, &model_params)
         .map_err(|e| anyhow!("Failed to load model: {}", e))?;
 
-    *state = Some(EmbeddingModel {
-        _backend: backend,
-        model,
-    });
+    *state = Some(EmbeddingModel { model });
 
     println!("[Embeddings] Model loaded successfully");
     Ok(())
@@ -137,9 +133,10 @@ pub fn generate_embedding(text: &str) -> Result<Vec<f32>> {
         .with_n_ctx(Some(std::num::NonZeroU32::new(512).unwrap()))
         .with_embeddings(true);
 
+    let backend = llama_backend::get_backend();
     let mut ctx = model
         .model
-        .new_context(&model._backend, ctx_params)
+        .new_context(backend, ctx_params)
         .map_err(|e| anyhow!("Failed to create context: {}", e))?;
 
     // Tokenize the input

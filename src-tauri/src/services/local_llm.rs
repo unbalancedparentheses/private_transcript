@@ -1,7 +1,7 @@
 use crate::models::LlmStreamEvent;
+use crate::services::llama_backend;
 use anyhow::{anyhow, Result};
 use llama_cpp_2::context::params::LlamaContextParams;
-use llama_cpp_2::llama_backend::LlamaBackend;
 use llama_cpp_2::llama_batch::LlamaBatch;
 use llama_cpp_2::model::params::LlamaModelParams;
 use llama_cpp_2::model::{AddBos, LlamaModel, Special};
@@ -15,10 +15,8 @@ use tauri::{AppHandle, Emitter};
 
 use super::model_manager::{get_llm_models, ModelManager};
 
-/// Global LLM state (model + backend)
+/// Global LLM state (model only, backend is shared)
 struct LlmState {
-    #[allow(dead_code)]
-    backend: LlamaBackend,
     model: LlamaModel,
 }
 
@@ -53,20 +51,19 @@ pub async fn load_model(app: &AppHandle, model_id: &str) -> Result<()> {
 
     // Load model in a blocking task
     tokio::task::spawn_blocking(move || {
-        // Initialize backend
-        let backend = LlamaBackend::init()
-            .map_err(|e| anyhow!("Failed to init llama backend: {}", e))?;
+        // Get shared backend
+        let backend = llama_backend::get_backend();
 
         // Load model with GPU acceleration (automatic on macOS with Metal)
         let model_params = LlamaModelParams::default().with_n_gpu_layers(1000); // Offload all layers to GPU
 
-        let model = LlamaModel::load_from_file(&backend, &model_path_str, &model_params)
+        let model = LlamaModel::load_from_file(backend, &model_path_str, &model_params)
             .map_err(|e| anyhow!("Failed to load LLM model: {}", e))?;
 
         // Store in global state
         {
             let mut lock = get_llm_state().lock();
-            *lock = Some(LlmState { backend, model });
+            *lock = Some(LlmState { model });
         }
         {
             let mut lock = get_loaded_model_id().lock();
@@ -195,6 +192,9 @@ fn generate_sync(
         .as_ref()
         .ok_or_else(|| anyhow!("LLM model not loaded"))?;
 
+    // Get shared backend for context creation
+    let backend = llama_backend::get_backend();
+
     // Create context with reasonable defaults
     let ctx_params = LlamaContextParams::default()
         .with_n_ctx(Some(NonZeroU32::new(4096).unwrap()))
@@ -202,7 +202,7 @@ fn generate_sync(
 
     let mut ctx = state
         .model
-        .new_context(&state.backend, ctx_params)
+        .new_context(backend, ctx_params)
         .map_err(|e| anyhow!("Failed to create context: {}", e))?;
 
     // Tokenize prompt
