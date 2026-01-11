@@ -4,6 +4,7 @@ import { useAppStore } from '../../stores/appStore';
 import { WORKSPACE_CONFIG } from '../../types';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
+import { useToast } from '../ui/Toast';
 
 export function Sidebar() {
   const {
@@ -14,8 +15,10 @@ export function Sidebar() {
     selectWorkspace,
     selectFolder,
     createFolder,
+    deleteFolder,
     setView,
   } = useAppStore();
+  const { addToast } = useToast();
 
   const [showNewFolder, setShowNewFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
@@ -29,6 +32,22 @@ export function Sidebar() {
     await createFolder(newFolderName.trim());
     setNewFolderName('');
     setShowNewFolder(false);
+  };
+
+  const handleDeleteFolder = async (e: React.MouseEvent, folderId: string, folderName: string) => {
+    e.stopPropagation(); // Prevent selecting the folder
+
+    if (!window.confirm(`Are you sure you want to delete "${folderName}"? All sessions in this folder will be deleted. This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      await deleteFolder(folderId);
+      addToast('Folder deleted successfully', 'success');
+    } catch (error) {
+      console.error('Failed to delete folder:', error);
+      addToast('Failed to delete folder', 'error');
+    }
   };
 
   return (
@@ -85,52 +104,9 @@ export function Sidebar() {
           </h3>
         </div>
 
-        <div className="space-y-0.5">
-          {folders.map((folder, index) => (
-            <button
-              key={folder.id}
-              onClick={() => selectFolder(folder)}
-              className={clsx(
-                'w-full text-left px-3 py-2 rounded-lg text-sm transition-all animate-fade-in',
-                currentFolder?.id === folder.id
-                  ? 'bg-gradient-to-r from-[var(--primary)] to-[var(--gradient-end)] text-white font-medium shadow-md shadow-[var(--primary)]/25'
-                  : 'hover:bg-[var(--muted)] text-[var(--foreground)]'
-              )}
-              style={{ animationDelay: `${index * 0.03}s` }}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    className={currentFolder?.id === folder.id ? 'opacity-80' : 'opacity-50'}
-                  >
-                    <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z" />
-                  </svg>
-                  <span className="truncate">{folder.name}</span>
-                </div>
-                {folder.sessionCount > 0 && (
-                  <span className={clsx(
-                    "text-[10px] font-medium min-w-[20px] h-5 flex items-center justify-center px-1.5 rounded-full",
-                    currentFolder?.id === folder.id
-                      ? "bg-white/20 text-white"
-                      : "bg-[var(--muted)] text-[var(--muted-foreground)]"
-                  )}>
-                    {folder.sessionCount}
-                  </span>
-                )}
-              </div>
-            </button>
-          ))}
-        </div>
-
-        {/* New Folder Form */}
+        {/* New Folder Form - Moved to top */}
         {showNewFolder ? (
-          <div className="mt-3 p-3 rounded-xl bg-[var(--muted)] space-y-2 animate-scale-in">
+          <div className="mb-3 p-3 rounded-xl bg-[var(--muted)] space-y-2 animate-scale-in">
             <Input
               placeholder={`${config?.folderLabel?.slice(0, -1) || 'Folder'} name`}
               value={newFolderName}
@@ -151,7 +127,7 @@ export function Sidebar() {
         ) : (
           <button
             onClick={() => setShowNewFolder(true)}
-            className="w-full mt-2 px-3 py-2 text-sm text-[var(--muted-foreground)] hover:text-[var(--foreground)]
+            className="w-full mb-2 px-3 py-2 text-sm text-[var(--muted-foreground)] hover:text-[var(--foreground)]
                        hover:bg-[var(--muted)] rounded-lg transition-all text-left flex items-center gap-2.5 group"
           >
             <span className="w-5 h-5 rounded-md bg-[var(--muted)] group-hover:bg-[var(--primary)]/10
@@ -164,6 +140,65 @@ export function Sidebar() {
             <span>New {config?.folderLabel?.slice(0, -1) || 'Folder'}</span>
           </button>
         )}
+
+        <div className="space-y-0.5">
+          {folders.map((folder, index) => (
+            <div
+              key={folder.id}
+              className={clsx(
+                'group relative w-full text-left px-3 py-2 rounded-lg text-sm transition-all animate-fade-in cursor-pointer',
+                currentFolder?.id === folder.id
+                  ? 'bg-gradient-to-r from-[var(--primary)] to-[var(--gradient-end)] text-white font-medium shadow-md shadow-[var(--primary)]/25'
+                  : 'hover:bg-[var(--muted)] text-[var(--foreground)]'
+              )}
+              style={{ animationDelay: `${index * 0.03}s` }}
+              onClick={() => selectFolder(folder)}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    className={clsx('flex-shrink-0', currentFolder?.id === folder.id ? 'opacity-80' : 'opacity-50')}
+                  >
+                    <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z" />
+                  </svg>
+                  <span className="truncate">{folder.name}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  {folder.sessionCount > 0 && (
+                    <span className={clsx(
+                      "text-[10px] font-medium min-w-[20px] h-5 flex items-center justify-center px-1.5 rounded-full",
+                      currentFolder?.id === folder.id
+                        ? "bg-white/20 text-white"
+                        : "bg-[var(--muted)] text-[var(--muted-foreground)]"
+                    )}>
+                      {folder.sessionCount}
+                    </span>
+                  )}
+                  <button
+                    onClick={(e) => handleDeleteFolder(e, folder.id, folder.name)}
+                    className={clsx(
+                      'opacity-0 group-hover:opacity-100 p-1 rounded transition-all',
+                      currentFolder?.id === folder.id
+                        ? 'hover:bg-white/20 text-white/70 hover:text-white'
+                        : 'hover:bg-[var(--destructive)]/10 text-[var(--muted-foreground)] hover:text-[var(--destructive)]'
+                    )}
+                    title="Delete folder"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M3 6h18M8 6V4h8v2M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Bottom Actions */}

@@ -4,6 +4,7 @@ import { convertFileSrc } from '@tauri-apps/api/core';
 import { useAppStore } from '../../stores/appStore';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
+import { useToast } from '../ui/Toast';
 import type { TranscriptSegment } from '../../types';
 import {
   parseTranscriptIntoSegments,
@@ -29,7 +30,8 @@ interface SearchMatch {
 }
 
 export function SessionDetail() {
-  const { currentSession, templates, setView, updateSession } = useAppStore();
+  const { currentSession, templates, setView, updateSession, deleteSession } = useAppStore();
+  const { addToast } = useToast();
   const [selectedTemplate, setSelectedTemplate] = useState(
     templates.find((t) => t.isDefault)?.id || templates[0]?.id || ''
   );
@@ -346,6 +348,23 @@ export function SessionDetail() {
     await navigator.clipboard.writeText(text);
   };
 
+  const handleDeleteSession = async () => {
+    if (!currentSession) return;
+
+    // Show confirmation
+    if (!window.confirm(`Are you sure you want to delete "${currentSession.title || 'this session'}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      await deleteSession(currentSession.id);
+      addToast('Session deleted successfully', 'success');
+    } catch (error) {
+      console.error('Failed to delete session:', error);
+      addToast('Failed to delete session', 'error');
+    }
+  };
+
   return (
     <main className="flex-1 flex flex-col overflow-hidden bg-[var(--background)]">
       {/* Header */}
@@ -415,6 +434,17 @@ export function SessionDetail() {
               </button>
             </div>
           </div>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={handleDeleteSession}
+            className="text-[var(--destructive)] hover:bg-[var(--destructive)]/10"
+            title="Delete session"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M3 6h18M8 6V4h8v2M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M10 11v6M14 11v6" />
+            </svg>
+          </Button>
         </div>
       </header>
 

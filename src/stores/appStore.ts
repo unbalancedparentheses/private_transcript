@@ -39,11 +39,13 @@ interface AppState {
   // Folder actions
   createFolder: (name: string) => Promise<Folder>;
   selectFolder: (folder: Folder) => Promise<void>;
+  deleteFolder: (id: string) => Promise<void>;
 
   // Session actions
   createSession: (audioPath: string, title?: string) => Promise<Session>;
   selectSession: (session: Session) => void;
   updateSession: (id: string, updates: Partial<Session>) => Promise<void>;
+  deleteSession: (id: string) => Promise<void>;
 
   // View actions
   setView: (view: 'list' | 'recording' | 'processing' | 'session' | 'settings') => void;
@@ -166,6 +168,18 @@ export const useAppStore = create<AppState>((set, get) => ({
     });
   },
 
+  deleteFolder: async (id) => {
+    await invoke('delete_folder', { id });
+    const { currentFolder } = get();
+    set((state) => ({
+      folders: state.folders.filter((f) => f.id !== id),
+      // If deleted folder was selected, clear selection
+      currentFolder: currentFolder?.id === id ? null : currentFolder,
+      sessions: currentFolder?.id === id ? [] : state.sessions,
+      currentSession: currentFolder?.id === id ? null : state.currentSession,
+    }));
+  },
+
   createSession: async (audioPath, title) => {
     const { currentFolder } = get();
     if (!currentFolder) throw new Error('No folder selected');
@@ -198,6 +212,17 @@ export const useAppStore = create<AppState>((set, get) => ({
     set((state) => ({
       sessions: state.sessions.map((s) => (s.id === id ? session : s)),
       currentSession: state.currentSession?.id === id ? session : state.currentSession,
+    }));
+  },
+
+  deleteSession: async (id) => {
+    await invoke('delete_session', { id });
+    const { currentSession } = get();
+    set((state) => ({
+      sessions: state.sessions.filter((s) => s.id !== id),
+      // If deleted session was selected, clear selection and go to list
+      currentSession: currentSession?.id === id ? null : currentSession,
+      view: currentSession?.id === id ? 'list' : state.view,
     }));
   },
 

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { SessionDetail } from './SessionDetail';
+import { ToastProvider } from '../ui/Toast';
 
 // Mock scrollIntoView since jsdom doesn't support it
 Element.prototype.scrollIntoView = vi.fn();
@@ -25,6 +26,7 @@ const mockTemplates = [
 
 const mockSetView = vi.fn();
 const mockUpdateSession = vi.fn();
+const mockDeleteSession = vi.fn();
 
 vi.mock('../../stores/appStore', () => ({
   useAppStore: () => ({
@@ -32,8 +34,14 @@ vi.mock('../../stores/appStore', () => ({
     templates: mockTemplates,
     setView: mockSetView,
     updateSession: mockUpdateSession,
+    deleteSession: mockDeleteSession,
   }),
 }));
+
+// Helper to render with ToastProvider
+const renderWithToast = (ui: React.ReactElement) => {
+  return render(<ToastProvider>{ui}</ToastProvider>);
+};
 
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn(),
@@ -51,51 +59,51 @@ describe('SessionDetail', () => {
 
   describe('Basic Rendering', () => {
     it('should render the session title', () => {
-      render(<SessionDetail />);
+      renderWithToast(<SessionDetail />);
       expect(screen.getByText('Test Session')).toBeInTheDocument();
     });
 
     it('should render the back button', () => {
-      render(<SessionDetail />);
+      renderWithToast(<SessionDetail />);
       expect(screen.getByText('Back')).toBeInTheDocument();
     });
 
     it('should navigate back when back button is clicked', () => {
-      render(<SessionDetail />);
+      renderWithToast(<SessionDetail />);
       fireEvent.click(screen.getByText('Back'));
       expect(mockSetView).toHaveBeenCalledWith('list');
     });
 
     it('should render the transcript section', () => {
-      render(<SessionDetail />);
+      renderWithToast(<SessionDetail />);
       expect(screen.getByText('Transcript')).toBeInTheDocument();
     });
 
     it('should render the notes section', () => {
-      render(<SessionDetail />);
+      renderWithToast(<SessionDetail />);
       expect(screen.getByText('Notes')).toBeInTheDocument();
     });
 
     it('should display the transcript content', () => {
-      render(<SessionDetail />);
+      renderWithToast(<SessionDetail />);
       expect(screen.getByText(/This is a test transcript/)).toBeInTheDocument();
     });
 
     it('should display the generated note', () => {
-      render(<SessionDetail />);
+      renderWithToast(<SessionDetail />);
       expect(screen.getByText('Generated note content')).toBeInTheDocument();
     });
   });
 
   describe('Search Functionality', () => {
     it('should show search button initially', () => {
-      render(<SessionDetail />);
+      renderWithToast(<SessionDetail />);
       const searchButton = screen.getByTitle('Search (Cmd+F)');
       expect(searchButton).toBeInTheDocument();
     });
 
     it('should open search input when search button is clicked', async () => {
-      render(<SessionDetail />);
+      renderWithToast(<SessionDetail />);
       const searchButton = screen.getByTitle('Search (Cmd+F)');
       fireEvent.click(searchButton);
 
@@ -105,7 +113,7 @@ describe('SessionDetail', () => {
     });
 
     it('should open search with Cmd+F keyboard shortcut', async () => {
-      render(<SessionDetail />);
+      renderWithToast(<SessionDetail />);
 
       act(() => {
         fireEvent.keyDown(window, { key: 'f', metaKey: true });
@@ -117,7 +125,7 @@ describe('SessionDetail', () => {
     });
 
     it('should open search with Ctrl+F keyboard shortcut', async () => {
-      render(<SessionDetail />);
+      renderWithToast(<SessionDetail />);
 
       act(() => {
         fireEvent.keyDown(window, { key: 'f', ctrlKey: true });
@@ -129,7 +137,7 @@ describe('SessionDetail', () => {
     });
 
     it('should close search with Escape key', async () => {
-      render(<SessionDetail />);
+      renderWithToast(<SessionDetail />);
 
       // Open search
       const searchButton = screen.getByTitle('Search (Cmd+F)');
@@ -150,7 +158,7 @@ describe('SessionDetail', () => {
     });
 
     it('should close search when close button is clicked', async () => {
-      render(<SessionDetail />);
+      renderWithToast(<SessionDetail />);
 
       // Open search
       fireEvent.click(screen.getByTitle('Search (Cmd+F)'));
@@ -170,7 +178,7 @@ describe('SessionDetail', () => {
     });
 
     it('should find and display match count', async () => {
-      render(<SessionDetail />);
+      renderWithToast(<SessionDetail />);
 
       // Open search
       fireEvent.click(screen.getByTitle('Search (Cmd+F)'));
@@ -189,7 +197,7 @@ describe('SessionDetail', () => {
     });
 
     it('should be case-insensitive search', async () => {
-      render(<SessionDetail />);
+      renderWithToast(<SessionDetail />);
 
       // Open search
       fireEvent.click(screen.getByTitle('Search (Cmd+F)'));
@@ -208,7 +216,7 @@ describe('SessionDetail', () => {
     });
 
     it('should highlight search matches in transcript', async () => {
-      render(<SessionDetail />);
+      renderWithToast(<SessionDetail />);
 
       // Switch to plain text mode (speaker view is on by default)
       const speakerToggle = screen.getByTitle(/plain text/i);
@@ -226,7 +234,7 @@ describe('SessionDetail', () => {
     });
 
     it('should highlight current match differently', async () => {
-      render(<SessionDetail />);
+      renderWithToast(<SessionDetail />);
 
       // Switch to plain text mode (speaker view is on by default)
       const speakerToggle = screen.getByTitle(/plain text/i);
@@ -245,7 +253,7 @@ describe('SessionDetail', () => {
     });
 
     it('should navigate to next match with next button', async () => {
-      render(<SessionDetail />);
+      renderWithToast(<SessionDetail />);
 
       // Open search and type query
       fireEvent.click(screen.getByTitle('Search (Cmd+F)'));
@@ -266,7 +274,7 @@ describe('SessionDetail', () => {
     });
 
     it('should navigate to previous match with previous button', async () => {
-      render(<SessionDetail />);
+      renderWithToast(<SessionDetail />);
 
       // Open search and type query
       fireEvent.click(screen.getByTitle('Search (Cmd+F)'));
@@ -287,7 +295,7 @@ describe('SessionDetail', () => {
     });
 
     it('should navigate with Enter key', async () => {
-      render(<SessionDetail />);
+      renderWithToast(<SessionDetail />);
 
       // Open search and type query
       fireEvent.click(screen.getByTitle('Search (Cmd+F)'));
@@ -309,7 +317,7 @@ describe('SessionDetail', () => {
     });
 
     it('should navigate backwards with Shift+Enter key', async () => {
-      render(<SessionDetail />);
+      renderWithToast(<SessionDetail />);
 
       // Open search and type query
       fireEvent.click(screen.getByTitle('Search (Cmd+F)'));
@@ -331,7 +339,7 @@ describe('SessionDetail', () => {
     });
 
     it('should wrap around when navigating past last match', async () => {
-      render(<SessionDetail />);
+      renderWithToast(<SessionDetail />);
 
       // Open search and type query
       fireEvent.click(screen.getByTitle('Search (Cmd+F)'));
@@ -364,7 +372,7 @@ describe('SessionDetail', () => {
     });
 
     it('should clear search query when closing search', async () => {
-      render(<SessionDetail />);
+      renderWithToast(<SessionDetail />);
 
       // Open search and type query
       fireEvent.click(screen.getByTitle('Search (Cmd+F)'));
@@ -390,7 +398,7 @@ describe('SessionDetail', () => {
     });
 
     it('should reset to first match when search query changes', async () => {
-      render(<SessionDetail />);
+      renderWithToast(<SessionDetail />);
 
       // Open search and type query
       fireEvent.click(screen.getByTitle('Search (Cmd+F)'));
@@ -415,7 +423,7 @@ describe('SessionDetail', () => {
     });
 
     it('should not show navigation when no matches found', async () => {
-      render(<SessionDetail />);
+      renderWithToast(<SessionDetail />);
 
       // Open search
       fireEvent.click(screen.getByTitle('Search (Cmd+F)'));
@@ -431,7 +439,7 @@ describe('SessionDetail', () => {
     });
 
     it('should show plain transcript when search is empty', async () => {
-      render(<SessionDetail />);
+      renderWithToast(<SessionDetail />);
 
       // Open search but leave empty
       fireEvent.click(screen.getByTitle('Search (Cmd+F)'));
@@ -445,7 +453,7 @@ describe('SessionDetail', () => {
 
   describe('Copy Functionality', () => {
     it('should have copy button for transcript', () => {
-      render(<SessionDetail />);
+      renderWithToast(<SessionDetail />);
       const copyButtons = screen.getAllByText('Copy');
       expect(copyButtons.length).toBeGreaterThanOrEqual(1);
     });
@@ -454,7 +462,7 @@ describe('SessionDetail', () => {
       const mockClipboard = { writeText: vi.fn().mockResolvedValue(undefined) };
       Object.assign(navigator, { clipboard: mockClipboard });
 
-      render(<SessionDetail />);
+      renderWithToast(<SessionDetail />);
       const copyButtons = screen.getAllByText('Copy');
       fireEvent.click(copyButtons[0]);
 
@@ -470,13 +478,13 @@ describe('SessionDetail', () => {
 
   describe('Edit Functionality', () => {
     it('should have edit button for transcript', () => {
-      render(<SessionDetail />);
+      renderWithToast(<SessionDetail />);
       const editButtons = screen.getAllByText('Edit');
       expect(editButtons.length).toBeGreaterThanOrEqual(1);
     });
 
     it('should show textarea when editing transcript', () => {
-      render(<SessionDetail />);
+      renderWithToast(<SessionDetail />);
       const editButtons = screen.getAllByText('Edit');
       fireEvent.click(editButtons[0]);
 
@@ -485,7 +493,7 @@ describe('SessionDetail', () => {
     });
 
     it('should show save and cancel buttons when editing', () => {
-      render(<SessionDetail />);
+      renderWithToast(<SessionDetail />);
       const editButtons = screen.getAllByText('Edit');
       fireEvent.click(editButtons[0]);
 
@@ -494,7 +502,7 @@ describe('SessionDetail', () => {
     });
 
     it('should call updateSession when saving transcript', async () => {
-      render(<SessionDetail />);
+      renderWithToast(<SessionDetail />);
       const editButtons = screen.getAllByText('Edit');
       fireEvent.click(editButtons[0]);
 
@@ -520,14 +528,14 @@ describe('SessionDetail - Speaker Labels', () => {
   });
 
   it('should show speaker toggle button', () => {
-    render(<SessionDetail />);
+    renderWithToast(<SessionDetail />);
     // When speaker view is on (default), title is "Show plain text"
     const speakerButton = screen.getByTitle(/plain text/i);
     expect(speakerButton).toBeInTheDocument();
   });
 
   it('should show speaker view by default', () => {
-    render(<SessionDetail />);
+    renderWithToast(<SessionDetail />);
     const speakerButton = screen.getByTitle(/plain text/i);
 
     // Speaker view button should be active by default
@@ -535,7 +543,7 @@ describe('SessionDetail - Speaker Labels', () => {
   });
 
   it('should toggle to plain text view when clicked', async () => {
-    render(<SessionDetail />);
+    renderWithToast(<SessionDetail />);
     const speakerButton = screen.getByTitle(/plain text/i);
 
     // Initially active (speaker view on)
@@ -551,7 +559,7 @@ describe('SessionDetail - Speaker Labels', () => {
   });
 
   it('should toggle back to speaker view', async () => {
-    render(<SessionDetail />);
+    renderWithToast(<SessionDetail />);
     const speakerButton = screen.getByTitle(/plain text/i);
 
     // Disable speaker view
@@ -578,31 +586,31 @@ describe('SessionDetail - Audio Player', () => {
   });
 
   it('should render audio player when audioPath exists', () => {
-    render(<SessionDetail />);
+    renderWithToast(<SessionDetail />);
     const audioElement = document.querySelector('audio');
     expect(audioElement).toBeInTheDocument();
   });
 
   it('should have play/pause button', () => {
-    render(<SessionDetail />);
+    renderWithToast(<SessionDetail />);
     const playButton = document.querySelector('[class*="rounded-full bg-[var(--primary)]"]');
     expect(playButton).toBeInTheDocument();
   });
 
   it('should have skip backward button', () => {
-    render(<SessionDetail />);
+    renderWithToast(<SessionDetail />);
     const skipBackButton = screen.getByTitle('Skip back 10s');
     expect(skipBackButton).toBeInTheDocument();
   });
 
   it('should have skip forward button', () => {
-    render(<SessionDetail />);
+    renderWithToast(<SessionDetail />);
     const skipForwardButton = screen.getByTitle('Skip forward 10s');
     expect(skipForwardButton).toBeInTheDocument();
   });
 
   it('should display time as 0:00 initially', () => {
-    render(<SessionDetail />);
+    renderWithToast(<SessionDetail />);
     const timeDisplays = screen.getAllByText('0:00');
     expect(timeDisplays.length).toBeGreaterThan(0);
   });
@@ -618,12 +626,12 @@ describe('SessionDetail - Export Functionality', () => {
   });
 
   it('should have export dropdown button', () => {
-    render(<SessionDetail />);
+    renderWithToast(<SessionDetail />);
     expect(screen.getByText('Export')).toBeInTheDocument();
   });
 
   it('should show export options on hover', () => {
-    render(<SessionDetail />);
+    renderWithToast(<SessionDetail />);
     // Export options should be in the DOM but hidden
     expect(screen.getByText('Markdown')).toBeInTheDocument();
     expect(screen.getByText('PDF')).toBeInTheDocument();
@@ -641,25 +649,25 @@ describe('SessionDetail - Generate Note', () => {
   });
 
   it('should have template selector', () => {
-    render(<SessionDetail />);
+    renderWithToast(<SessionDetail />);
     const templateSelect = document.querySelector('select');
     expect(templateSelect).toBeInTheDocument();
   });
 
   it('should show available templates in selector', () => {
-    render(<SessionDetail />);
+    renderWithToast(<SessionDetail />);
     expect(screen.getByText('Meeting Notes')).toBeInTheDocument();
     expect(screen.getByText('Summary')).toBeInTheDocument();
   });
 
   it('should have Generate Note button', () => {
-    render(<SessionDetail />);
+    renderWithToast(<SessionDetail />);
     expect(screen.getByText('Generate Note')).toBeInTheDocument();
   });
 
   it('should disable Generate Note button when no transcript', async () => {
     // This tests the disabled state based on transcript availability
-    render(<SessionDetail />);
+    renderWithToast(<SessionDetail />);
     const generateButton = screen.getByText('Generate Note');
     // Button should be enabled since mock has transcript
     expect(generateButton).not.toBeDisabled();
@@ -676,31 +684,31 @@ describe('SessionDetail - Notes Section', () => {
   });
 
   it('should display notes section', () => {
-    render(<SessionDetail />);
+    renderWithToast(<SessionDetail />);
     expect(screen.getByText('Notes')).toBeInTheDocument();
   });
 
   it('should display generated note content', () => {
-    render(<SessionDetail />);
+    renderWithToast(<SessionDetail />);
     expect(screen.getByText('Generated note content')).toBeInTheDocument();
   });
 
   it('should have edit button for notes', () => {
-    render(<SessionDetail />);
+    renderWithToast(<SessionDetail />);
     const editButtons = screen.getAllByText('Edit');
     // Should have edit buttons for both transcript and notes
     expect(editButtons.length).toBe(2);
   });
 
   it('should have copy button for notes', () => {
-    render(<SessionDetail />);
+    renderWithToast(<SessionDetail />);
     const copyButtons = screen.getAllByText('Copy');
     // Should have copy buttons for both transcript and notes
     expect(copyButtons.length).toBe(2);
   });
 
   it('should show textarea when editing notes', () => {
-    render(<SessionDetail />);
+    renderWithToast(<SessionDetail />);
     const editButtons = screen.getAllByText('Edit');
     // Click the second edit button (notes section)
     fireEvent.click(editButtons[1]);
@@ -720,12 +728,12 @@ describe('SessionDetail - Header', () => {
   });
 
   it('should display session title in header', () => {
-    render(<SessionDetail />);
+    renderWithToast(<SessionDetail />);
     expect(screen.getByText('Test Session')).toBeInTheDocument();
   });
 
   it('should have back button with arrow icon', () => {
-    render(<SessionDetail />);
+    renderWithToast(<SessionDetail />);
     const backButton = screen.getByText('Back');
     expect(backButton.closest('button')).toBeInTheDocument();
   });
