@@ -270,6 +270,56 @@ export function SessionDetail() {
     return <p className="whitespace-pre-wrap text-sm leading-relaxed">{parts}</p>;
   };
 
+  // Helper to highlight search matches in any text
+  const highlightSearchInText = (text: string): React.ReactNode => {
+    if (!searchQuery || searchMatches.length === 0) {
+      return text;
+    }
+
+    const query = searchQuery.toLowerCase();
+    const textLower = text.toLowerCase();
+    const parts: React.ReactNode[] = [];
+    let lastIndex = 0;
+    let searchIndex = 0;
+
+    while ((searchIndex = textLower.indexOf(query, searchIndex)) !== -1) {
+      // Add text before match
+      if (searchIndex > lastIndex) {
+        parts.push(text.slice(lastIndex, searchIndex));
+      }
+
+      // Determine if this is the current match
+      const globalMatchIndex = searchMatches.findIndex(
+        (m) => m.start <= searchIndex && searchIndex < m.end
+      );
+      const isCurrentMatch = globalMatchIndex === currentMatchIndex;
+
+      // Add highlighted match
+      parts.push(
+        <mark
+          key={`match-${searchIndex}`}
+          className={`rounded px-0.5 ${
+            isCurrentMatch
+              ? 'bg-[var(--primary)] text-white search-highlight-current'
+              : 'bg-yellow-200 dark:bg-yellow-500/30'
+          }`}
+        >
+          {text.slice(searchIndex, searchIndex + query.length)}
+        </mark>
+      );
+
+      lastIndex = searchIndex + query.length;
+      searchIndex = lastIndex;
+    }
+
+    // Add remaining text
+    if (lastIndex < text.length) {
+      parts.push(text.slice(lastIndex));
+    }
+
+    return parts.length > 0 ? parts : text;
+  };
+
   // Convert file path to audio source
   useEffect(() => {
     if (currentSession?.audioPath) {
@@ -1095,7 +1145,7 @@ export function SessionDetail() {
                         <p className={`flex-1 text-sm leading-relaxed whitespace-pre-wrap ${
                           isActive ? 'text-[var(--foreground)]' : ''
                         }`}>
-                          {segment.text}
+                          {highlightSearchInText(segment.text)}
                         </p>
                         <div className="flex-shrink-0 flex items-center gap-1">
                           {/* Star/Favorite Button */}
