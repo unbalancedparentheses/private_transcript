@@ -273,6 +273,82 @@ fn test_09_beam_search() {
     println!("[Test] PASSED: Beam search sampling works");
 }
 
+/// Test with global state like the app does
+#[test]
+fn test_10_global_state_like_app() {
+    println!("\n=== TEST 10: Global state like app ===");
+
+    use std::sync::Arc;
+    use parking_lot::Mutex;
+    use once_cell::sync::OnceCell;
+
+    static TEST_CONTEXT: OnceCell<Arc<Mutex<Option<WhisperContext>>>> = OnceCell::new();
+
+    fn get_test_context() -> &'static Arc<Mutex<Option<WhisperContext>>> {
+        TEST_CONTEXT.get_or_init(|| Arc::new(Mutex::new(None)))
+    }
+
+    let model_path = get_model_path().expect("No model found");
+    let model_path_str = model_path.to_string_lossy().to_string();
+
+    println!("[Test] Step 1: Loading model into global state...");
+    let ctx_params = WhisperContextParameters::default();
+    let ctx = WhisperContext::new_with_params(&model_path_str, ctx_params)
+        .expect("Failed to load model");
+
+    {
+        let mut lock = get_test_context().lock();
+        *lock = Some(ctx);
+    }
+    println!("[Test] Step 1 complete: Model stored in global state");
+
+    println!("[Test] Step 2: Creating state from global context...");
+    let ctx_lock = get_test_context().lock();
+    let ctx = ctx_lock.as_ref().expect("Context not loaded");
+    let mut state = ctx.create_state().expect("Failed to create state");
+    println!("[Test] Step 2 complete: State created");
+
+    println!("[Test] Step 3: Running transcription...");
+    let audio = generate_silent_audio(0.5);
+    let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
+    params.set_language(Some("en"));
+    params.set_n_threads(4);
+
+    state.full(params, &audio).expect("Transcription failed");
+    println!("[Test] Step 3 complete: Transcription finished");
+
+    let n_segments = state.full_n_segments();
+    println!("[Test] PASSED: {} segments produced", n_segments);
+}
+
+/// Test multiple transcriptions (reusing context)
+#[test]
+fn test_11_multiple_transcriptions() {
+    println!("\n=== TEST 11: Multiple transcriptions ===");
+
+    let model_path = get_model_path().expect("No model found");
+    let model_path_str = model_path.to_string_lossy().to_string();
+
+    let ctx_params = WhisperContextParameters::default();
+    let ctx = WhisperContext::new_with_params(&model_path_str, ctx_params)
+        .expect("Failed to load model");
+
+    for i in 0..3 {
+        println!("[Test] Transcription {}...", i + 1);
+        let mut state = ctx.create_state().expect("Failed to create state");
+        let audio = generate_silent_audio(0.3);
+
+        let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
+        params.set_language(Some("en"));
+        params.set_n_threads(4);
+
+        state.full(params, &audio).expect("Transcription failed");
+        println!("[Test] Transcription {} complete", i + 1);
+    }
+
+    println!("[Test] PASSED: All transcriptions completed");
+}
+
 /// Print environment info
 #[test]
 fn test_00_environment_info() {
