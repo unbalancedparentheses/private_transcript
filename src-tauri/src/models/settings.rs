@@ -64,3 +64,13 @@ pub struct OllamaStatus {
     pub models: Vec<String>,
     pub error: Option<String>,
 }
+
+/// Event emitted during streaming LLM generation
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LlmStreamEvent {
+    pub session_id: String,
+    pub token: String,
+    pub done: bool,
+    pub error: Option<String>,
+}

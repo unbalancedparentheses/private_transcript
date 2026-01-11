@@ -174,3 +174,11 @@ export interface AudioPermissions {
   microphone: boolean;
   screenRecording: boolean;
 }
+
+// LLM streaming types
+export interface LlmStreamEvent {
+  sessionId: string;
+  token: string;
+  done: boolean;
+  error?: string;
+}

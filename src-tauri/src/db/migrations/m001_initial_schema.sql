@@ -1,5 +1,5 @@
+-- Migration 001: Initial Schema
 -- Private Transcript Database Schema
--- NOTE: This file is kept for reference. Actual schema is in migrations/m001_initial_schema.sql
 
 -- Workspaces: therapy, legal, research, general
 CREATE TABLE IF NOT EXISTS workspaces (

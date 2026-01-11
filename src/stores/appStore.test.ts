@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useAppStore } from './appStore';
+import { useInitStore } from './useInitStore';
+import { useWorkspaceStore } from './useWorkspaceStore';
+import { useSessionStore } from './useSessionStore';
+import { useTemplateStore } from './useTemplateStore';
+import { useUIStore } from './useUIStore';
 import { invoke } from '@tauri-apps/api/core';
 
 // Mock invoke
@@ -9,18 +14,26 @@ vi.mock('@tauri-apps/api/core', () => ({
 
 describe('AppStore', () => {
   beforeEach(() => {
-    // Reset store between tests
-    useAppStore.setState({
+    // Reset all individual stores
+    useInitStore.setState({
       initialized: false,
       onboardingComplete: false,
+    });
+    useWorkspaceStore.setState({
       workspaces: [],
       currentWorkspace: null,
       folders: [],
       currentFolder: null,
+    });
+    useSessionStore.setState({
       sessions: [],
       currentSession: null,
+    });
+    useTemplateStore.setState({
       templates: [],
       settings: null,
+    });
+    useUIStore.setState({
       view: 'list',
     });
     vi.clearAllMocks();
@@ -176,8 +189,8 @@ describe('AppStore', () => {
         status: 'pending',
       };
 
-      // Set up folder first
-      useAppStore.setState({
+      // Set up folder first - update the workspace store
+      useWorkspaceStore.setState({
         currentFolder: { id: 'folder-1', name: 'Test Folder' } as any,
       });
 
@@ -212,7 +225,8 @@ describe('AppStore', () => {
         status: 'completed',
       };
 
-      useAppStore.setState({
+      // Set up state in the session store
+      useSessionStore.setState({
         sessions: [originalSession as any],
         currentSession: originalSession as any,
       });

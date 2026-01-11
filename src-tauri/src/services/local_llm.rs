@@ -1,3 +1,4 @@
+use crate::models::LlmStreamEvent;
 use anyhow::{anyhow, Result};
 use llama_cpp_2::context::params::LlamaContextParams;
 use llama_cpp_2::llama_backend::LlamaBackend;
@@ -8,8 +9,9 @@ use llama_cpp_2::sampling::LlamaSampler;
 use once_cell::sync::OnceCell;
 use parking_lot::Mutex;
 use std::num::NonZeroU32;
+use std::sync::mpsc;
 use std::sync::Arc;
-use tauri::AppHandle;
+use tauri::{AppHandle, Emitter};
 
 use super::model_manager::{get_llm_models, ModelManager};
 
@@ -113,13 +115,78 @@ pub async fn generate(prompt: &str, max_tokens: usize) -> Result<String> {
 
     let prompt_owned = prompt.to_string();
 
-    tokio::task::spawn_blocking(move || generate_sync(&prompt_owned, max_tokens))
+    tokio::task::spawn_blocking(move || generate_sync(&prompt_owned, max_tokens, None))
         .await
         .map_err(|e| anyhow!("Task join error: {}", e))?
 }
 
+/// Generate text using local LLM with streaming (emits tokens as events)
+pub async fn generate_streaming(
+    app: &AppHandle,
+    session_id: &str,
+    prompt: &str,
+    max_tokens: usize,
+) -> Result<String> {
+    if !is_model_loaded() {
+        return Err(anyhow!(
+            "LLM model not loaded. Please select and load a model first."
+        ));
+    }
+
+    let prompt_owned = prompt.to_string();
+    let session_id_owned = session_id.to_string();
+    let app_clone = app.clone();
+
+    // Use a channel to receive tokens from the blocking task
+    let (tx, rx) = mpsc::channel::<String>();
+
+    // Spawn the blocking generation task
+    let generate_handle = tokio::task::spawn_blocking(move || {
+        generate_sync(&prompt_owned, max_tokens, Some(tx))
+    });
+
+    // Spawn a task to forward tokens as events
+    let session_id_for_events = session_id_owned.clone();
+    tokio::spawn(async move {
+        while let Ok(token) = rx.recv() {
+            let _ = app_clone.emit(
+                "llm-stream",
+                LlmStreamEvent {
+                    session_id: session_id_for_events.clone(),
+                    token,
+                    done: false,
+                    error: None,
+                },
+            );
+        }
+    });
+
+    // Wait for generation to complete
+    let result = generate_handle
+        .await
+        .map_err(|e| anyhow!("Task join error: {}", e))??;
+
+    // Emit done event
+    let _ = app.emit(
+        "llm-stream",
+        LlmStreamEvent {
+            session_id: session_id_owned,
+            token: String::new(),
+            done: true,
+            error: None,
+        },
+    );
+
+    Ok(result)
+}
+
 /// Synchronous generation (called from blocking task)
-fn generate_sync(prompt: &str, max_tokens: usize) -> Result<String> {
+/// If `token_sender` is provided, tokens are sent through the channel for streaming.
+fn generate_sync(
+    prompt: &str,
+    max_tokens: usize,
+    token_sender: Option<mpsc::Sender<String>>,
+) -> Result<String> {
     let state_lock = get_llm_state().lock();
     let state = state_lock
         .as_ref()
@@ -183,6 +250,11 @@ fn generate_sync(prompt: &str, max_tokens: usize) -> Result<String> {
             .token_to_str(new_token, Special::Tokenize)
             .map_err(|e| anyhow!("Failed to decode token: {}", e))?;
         output.push_str(&token_str);
+
+        // Send token through channel if streaming
+        if let Some(ref sender) = token_sender {
+            let _ = sender.send(token_str);
+        }
 
         // Add token to batch for next iteration
         batch.clear();

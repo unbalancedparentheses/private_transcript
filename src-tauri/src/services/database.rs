@@ -1,3 +1,4 @@
+use crate::db::migrations;
 use crate::models::*;
 use crate::templates;
 use anyhow::Result;
@@ -32,10 +33,8 @@ pub async fn init_database(app: &AppHandle) -> Result<()> {
         .connect_with(options)
         .await?;
 
-    // Run migrations
-    sqlx::query(include_str!("../db/schema.sql"))
-        .execute(&pool)
-        .await?;
+    // Run database migrations
+    migrations::run_pending_migrations(&pool).await?;
 
     // Insert default templates if they don't exist
     let template_count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM templates")

@@ -46,6 +46,7 @@ fn main() {
             commands::transcription::get_transcription_progress,
             // Generation commands
             commands::generation::generate_note,
+            commands::generation::generate_note_streaming,
             commands::generation::check_ollama_status,
             // Audio commands
             commands::audio::save_audio_file,

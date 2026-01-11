@@ -1,6 +1,20 @@
+/**
+ * Legacy combined store for backward compatibility.
+ * New code should import from individual stores:
+ * - useUIStore: view state
+ * - useInitStore: initialization state
+ * - useWorkspaceStore: workspaces and folders
+ * - useSessionStore: sessions
+ * - useTemplateStore: templates and settings
+ */
 import { create } from 'zustand';
-import { invoke } from '@tauri-apps/api/core';
 import type { Workspace, Folder, Session, Template, AppSettings, WorkspaceType } from '../types';
+import { useUIStore, type ViewType } from './useUIStore';
+import { useInitStore } from './useInitStore';
+import { useWorkspaceStore } from './useWorkspaceStore';
+import { useSessionStore } from './useSessionStore';
+import { useTemplateStore } from './useTemplateStore';
+import { initializeStoreSubscriptions } from './index';
 
 interface AppState {
   // Initialization
@@ -26,7 +40,7 @@ interface AppState {
   settings: AppSettings | null;
 
   // UI State
-  view: 'list' | 'recording' | 'processing' | 'session' | 'settings';
+  view: ViewType;
 
   // Actions
   initialize: () => Promise<void>;
@@ -48,192 +62,120 @@ interface AppState {
   deleteSession: (id: string) => Promise<void>;
 
   // View actions
-  setView: (view: 'list' | 'recording' | 'processing' | 'session' | 'settings') => void;
+  setView: (view: ViewType) => void;
 
   // Template actions
   loadTemplates: (workspaceType?: WorkspaceType) => Promise<void>;
 }
 
-export const useAppStore = create<AppState>((set, get) => ({
-  initialized: false,
-  onboardingComplete: false,
-  workspaces: [],
-  currentWorkspace: null,
-  folders: [],
-  currentFolder: null,
-  sessions: [],
-  currentSession: null,
-  templates: [],
-  settings: null,
-  view: 'list',
+export const useAppStore = create<AppState>((set) => {
+  // Initialize cross-store subscriptions
+  initializeStoreSubscriptions();
 
-  initialize: async () => {
-    try {
-      // Load workspaces
-      const workspaces = await invoke<Workspace[]>('get_workspaces');
-
-      // Load settings
-      const settings = await invoke<AppSettings>('get_settings');
-
-      // Check if models are ready (at least one of each type downloaded)
-      let modelsReady = false;
-      try {
-        modelsReady = await invoke<boolean>('are_models_ready');
-      } catch {
-        modelsReady = false;
-      }
-
-      // Onboarding is complete if we have workspaces AND models are ready
-      const onboardingComplete = workspaces.length > 0 && modelsReady;
-
-      set({
-        workspaces,
-        settings,
-        initialized: true,
-        onboardingComplete,
-        currentWorkspace: workspaces.length > 0 ? workspaces[0] : null,
-      });
-
-      // If we have a workspace, load its folders
-      if (workspaces.length > 0) {
-        const folders = await invoke<Folder[]>('get_folders', {
-          workspaceId: workspaces[0].id
-        });
-        set({ folders });
-
-        // Load templates for this workspace type
-        const templates = await invoke<Template[]>('get_templates', {
-          workspaceType: workspaces[0].workspaceType,
-        });
-        set({ templates });
-      }
-    } catch (error) {
-      console.error('Failed to initialize:', error);
-      set({ initialized: true });
-    }
-  },
-
-  createWorkspace: async (name, type) => {
-    const workspace = await invoke<Workspace>('create_workspace', {
-      request: { name, workspaceType: type },
-    });
-    set((state) => ({
-      workspaces: [workspace, ...state.workspaces],
-      currentWorkspace: workspace,
-      folders: [],
-      currentFolder: null,
-      sessions: [],
-    }));
-    return workspace;
-  },
-
-  selectWorkspace: async (workspace) => {
-    const folders = await invoke<Folder[]>('get_folders', {
-      workspaceId: workspace.id
-    });
-    const templates = await invoke<Template[]>('get_templates', {
-      workspaceType: workspace.workspaceType,
-    });
+  // Subscribe to individual stores to keep combined state in sync
+  useInitStore.subscribe((state) => {
     set({
-      currentWorkspace: workspace,
-      folders,
-      templates,
-      currentFolder: null,
-      sessions: [],
-      currentSession: null,
-      view: 'list',
+      initialized: state.initialized,
+      onboardingComplete: state.onboardingComplete,
     });
-  },
+  });
 
-  createFolder: async (name) => {
-    const { currentWorkspace } = get();
-    if (!currentWorkspace) throw new Error('No workspace selected');
-
-    const folder = await invoke<Folder>('create_folder', {
-      request: { workspaceId: currentWorkspace.id, name },
-    });
-    set((state) => ({ folders: [folder, ...state.folders] }));
-    return folder;
-  },
-
-  selectFolder: async (folder) => {
-    const sessions = await invoke<Session[]>('get_sessions', {
-      folderId: folder.id
-    });
+  useWorkspaceStore.subscribe((state) => {
     set({
-      currentFolder: folder,
-      sessions,
-      currentSession: null,
-      view: 'list',
+      workspaces: state.workspaces,
+      currentWorkspace: state.currentWorkspace,
+      folders: state.folders,
+      currentFolder: state.currentFolder,
     });
-  },
+  });
 
-  deleteFolder: async (id) => {
-    await invoke('delete_folder', { id });
-    const { currentFolder } = get();
-    set((state) => ({
-      folders: state.folders.filter((f) => f.id !== id),
-      // If deleted folder was selected, clear selection
-      currentFolder: currentFolder?.id === id ? null : currentFolder,
-      sessions: currentFolder?.id === id ? [] : state.sessions,
-      currentSession: currentFolder?.id === id ? null : state.currentSession,
-    }));
-  },
-
-  createSession: async (audioPath, title) => {
-    const { currentFolder } = get();
-    if (!currentFolder) throw new Error('No folder selected');
-
-    const session = await invoke<Session>('create_session', {
-      request: {
-        folderId: currentFolder.id,
-        audioPath: audioPath,
-        title,
-      },
+  useSessionStore.subscribe((state) => {
+    set({
+      sessions: state.sessions,
+      currentSession: state.currentSession,
     });
-    set((state) => ({
-      sessions: [session, ...state.sessions],
-      currentSession: session,
-    }));
-    return session;
-  },
+  });
 
-  selectSession: (session) => {
-    set({ currentSession: session, view: 'session' });
-  },
-
-  updateSession: async (id, updates) => {
-    await invoke('update_session', {
-      request: { id, ...updates },
+  useTemplateStore.subscribe((state) => {
+    set({
+      templates: state.templates,
+      settings: state.settings,
     });
+  });
 
-    // Refresh session data
-    const session = await invoke<Session>('get_session', { id });
-    set((state) => ({
-      sessions: state.sessions.map((s) => (s.id === id ? session : s)),
-      currentSession: state.currentSession?.id === id ? session : state.currentSession,
-    }));
-  },
+  useUIStore.subscribe((state) => {
+    set({ view: state.view });
+  });
 
-  deleteSession: async (id) => {
-    await invoke('delete_session', { id });
-    const { currentSession } = get();
-    set((state) => ({
-      sessions: state.sessions.filter((s) => s.id !== id),
-      // If deleted session was selected, clear selection and go to list
-      currentSession: currentSession?.id === id ? null : currentSession,
-      view: currentSession?.id === id ? 'list' : state.view,
-    }));
-  },
+  return {
+    // Initial state from individual stores
+    initialized: useInitStore.getState().initialized,
+    onboardingComplete: useInitStore.getState().onboardingComplete,
+    workspaces: useWorkspaceStore.getState().workspaces,
+    currentWorkspace: useWorkspaceStore.getState().currentWorkspace,
+    folders: useWorkspaceStore.getState().folders,
+    currentFolder: useWorkspaceStore.getState().currentFolder,
+    sessions: useSessionStore.getState().sessions,
+    currentSession: useSessionStore.getState().currentSession,
+    templates: useTemplateStore.getState().templates,
+    settings: useTemplateStore.getState().settings,
+    view: useUIStore.getState().view,
 
-  setView: (view) => set({ view }),
+    // Delegate actions to individual stores
+    initialize: () => useInitStore.getState().initialize(),
+    setOnboardingComplete: (complete) => useInitStore.getState().setOnboardingComplete(complete),
 
-  setOnboardingComplete: (complete) => set({ onboardingComplete: complete }),
+    createWorkspace: async (name, type) => {
+      const workspace = await useWorkspaceStore.getState().createWorkspace(name, type);
+      useSessionStore.getState().clearSessions();
+      return workspace;
+    },
 
-  loadTemplates: async (workspaceType) => {
-    const templates = await invoke<Template[]>('get_templates', {
-      workspaceType,
-    });
-    set({ templates });
-  },
-}));
+    selectWorkspace: async (workspace) => {
+      await useWorkspaceStore.getState().selectWorkspace(workspace);
+      useSessionStore.getState().clearSessions();
+      useUIStore.getState().setView('list');
+    },
+
+    createFolder: (name) => useWorkspaceStore.getState().createFolder(name),
+
+    selectFolder: async (folder) => {
+      useWorkspaceStore.getState().selectFolder(folder);
+      await useSessionStore.getState().loadSessions(folder.id);
+      useUIStore.getState().setView('list');
+    },
+
+    deleteFolder: async (id) => {
+      const currentFolder = useWorkspaceStore.getState().currentFolder;
+      await useWorkspaceStore.getState().deleteFolder(id);
+      if (currentFolder?.id === id) {
+        useSessionStore.getState().clearSessions();
+      }
+    },
+
+    createSession: async (audioPath, title) => {
+      const currentFolder = useWorkspaceStore.getState().currentFolder;
+      if (!currentFolder) throw new Error('No folder selected');
+      return useSessionStore.getState().createSession(currentFolder.id, audioPath, title);
+    },
+
+    selectSession: (session) => {
+      useSessionStore.getState().selectSession(session);
+      useUIStore.getState().setView('session');
+    },
+
+    updateSession: (id, updates) => useSessionStore.getState().updateSession(id, updates),
+
+    deleteSession: async (id) => {
+      const currentSession = useSessionStore.getState().currentSession;
+      await useSessionStore.getState().deleteSession(id);
+      if (currentSession?.id === id) {
+        useUIStore.getState().setView('list');
+      }
+    },
+
+    setView: (view) => useUIStore.getState().setView(view),
+
+    loadTemplates: (workspaceType) => useTemplateStore.getState().loadTemplates(workspaceType),
+  };
+});
