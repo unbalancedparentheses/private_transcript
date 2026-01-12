@@ -590,7 +590,7 @@ mod response_parsing_tests {
 mod context_window_tests {
     /// Estimate token count (rough approximation: ~4 chars per token)
     fn estimate_tokens(text: &str) -> usize {
-        (text.len() + 3) / 4
+        text.len().div_ceil(4)
     }
 
     /// Truncate text to fit within token limit
@@ -613,7 +613,7 @@ mod context_window_tests {
     fn test_token_estimation() {
         let text = "Hello World"; // 11 chars
         let tokens = estimate_tokens(text);
-        assert!(tokens >= 2 && tokens <= 4, "Should estimate ~3 tokens");
+        assert!((2..=4).contains(&tokens), "Should estimate ~3 tokens");
     }
 
     #[test]

@@ -219,10 +219,12 @@ mod settings_tests {
 
     #[test]
     fn test_settings_modification() {
-        let mut settings = Settings::default();
-        settings.theme = "dark".to_string();
-        settings.auto_transcribe = true;
-        settings.whisper_model = "base".to_string();
+        let settings = Settings {
+            theme: "dark".to_string(),
+            auto_transcribe: true,
+            whisper_model: "base".to_string(),
+            ..Default::default()
+        };
 
         assert_eq!(settings.theme, "dark");
         assert!(settings.auto_transcribe);
@@ -249,8 +251,10 @@ mod settings_tests {
         let valid_themes = ["system", "light", "dark"];
 
         for theme in valid_themes {
-            let mut settings = Settings::default();
-            settings.theme = theme.to_string();
+            let settings = Settings {
+                theme: theme.to_string(),
+                ..Default::default()
+            };
             assert!(["system", "light", "dark"].contains(&settings.theme.as_str()));
         }
     }
@@ -260,8 +264,10 @@ mod settings_tests {
         let valid_formats = ["txt", "md", "pdf", "docx", "srt", "vtt"];
 
         for format in valid_formats {
-            let mut settings = Settings::default();
-            settings.export_format = format.to_string();
+            let settings = Settings {
+                export_format: format.to_string(),
+                ..Default::default()
+            };
             assert!(["txt", "md", "pdf", "docx", "srt", "vtt"].contains(&settings.export_format.as_str()));
         }
     }
@@ -271,8 +277,10 @@ mod settings_tests {
         let valid_models = ["tiny", "base", "small", "medium", "large", "large-v3-turbo"];
 
         for model in valid_models {
-            let mut settings = Settings::default();
-            settings.whisper_model = model.to_string();
+            let settings = Settings {
+                whisper_model: model.to_string(),
+                ..Default::default()
+            };
             assert!(valid_models.contains(&settings.whisper_model.as_str()));
         }
     }
@@ -282,8 +290,10 @@ mod settings_tests {
         let valid_providers = ["bundled", "local", "cloud"];
 
         for provider in valid_providers {
-            let mut settings = Settings::default();
-            settings.llm_provider = provider.to_string();
+            let settings = Settings {
+                llm_provider: provider.to_string(),
+                ..Default::default()
+            };
             assert!(valid_providers.contains(&settings.llm_provider.as_str()));
         }
     }

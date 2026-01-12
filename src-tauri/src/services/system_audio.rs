@@ -739,12 +739,12 @@ mod tests {
 
     #[test]
     fn test_recording_status_level_updates() {
-        let mut status = RecordingStatus::default();
-
-        // Simulate level updates during recording
-        status.mic_level = 0.5;
-        status.system_level = 0.3;
-        status.duration_ms = 1000;
+        let mut status = RecordingStatus {
+            mic_level: 0.5,
+            system_level: 0.3,
+            duration_ms: 1000,
+            ..Default::default()
+        };
 
         assert_eq!(status.mic_level, 0.5);
         assert_eq!(status.system_level, 0.3);

@@ -301,11 +301,8 @@ mod tests {
     #[test]
     fn test_resample_creates_output() {
         // Resample from 44100 to 16000 Hz
-        let mut samples: Vec<f32> = Vec::new();
         // Generate 1 second of silence (44100 samples)
-        for _ in 0..44100 {
-            samples.push(0.0);
-        }
+        let samples: Vec<f32> = vec![0.0; 44100];
 
         let result = resample_audio(&samples, 44100, 16000).unwrap();
         // Result should be approximately 16000 samples for 1 second

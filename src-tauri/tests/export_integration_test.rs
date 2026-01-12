@@ -9,14 +9,14 @@ mod text_export_tests {
 
         output.push_str(&format!("Title: {}\n", title));
         output.push_str(&format!("Date: {}\n", "2024-01-01"));
-        output.push_str("\n");
+        output.push('\n');
         output.push_str("=".repeat(50).as_str());
         output.push_str("\n\n");
 
         if !transcript.is_empty() {
             output.push_str("TRANSCRIPT\n");
             output.push_str("-".repeat(50).as_str());
-            output.push_str("\n");
+            output.push('\n');
             output.push_str(transcript);
             output.push_str("\n\n");
         }
@@ -24,9 +24,9 @@ mod text_export_tests {
         if !notes.is_empty() {
             output.push_str("NOTES\n");
             output.push_str("-".repeat(50).as_str());
-            output.push_str("\n");
+            output.push('\n');
             output.push_str(notes);
-            output.push_str("\n");
+            output.push('\n');
         }
 
         output
@@ -113,7 +113,7 @@ mod markdown_export_tests {
         if !notes.is_empty() {
             output.push_str("## Notes\n\n");
             output.push_str(notes);
-            output.push_str("\n");
+            output.push('\n');
         }
 
         output

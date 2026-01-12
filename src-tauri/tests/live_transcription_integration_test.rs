@@ -642,7 +642,9 @@ fn test_empty_segment_handling() {
     #[derive(Debug, Clone, Deserialize)]
     struct TranscriptionSegment {
         text: String,
+        #[allow(dead_code)]
         start: f64,
+        #[allow(dead_code)]
         end: f64,
     }
 
@@ -699,6 +701,7 @@ fn test_tentative_vs_confirmed_segments() {
     #[derive(Debug, Clone)]
     struct Segment {
         text: String,
+        #[allow(dead_code)]
         confirmed: bool,
     }
 

@@ -227,9 +227,8 @@ mod tests {
     fn test_get_loaded_model_returns_option() {
         let result = get_loaded_model();
         // Should return Some(String) or None, never panic
-        match result {
-            Some(model_id) => assert!(!model_id.is_empty()),
-            None => {} // This is fine
+        if let Some(model_id) = result {
+            assert!(!model_id.is_empty());
         }
     }
 

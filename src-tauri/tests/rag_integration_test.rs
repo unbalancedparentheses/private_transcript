@@ -48,16 +48,17 @@ struct ChatConversation {
 // ============================================================================
 
 mod chunking_tests {
-    use super::*;
-
     #[derive(Debug, Clone)]
     struct TranscriptChunk {
         id: String,
         session_id: String,
         chunk_index: usize,
         text: String,
+        #[allow(dead_code)]
         speaker: Option<String>,
+        #[allow(dead_code)]
         start_offset: usize,
+        #[allow(dead_code)]
         end_offset: usize,
     }
 
@@ -498,7 +499,7 @@ mod retrieved_chunk_tests {
 
     #[test]
     fn test_chunk_similarity_ordering() {
-        let mut chunks = vec![
+        let mut chunks = [
             RetrievedChunk {
                 chunk_id: "1".to_string(),
                 session_id: "s1".to_string(),

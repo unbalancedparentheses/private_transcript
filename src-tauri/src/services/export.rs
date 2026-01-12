@@ -380,7 +380,7 @@ mod tests {
     #[test]
     fn test_parse_content_whitespace_only_lines() {
         let content = "# Test\n\n## Transcript\n\nLine 1\n\nLine 2";
-        let (title, transcript, notes) = parse_content(content);
+        let (title, transcript, _notes) = parse_content(content);
 
         assert_eq!(title, "Test");
         // Empty lines are skipped

@@ -1,7 +1,6 @@
 //! Tests for model structs and serialization
 
 use serde::{Deserialize, Serialize};
-use serde_json;
 
 /// Session model matching the app's Session struct
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
