@@ -139,18 +139,16 @@ actor StreamingTranscriber {
                 fputs("[StreamingTranscriber] Loop #\(loopCount): buffer=\(currentSampleCount), new=\(newSamples)\n", stderr)
             }
 
-            // Process when we have at least ~1s of new audio at 48kHz
-            // This gives WhisperKit enough context for accurate transcription
-            if newSamples >= 48000 {
+            // Process when we have at least ~1s of new audio at 16kHz
+            // WhisperKit needs enough context for accurate transcription
+            if newSamples >= 16000 {
                 fputs("[StreamingTranscriber] Processing \(newSamples) new samples...\n", stderr)
                 await transcribeCurrentBuffer(isFinal: false)
                 fputs("[StreamingTranscriber] Back from transcribeCurrentBuffer\n", stderr)
             }
 
-            // Wait before next iteration (500ms for less CPU usage)
-            fputs("[StreamingTranscriber] Sleeping for 500ms...\n", stderr)
-            try? await Task.sleep(nanoseconds: 500_000_000)
-            fputs("[StreamingTranscriber] Woke up from sleep\n", stderr)
+            // Wait before next iteration (200ms balance between responsiveness and CPU)
+            try? await Task.sleep(nanoseconds: 200_000_000)
         }
         fputs("[StreamingTranscriber] Transcription loop ended\n", stderr)
     }
@@ -162,15 +160,16 @@ actor StreamingTranscriber {
             return
         }
 
-        // For streaming, only process a window of recent audio (max 10 seconds at 48kHz)
+        // For streaming, only process a window of recent audio (max 10 seconds at 16kHz)
         // This prevents the buffer from being too large for WhisperKit
-        let maxSamples = 48000 * 10  // 10 seconds
+        // Frontend sends 16kHz audio
+        let maxSamples = 16000 * 10  // 10 seconds at 16kHz
         let samples: [Float]
         if isFinal {
             // For final transcription, use all remaining audio
             samples = Array(audioBuffer)
         } else {
-            // For streaming, use only recent audio
+            // For streaming, use only recent audio to keep transcription fast
             samples = Array(audioBuffer.suffix(maxSamples))
         }
 
@@ -184,8 +183,8 @@ actor StreamingTranscriber {
         // Optional VAD check
         if config.useVAD && !isFinal {
             // Check if there's voice activity in recent samples
-            // Use more recent samples for better responsiveness (last ~0.1s at 48kHz)
-            let recentSamples = Array(samples.suffix(4800))
+            // Use more recent samples for better responsiveness (last ~0.1s at 16kHz)
+            let recentSamples = Array(samples.suffix(1600))
             let energy = recentSamples.map { $0 * $0 }.reduce(0, +) / Float(recentSamples.count)
             // Threshold tuned for browser audio: 1e-5 catches speech but ignores most silence
             // Speech typically has energy > 0.001, silence is < 1e-6
@@ -231,8 +230,8 @@ actor StreamingTranscriber {
             }
 
             // Clear old samples from buffer to prevent memory growth
-            // Keep only the last 5 seconds for context overlap
-            let keepSamples = 48000 * 5  // 5 seconds at 48kHz
+            // Keep only the last 5 seconds for context overlap at 16kHz
+            let keepSamples = 16000 * 5  // 5 seconds at 16kHz
             if audioBuffer.count > keepSamples {
                 let removeCount = audioBuffer.count - keepSamples
                 audioBuffer.removeFirst(removeCount)
