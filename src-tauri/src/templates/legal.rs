@@ -89,3 +89,67 @@ Transcript:
         ),
     ]
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_templates_returns_expected_count() {
+        let templates = get_templates();
+        assert_eq!(templates.len(), 3);
+    }
+
+    #[test]
+    fn test_deposition_summary_is_default() {
+        let templates = get_templates();
+        let depo = templates.iter().find(|t| t.0 == "Deposition Summary");
+        assert!(depo.is_some());
+        assert!(depo.unwrap().3); // is_default = true
+    }
+
+    #[test]
+    fn test_client_meeting_exists() {
+        let templates = get_templates();
+        let meeting = templates.iter().find(|t| t.0 == "Client Meeting");
+        assert!(meeting.is_some());
+        assert!(!meeting.unwrap().3); // is_default = false
+    }
+
+    #[test]
+    fn test_witness_interview_exists() {
+        let templates = get_templates();
+        let witness = templates.iter().find(|t| t.0 == "Witness Interview");
+        assert!(witness.is_some());
+        assert!(!witness.unwrap().3); // is_default = false
+    }
+
+    #[test]
+    fn test_all_templates_have_transcript_placeholder() {
+        let templates = get_templates();
+        for (name, _description, prompt, _is_default) in templates {
+            assert!(
+                prompt.contains("{transcript}"),
+                "Template '{}' should contain {{transcript}} placeholder",
+                name
+            );
+        }
+    }
+
+    #[test]
+    fn test_exactly_one_default_template() {
+        let templates = get_templates();
+        let default_count = templates.iter().filter(|t| t.3).count();
+        assert_eq!(default_count, 1, "Should have exactly one default template");
+    }
+
+    #[test]
+    fn test_all_templates_non_empty() {
+        let templates = get_templates();
+        for (name, description, prompt, _) in templates {
+            assert!(!name.is_empty());
+            assert!(!description.is_empty());
+            assert!(!prompt.is_empty());
+        }
+    }
+}

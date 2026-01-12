@@ -69,3 +69,67 @@ Transcript:
         ),
     ]
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_templates_returns_expected_count() {
+        let templates = get_templates();
+        assert_eq!(templates.len(), 3);
+    }
+
+    #[test]
+    fn test_soap_note_is_default() {
+        let templates = get_templates();
+        let soap = templates.iter().find(|t| t.0 == "SOAP Note");
+        assert!(soap.is_some());
+        assert!(soap.unwrap().3); // is_default = true
+    }
+
+    #[test]
+    fn test_dap_note_exists() {
+        let templates = get_templates();
+        let dap = templates.iter().find(|t| t.0 == "DAP Note");
+        assert!(dap.is_some());
+        assert!(!dap.unwrap().3); // is_default = false
+    }
+
+    #[test]
+    fn test_birp_note_exists() {
+        let templates = get_templates();
+        let birp = templates.iter().find(|t| t.0 == "BIRP Note");
+        assert!(birp.is_some());
+        assert!(!birp.unwrap().3); // is_default = false
+    }
+
+    #[test]
+    fn test_all_templates_have_transcript_placeholder() {
+        let templates = get_templates();
+        for (name, _description, prompt, _is_default) in templates {
+            assert!(
+                prompt.contains("{transcript}"),
+                "Template '{}' should contain {{transcript}} placeholder",
+                name
+            );
+        }
+    }
+
+    #[test]
+    fn test_exactly_one_default_template() {
+        let templates = get_templates();
+        let default_count = templates.iter().filter(|t| t.3).count();
+        assert_eq!(default_count, 1, "Should have exactly one default template");
+    }
+
+    #[test]
+    fn test_all_templates_non_empty() {
+        let templates = get_templates();
+        for (name, description, prompt, _) in templates {
+            assert!(!name.is_empty());
+            assert!(!description.is_empty());
+            assert!(!prompt.is_empty());
+        }
+    }
+}
