@@ -38,6 +38,8 @@ export function RecordingView() {
   const [_isLiveTranscribing, setIsLiveTranscribing] = useState(false);
   const [liveSessionId, setLiveSessionId] = useState<string | null>(null);
   const [_liveTranscriptText, setLiveTranscriptText] = useState<string>('');
+  // Confirmation dialog state
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
   // Refs
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -682,6 +684,16 @@ export function RecordingView() {
   };
 
   const handleCancel = () => {
+    // Show confirmation if there's unsaved recording or currently recording with duration > 5 seconds
+    if ((isRecording || audioBlob) && duration > 5) {
+      setShowDiscardConfirm(true);
+      return;
+    }
+    confirmDiscard();
+  };
+
+  const confirmDiscard = () => {
+    setShowDiscardConfirm(false);
     if (isRecording) {
       stopRecording();
     }
@@ -1020,6 +1032,38 @@ export function RecordingView() {
           </p>
         </div>
       </div>
+
+      {/* Discard Recording Confirmation Dialog */}
+      {showDiscardConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-[var(--card)] rounded-lg shadow-xl p-4 max-w-sm w-full mx-4 border border-[var(--border)] animate-scale-in">
+            <h3 className="text-[15px] font-semibold text-[var(--foreground)] mb-2">
+              Discard Recording?
+            </h3>
+            <p className="text-[13px] text-[var(--muted-foreground)] mb-4">
+              You have {formatDuration(duration)} of unsaved audio. This cannot be recovered.
+            </p>
+            <div className="flex gap-2 justify-end">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowDiscardConfirm(false)}
+                className="text-[13px]"
+              >
+                Keep Recording
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={confirmDiscard}
+                className="text-[13px]"
+              >
+                Discard
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

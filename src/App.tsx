@@ -4,6 +4,7 @@ import { MainContent } from './components/layout/MainContent';
 import { OnboardingView } from './components/onboarding/OnboardingView';
 import { GlobalSearch } from './components/search/GlobalSearch';
 import { ChatPanel } from './components/chat';
+import { KeyboardShortcutsModal, useKeyboardShortcuts } from './components/ui/KeyboardShortcutsModal';
 import { useAppStore } from './stores/appStore';
 import { logger } from './lib/logger';
 
@@ -11,6 +12,7 @@ function App() {
   const { initialized, initialize, onboardingComplete } = useAppStore();
   const [loading, setLoading] = useState(true);
   const [searchOpen, setSearchOpen] = useState(false);
+  const shortcuts = useKeyboardShortcuts();
 
   useEffect(() => {
     const init = async () => {
@@ -58,6 +60,7 @@ function App() {
       <MainContent />
       <GlobalSearch isOpen={searchOpen} onClose={handleCloseSearch} />
       <ChatPanel />
+      <KeyboardShortcutsModal isOpen={shortcuts.isOpen} onClose={shortcuts.close} />
     </div>
   );
 }

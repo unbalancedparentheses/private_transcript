@@ -107,7 +107,7 @@ export function MainContent() {
                 <button
                   key={session.id}
                   onClick={() => selectSession(session)}
-                  className="w-full text-left px-3 py-2 rounded-md hover:bg-[var(--secondary)] transition-colors group"
+                  className="w-full text-left px-3 py-2 rounded-md border-l-2 border-l-transparent hover:bg-[var(--secondary)] hover:border-l-[var(--primary)] hover:shadow-[var(--shadow-xs)] transition-all duration-150 group"
                 >
                   <div className="flex items-center gap-3">
                     {/* Status indicator */}

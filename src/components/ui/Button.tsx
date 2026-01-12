@@ -20,22 +20,23 @@ export function Button({
   return (
     <button
       className={clsx(
-        'inline-flex items-center justify-center gap-1.5 rounded-md font-medium transition-colors',
+        'inline-flex items-center justify-center gap-1.5 rounded-md font-medium',
+        'transition-all duration-150',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]',
         'disabled:opacity-50 disabled:cursor-not-allowed',
-        'active:opacity-80',
+        'active:scale-[0.97] active:opacity-90',
         {
-          // Primary and Gradient - macOS style solid blue
-          'bg-[var(--primary)] text-white hover:bg-[var(--primary-hover)]':
+          // Primary and Gradient - macOS style solid blue with shadow
+          'bg-[var(--primary)] text-white hover:bg-[var(--primary-hover)] hover:shadow-[var(--shadow-sm)]':
             variant === 'primary' || variant === 'gradient',
           // Secondary - subtle background
-          'bg-[var(--secondary)] text-[var(--foreground)] hover:bg-[var(--border)]':
+          'bg-[var(--secondary)] text-[var(--foreground)] hover:bg-[var(--border)] hover:shadow-[var(--shadow-xs)]':
             variant === 'secondary',
           // Ghost - transparent
           'text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--secondary)]':
             variant === 'ghost',
-          // Destructive - danger
-          'bg-[var(--destructive)] text-white hover:opacity-90':
+          // Destructive - danger with shadow
+          'bg-[var(--destructive)] text-white hover:opacity-90 hover:shadow-[var(--shadow-sm)]':
             variant === 'destructive',
           // Sizes - more compact for macOS
           'h-6 px-2 text-[12px]': size === 'sm',

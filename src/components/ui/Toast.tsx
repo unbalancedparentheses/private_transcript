@@ -1,18 +1,26 @@
-import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react';
 import { cn } from '../../lib/utils';
 
 export type ToastType = 'success' | 'error' | 'info' | 'warning';
+
+interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
 
 interface Toast {
   id: string;
   message: string;
   type: ToastType;
   duration?: number;
+  progress?: number;
+  action?: ToastAction;
 }
 
 interface ToastContextType {
   toasts: Toast[];
-  addToast: (message: string, type?: ToastType, duration?: number) => void;
+  addToast: (message: string, type?: ToastType, options?: { duration?: number; progress?: number; action?: ToastAction }) => string;
+  updateToast: (id: string, updates: Partial<Toast>) => void;
   removeToast: (id: string) => void;
 }
 
@@ -33,17 +41,39 @@ interface ToastProviderProps {
 export function ToastProvider({ children }: ToastProviderProps) {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
-  const addToast = useCallback((message: string, type: ToastType = 'info', duration: number = 5000) => {
+  const addToast = useCallback((
+    message: string,
+    type: ToastType = 'info',
+    options?: { duration?: number; progress?: number; action?: ToastAction }
+  ) => {
     const id = `toast-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    const newToast: Toast = { id, message, type, duration };
+    const duration = options?.duration ?? 5000;
+    const newToast: Toast = {
+      id,
+      message,
+      type,
+      duration,
+      progress: options?.progress,
+      action: options?.action,
+    };
     setToasts((prev) => [...prev, newToast]);
 
-    // Auto-remove after duration
-    if (duration > 0) {
+    // Auto-remove after duration (unless it has progress, then it's manual)
+    if (duration > 0 && options?.progress === undefined) {
       setTimeout(() => {
         removeToast(id);
       }, duration);
     }
+
+    return id;
+  }, []);
+
+  const updateToast = useCallback((id: string, updates: Partial<Toast>) => {
+    setToasts((prev) =>
+      prev.map((toast) =>
+        toast.id === id ? { ...toast, ...updates } : toast
+      )
+    );
   }, []);
 
   const removeToast = useCallback((id: string) => {
@@ -51,7 +81,7 @@ export function ToastProvider({ children }: ToastProviderProps) {
   }, []);
 
   return (
-    <ToastContext.Provider value={{ toasts, addToast, removeToast }}>
+    <ToastContext.Provider value={{ toasts, addToast, updateToast, removeToast }}>
       {children}
       <ToastContainer toasts={toasts} removeToast={removeToast} />
     </ToastContext.Provider>
@@ -81,6 +111,13 @@ interface ToastItemProps {
 }
 
 function ToastItem({ toast, onClose }: ToastItemProps) {
+  const [isExiting, setIsExiting] = useState(false);
+
+  const handleClose = () => {
+    setIsExiting(true);
+    setTimeout(onClose, 150);
+  };
+
   const iconMap = {
     success: (
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -117,23 +154,55 @@ function ToastItem({ toast, onClose }: ToastItemProps) {
     info: 'text-[var(--primary)]',
   };
 
+  const progressColorMap = {
+    success: 'bg-[var(--success)]',
+    error: 'bg-[var(--destructive)]',
+    warning: 'bg-[var(--warning)]',
+    info: 'bg-[var(--primary)]',
+  };
+
   return (
     <div
-      className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-[var(--card)] border border-[var(--border)] shadow-lg"
+      className={cn(
+        'flex flex-col rounded-lg bg-[var(--card)] border border-[var(--border)] shadow-lg overflow-hidden',
+        'transition-all duration-150',
+        isExiting ? 'opacity-0 translate-x-4' : 'opacity-100 translate-x-0 animate-slide-in-right'
+      )}
       role="alert"
     >
-      <span className={cn('flex-shrink-0', colorMap[toast.type])}>{iconMap[toast.type]}</span>
-      <p className="flex-1 text-[13px] text-[var(--foreground)]">{toast.message}</p>
-      <button
-        onClick={onClose}
-        className="flex-shrink-0 p-0.5 rounded text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors"
-        aria-label="Close notification"
-      >
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <line x1="18" y1="6" x2="6" y2="18" />
-          <line x1="6" y1="6" x2="18" y2="18" />
-        </svg>
-      </button>
+      <div className="flex items-center gap-2.5 px-3 py-2.5">
+        <span className={cn('flex-shrink-0', colorMap[toast.type])}>{iconMap[toast.type]}</span>
+        <p className="flex-1 text-[13px] text-[var(--foreground)]">{toast.message}</p>
+        {toast.action && (
+          <button
+            onClick={() => {
+              toast.action?.onClick();
+              handleClose();
+            }}
+            className="flex-shrink-0 px-2 py-1 text-[12px] font-medium text-[var(--primary)] hover:bg-[var(--primary)]/10 rounded transition-colors"
+          >
+            {toast.action.label}
+          </button>
+        )}
+        <button
+          onClick={handleClose}
+          className="flex-shrink-0 p-0.5 rounded text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors"
+          aria-label="Close notification"
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+      {toast.progress !== undefined && (
+        <div className="h-1 bg-[var(--muted)]">
+          <div
+            className={cn('h-full transition-all duration-300', progressColorMap[toast.type])}
+            style={{ width: `${Math.min(100, Math.max(0, toast.progress))}%` }}
+          />
+        </div>
+      )}
     </div>
   );
 }

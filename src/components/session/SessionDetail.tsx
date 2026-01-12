@@ -33,7 +33,7 @@ interface SearchMatch {
 }
 
 export function SessionDetail() {
-  const { currentSession, templates, setView, updateSession, deleteSession } = useAppStore();
+  const { currentSession, currentWorkspace, currentFolder, templates, setView, updateSession, deleteSession } = useAppStore();
   const { addToast } = useToast();
   const [selectedTemplate, setSelectedTemplate] = useState(
     templates.find((t) => t.isDefault)?.id || templates[0]?.id || ''
@@ -74,6 +74,10 @@ export function SessionDetail() {
   // Confirmation dialog state
   const [showRetranscribeConfirm, setShowRetranscribeConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  // Inline feedback state
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [savedFeedback, setSavedFeedback] = useState(false);
 
   // Parse transcript into speaker segments when speaker view is enabled
   useEffect(() => {
@@ -505,11 +509,15 @@ export function SessionDetail() {
   const handleSaveTranscript = async () => {
     await updateSession(currentSession.id, { transcript: transcriptText });
     setEditingTranscript(false);
+    setSavedFeedback(true);
+    setTimeout(() => setSavedFeedback(false), 2000);
   };
 
   const handleSaveNote = async () => {
     await updateSession(currentSession.id, { generatedNote: noteText });
     setEditingNote(false);
+    setSavedFeedback(true);
+    setTimeout(() => setSavedFeedback(false), 2000);
   };
 
   const handleExport = async (format: 'markdown' | 'pdf' | 'docx' | 'srt' | 'vtt' | 'obsidian') => {
@@ -578,10 +586,11 @@ export function SessionDetail() {
     }
   };
 
-  const handleCopy = async (text: string) => {
+  const handleCopy = async (text: string, id: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      addToast('Copied to clipboard', 'success');
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 2000);
     } catch (error) {
       console.error('Copy failed:', error);
       addToast('Failed to copy to clipboard', 'error');
@@ -613,18 +622,42 @@ export function SessionDetail() {
         <div className="flex items-center gap-3">
           <button
             onClick={() => setView('list')}
-            className="flex items-center gap-2 text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors group"
+            className="flex items-center gap-1 text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors group"
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
                  className="group-hover:-translate-x-0.5 transition-transform">
               <path d="M19 12H5M12 19l-7-7 7-7" />
             </svg>
-            <span className="text-sm font-medium">Back</span>
           </button>
-          <div className="w-px h-5 bg-[var(--border)]" />
-          <h1 className="text-sm font-semibold truncate max-w-[200px]">
-            {currentSession.title || 'Session'}
-          </h1>
+          {/* Breadcrumb navigation */}
+          <nav className="flex items-center gap-1.5 text-xs">
+            {currentWorkspace && (
+              <>
+                <span className="text-[var(--muted-foreground)] truncate max-w-[100px]">
+                  {currentWorkspace.name}
+                </span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--muted-foreground)" strokeWidth="2">
+                  <path d="M9 18l6-6-6-6" />
+                </svg>
+              </>
+            )}
+            {currentFolder && (
+              <>
+                <button
+                  onClick={() => setView('list')}
+                  className="text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors truncate max-w-[100px]"
+                >
+                  {currentFolder.name}
+                </button>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--muted-foreground)" strokeWidth="2">
+                  <path d="M9 18l6-6-6-6" />
+                </svg>
+              </>
+            )}
+            <span className="font-medium text-[var(--foreground)] truncate max-w-[150px]">
+              {currentSession.title || 'Session'}
+            </span>
+          </nav>
         </div>
         <div className="flex items-center gap-2">
           <select
@@ -1001,15 +1034,33 @@ export function SessionDetail() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => handleCopy(showSpeakerView ? segmentsToText(displaySegments) : currentSession.transcript || '')}
+                onClick={() => handleCopy(showSpeakerView ? segmentsToText(displaySegments) : currentSession.transcript || '', 'transcript')}
                 className="h-7 px-2 text-xs"
               >
-                Copy
+                {copiedId === 'transcript' ? (
+                  <span className="flex items-center gap-1 text-[var(--success)] animate-checkmark">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <path d="M20 6L9 17l-5-5" />
+                    </svg>
+                    Copied
+                  </span>
+                ) : (
+                  'Copy'
+                )}
               </Button>
               {editingTranscript ? (
                 <>
                   <Button size="sm" onClick={handleSaveTranscript} className="h-7 px-2 text-xs">
-                    Save
+                    {savedFeedback ? (
+                      <span className="flex items-center gap-1 animate-checkmark">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                          <path d="M20 6L9 17l-5-5" />
+                        </svg>
+                        Saved
+                      </span>
+                    ) : (
+                      'Save'
+                    )}
                   </Button>
                   <Button
                     variant="ghost"
@@ -1225,15 +1276,33 @@ export function SessionDetail() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => handleCopy(currentSession.generatedNote || '')}
+                onClick={() => handleCopy(currentSession.generatedNote || '', 'note')}
                 className="h-7 px-2 text-xs"
               >
-                Copy
+                {copiedId === 'note' ? (
+                  <span className="flex items-center gap-1 text-[var(--success)] animate-checkmark">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <path d="M20 6L9 17l-5-5" />
+                    </svg>
+                    Copied
+                  </span>
+                ) : (
+                  'Copy'
+                )}
               </Button>
               {editingNote ? (
                 <>
                   <Button size="sm" onClick={handleSaveNote} className="h-7 px-2 text-xs">
-                    Save
+                    {savedFeedback ? (
+                      <span className="flex items-center gap-1 animate-checkmark">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                          <path d="M20 6L9 17l-5-5" />
+                        </svg>
+                        Saved
+                      </span>
+                    ) : (
+                      'Save'
+                    )}
                   </Button>
                   <Button
                     variant="ghost"

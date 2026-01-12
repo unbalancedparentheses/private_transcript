@@ -148,10 +148,10 @@ export function Sidebar() {
             <div
               key={folder.id}
               className={clsx(
-                'group relative w-full text-left px-2 py-1.5 rounded-md text-[13px] transition-colors cursor-pointer',
+                'group relative w-full text-left px-2 py-1.5 rounded-md text-[13px] transition-all duration-150 cursor-pointer',
                 currentFolder?.id === folder.id
-                  ? 'bg-[var(--primary)] text-white'
-                  : 'hover:bg-[var(--secondary)] text-[var(--foreground)]'
+                  ? 'bg-[var(--primary)] text-white shadow-[var(--shadow-sm)]'
+                  : 'hover:bg-[var(--secondary)] hover:shadow-[var(--shadow-xs)] text-[var(--foreground)]'
               )}
               onClick={() => selectFolder(folder)}
             >
