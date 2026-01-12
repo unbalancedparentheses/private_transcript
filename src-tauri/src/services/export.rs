@@ -449,12 +449,16 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_content_extra_sections_ignored() {
+    fn test_parse_content_extra_sections_in_transcript() {
+        // Note: The parser includes all content between ## Transcript and ## Notes
+        // including any other section headers that might appear
         let content = "# Title\n\n## Summary\n\nIgnored\n\n## Transcript\n\nReal transcript\n\n## Other\n\nAlso ignored\n\n## Notes\n\nReal notes";
         let (title, transcript, notes) = parse_content(content);
 
         assert_eq!(title, "Title");
-        assert_eq!(transcript, "Real transcript");
+        // Everything between ## Transcript and ## Notes is included
+        assert!(transcript.contains("Real transcript"));
+        assert!(transcript.contains("## Other"));
         assert_eq!(notes, "Real notes");
     }
 

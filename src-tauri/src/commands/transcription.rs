@@ -163,10 +163,14 @@ mod tests {
         let session_id = unique_session_id("test-update");
         update_progress(&session_id, 50.0, "transcribing");
 
-        let map = TRANSCRIPTION_PROGRESS.lock();
-        let progress = map.get(&session_id).unwrap();
-        assert_eq!(progress.progress, 50.0);
-        assert_eq!(progress.status, "transcribing");
+        {
+            let map = TRANSCRIPTION_PROGRESS.lock();
+            let progress = map.get(&session_id).unwrap();
+            assert_eq!(progress.progress, 50.0);
+            assert_eq!(progress.status, "transcribing");
+        }
+
+        clear_progress(&session_id);
     }
 
     #[test]
@@ -229,10 +233,14 @@ mod tests {
         update_progress(&session_id, 25.0, "transcribing");
         update_progress(&session_id, 0.0, "error");
 
-        let map = TRANSCRIPTION_PROGRESS.lock();
-        let progress = map.get(&session_id).unwrap();
-        assert_eq!(progress.status, "error");
-        assert_eq!(progress.progress, 0.0);
+        {
+            let map = TRANSCRIPTION_PROGRESS.lock();
+            let progress = map.get(&session_id).unwrap();
+            assert_eq!(progress.status, "error");
+            assert_eq!(progress.progress, 0.0);
+        }
+
+        clear_progress(&session_id);
     }
 
     #[test]
@@ -281,8 +289,10 @@ mod tests {
         // Should not panic when clearing a session that doesn't exist
         clear_progress(&session_id);
 
-        let map = TRANSCRIPTION_PROGRESS.lock();
-        assert!(map.get(&session_id).is_none());
+        {
+            let map = TRANSCRIPTION_PROGRESS.lock();
+            assert!(map.get(&session_id).is_none());
+        }
     }
 
     #[test]
@@ -292,10 +302,14 @@ mod tests {
         update_progress(&session_id, 50.0, "transcribing");
         update_progress(&session_id, 75.0, "transcribing");
 
-        let map = TRANSCRIPTION_PROGRESS.lock();
-        let progress = map.get(&session_id).unwrap();
-        // Should have the latest values
-        assert_eq!(progress.progress, 75.0);
+        {
+            let map = TRANSCRIPTION_PROGRESS.lock();
+            let progress = map.get(&session_id).unwrap();
+            // Should have the latest values
+            assert_eq!(progress.progress, 75.0);
+        }
+
+        clear_progress(&session_id);
     }
 
     #[test]
@@ -304,9 +318,13 @@ mod tests {
 
         update_progress(&session_id, 50.0, "transcribing");
 
-        let map = TRANSCRIPTION_PROGRESS.lock();
-        let progress = map.get(&session_id).unwrap();
-        assert_eq!(progress.session_id, session_id);
+        {
+            let map = TRANSCRIPTION_PROGRESS.lock();
+            let progress = map.get(&session_id).unwrap();
+            assert_eq!(progress.session_id, session_id);
+        }
+
+        clear_progress(&session_id);
     }
 
     // ============================================================================
@@ -367,8 +385,10 @@ mod tests {
 
         for status in statuses {
             update_progress(&session_id, 50.0, status);
-            let map = TRANSCRIPTION_PROGRESS.lock();
-            assert_eq!(map.get(&session_id).unwrap().status, status);
+            {
+                let map = TRANSCRIPTION_PROGRESS.lock();
+                assert_eq!(map.get(&session_id).unwrap().status, status);
+            } // Lock is dropped here before next iteration
         }
 
         clear_progress(&session_id);
@@ -380,8 +400,10 @@ mod tests {
 
         update_progress(&session_id, 50.0, "");
 
-        let map = TRANSCRIPTION_PROGRESS.lock();
-        assert_eq!(map.get(&session_id).unwrap().status, "");
+        {
+            let map = TRANSCRIPTION_PROGRESS.lock();
+            assert_eq!(map.get(&session_id).unwrap().status, "");
+        } // Lock is dropped here
 
         clear_progress(&session_id);
     }
