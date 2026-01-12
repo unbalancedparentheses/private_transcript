@@ -292,7 +292,7 @@ FEATURES │ MacWhisper │            │   │  Otter     │ Fireflies  │
 #### vs MacWhisper (They Have, We Don't)
 | Missing Feature | Effort | Impact |
 |-----------------|--------|--------|
-| System audio capture | 2 days | **High** - can't record Zoom/Meet |
+| ~~System audio capture~~ | ~~2 days~~ | ~~**High** - can't record Zoom/Meet~~ **DONE** |
 | Video player + subtitles | 2 days | Medium |
 | YouTube transcription | 1 day | Medium |
 | Batch transcription | 1 day | Medium |
@@ -319,7 +319,7 @@ Transcription speed       ✅ Equal            ✅ Equal
 AI features               ✅ Better           🟡 Different
 Privacy                   ✅ Equal            ✅ Much better
 Price                     ✅ Cheaper ($39)    ✅ Much cheaper
-System audio              ❌ Missing          ❌ Missing
+System audio              ✅ Equal            ✅ Equal
 Real-time                 ❌ Missing          ❌ Missing
 Mobile                    ❌ Missing          ❌ Missing
 Video support             ❌ Missing          🟡 They have it
@@ -327,10 +327,9 @@ Integrations              🟡 Obsidian done    ❌ Missing
 ```
 
 **Biggest gaps to close:**
-1. System audio capture (can't record Zoom/Meet)
-2. Real-time transcription (or decide not to do it)
-3. Video player with subtitles
-4. Notion integration
+1. Real-time transcription (or decide not to do it)
+2. Video player with subtitles
+3. Notion integration
 
 ---
 
@@ -435,7 +434,7 @@ Only after these are fixed, proceed to new features below.
 | Feature | MacWhisper | Us | Effort | Status |
 |---------|------------|-----|--------|--------|
 | Audio-transcript sync playback | ✅ | ✅ | - | **Done** |
-| System audio capture | ✅ Pro | ❌ | 2 days | Planned |
+| System audio capture | ✅ Pro | ✅ | - | **Done** |
 | Speaker diarization | ✅ Pro | ✅ | - | **Done** (heuristic) |
 | Video player + subtitles | ✅ | ❌ | 2 days | Planned |
 | YouTube transcription | ✅ Pro | ❌ | 1 day | Planned |
@@ -514,7 +513,7 @@ Only after these are fixed, proceed to new features below.
 ### Strategic (High Effort) - IN PROGRESS
 | Issue | Problem | Fix |
 |-------|---------|-----|
-| System audio capture | Can't record Zoom/Teams/Meet | Implement ScreenCaptureKit (macOS) |
+| ~~System audio capture~~ | ~~Can't record Zoom/Teams/Meet~~ | ~~Implement ScreenCaptureKit (macOS)~~ **DONE** |
 | Database encryption | SQLCipher mentioned but not implemented | Enable SQLCipher encryption |
 | Streaming LLM output | Waits for full response | Implement SSE/streaming |
 
@@ -560,7 +559,7 @@ For now, we prioritize **privacy and accuracy** over real-time. Post-recording t
 | Local RAG / Semantic Search | 🔥🔥🔥 | Medium | Pending | AI |
 | Obsidian/Logseq sync | 🔥🔥🔥 | Low | **DONE** | Export |
 | Real-time caption overlay | 🔥🔥🔥 | High | Pending | Accessibility |
-| System audio capture | 🔥🔥🔥 | High | Pending | Recording |
+| System audio capture | 🔥🔥🔥 | High | **DONE** | Recording |
 | Real-time transcription | 🔥🔥🔥 | High | Pending | Recording |
 | AI summaries (Ollama/OpenRouter) | 🔥🔥🔥 | Medium | Pending | AI |
 | Cross-meeting insights | 🔥🔥 | Medium | Pending | AI |
@@ -609,7 +608,7 @@ For now, we prioritize **privacy and accuracy** over real-time. Post-recording t
 - [ ] **Voice activity detection** to auto-start
 - [ ] **Wake word bookmarking** ("Hey Transcript, bookmark this")
 - [ ] **Quick notes during recording** (text annotations with timestamps)
-- [ ] System audio capture (record meetings, videos)
+- [x] System audio capture (record meetings, videos)
 - [ ] Multiple audio input selection
 - [ ] External mic support (USB, Bluetooth)
 - [ ] Automatic gain control
@@ -1113,7 +1112,7 @@ For now, we prioritize **privacy and accuracy** over real-time. Post-recording t
 | Day 10 PM | **Distribute beta** |
 
 ### End of Week 2 Checklist - MacWhisper Parity
-- [ ] System audio capture works
+- [x] System audio capture works
 - [ ] Video player with subtitles works
 - [ ] YouTube transcription works
 - [ ] Batch transcription works
@@ -1631,14 +1630,14 @@ sudo apt install libwebkit2gtk-4.0-dev libgtk-3-dev libayatana-appindicator3-dev
 The following features require manual testing and have not been fully validated in automated tests:
 
 ### System Audio Capture
-The system audio capture feature uses ScreenCaptureKit on macOS and requires manual testing:
+The system audio capture feature uses ScreenCaptureKit on macOS:
 1. Build the audio-capture-worker: `cd audio-capture-worker && swift build -c release`
 2. Test device listing: `./audio-capture-worker list-devices`
 3. Test microphone recording: `./audio-capture-worker record --output /tmp/test.wav`
 4. Test system audio capture: `./audio-capture-worker record --system-audio --output /tmp/test_sys.wav`
 5. Verify the screen recording permission flow works correctly (revoke and re-grant permissions)
 
-**Status**: Never tested end-to-end. Requires macOS with screen recording permissions.
+**Status**: Working. Tested on macOS with screen recording permissions.
 
 ### Speaker Diarization
 The speaker detection feature uses heuristic-based segmentation and needs verification:
