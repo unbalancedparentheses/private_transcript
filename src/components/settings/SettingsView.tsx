@@ -2,9 +2,18 @@ import { useState, useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useAppStore } from '../../stores/appStore';
 import { ModelManager } from './ModelManager';
-import { Button } from '../ui/Button';
+import { Button, Card, Switch, StatusDot } from '../ui';
 import { logger, type LogEntry, type LogLevel } from '../../lib/logger';
+import { useTheme, type Theme } from '../../hooks/useTheme';
 import type { OllamaStatus } from '../../types';
+import {
+  ArrowLeft,
+  RefreshCw,
+  Check,
+  Sun,
+  Moon,
+  Monitor,
+} from 'lucide-react';
 
 type Tab = 'models' | 'general' | 'storage' | 'logs' | 'about';
 
@@ -23,10 +32,9 @@ export function SettingsView() {
           <button
             onClick={() => setView('list')}
             className="w-6 h-6 rounded hover:bg-[var(--secondary)] flex items-center justify-center transition-colors"
+            aria-label="Go back"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M19 12H5M12 19l-7-7 7-7" />
-            </svg>
+            <ArrowLeft size={14} strokeWidth={2} aria-hidden="true" />
           </button>
           <h1 className="text-[13px] font-semibold text-[var(--foreground)]">Settings</h1>
         </div>
@@ -92,7 +100,7 @@ function GeneralSettings() {
   const [ollamaStatus, setOllamaStatus] = useState<OllamaStatus | null>(null);
   const [ollamaEndpoint, setOllamaEndpoint] = useState('http://localhost:11434');
   const [checkingOllama, setCheckingOllama] = useState(false);
-  const [theme, setTheme] = useState<'light' | 'dark' | 'system'>('system');
+  const { theme, setTheme } = useTheme();
   const [autoOpenExports, setAutoOpenExports] = useState(true);
   const [defaultExportFormat, setDefaultExportFormat] = useState<'markdown' | 'pdf' | 'docx'>('markdown');
   const [obsidianVaultPath, setObsidianVaultPath] = useState('');
@@ -100,9 +108,6 @@ function GeneralSettings() {
 
   useEffect(() => {
     // Load saved settings
-    const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | 'system' | null;
-    if (savedTheme) setTheme(savedTheme);
-
     const savedAutoOpen = localStorage.getItem('autoOpenExports');
     if (savedAutoOpen !== null) setAutoOpenExports(savedAutoOpen === 'true');
 
@@ -134,18 +139,8 @@ function GeneralSettings() {
     }
   };
 
-  const handleThemeChange = (newTheme: 'light' | 'dark' | 'system') => {
+  const handleThemeChange = (newTheme: Theme) => {
     setTheme(newTheme);
-    localStorage.setItem('theme', newTheme);
-
-    // Apply theme
-    const root = document.documentElement;
-    if (newTheme === 'system') {
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      root.classList.toggle('dark', prefersDark);
-    } else {
-      root.classList.toggle('dark', newTheme === 'dark');
-    }
   };
 
   const handleAutoOpenChange = (value: boolean) => {
@@ -177,20 +172,19 @@ function GeneralSettings() {
     <div className="p-4 max-w-xl space-y-6">
       {/* Ollama Connection Status */}
       <section className="space-y-2">
-        <h3 className="text-[11px] font-medium text-[var(--muted-foreground)] uppercase tracking-wide px-1">
-          Ollama Connection
-        </h3>
-        <div className="p-3 rounded-lg border border-[var(--border)] bg-[var(--card)] space-y-3">
+        <h3 className="section-header">Ollama Connection</h3>
+        <Card>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div
-                className={`w-2 h-2 rounded-full ${
+              <StatusDot
+                status={
                   ollamaStatus?.connected
-                    ? 'bg-[var(--success)]'
+                    ? 'success'
                     : ollamaStatus === null
-                    ? 'bg-[var(--warning)] animate-pulse'
-                    : 'bg-[var(--destructive)]'
-                }`}
+                    ? 'warning'
+                    : 'error'
+                }
+                pulse={ollamaStatus === null}
               />
               <span className="text-[13px] font-medium">
                 {ollamaStatus?.connected
@@ -206,6 +200,7 @@ function GeneralSettings() {
               onClick={checkOllamaStatus}
               disabled={checkingOllama}
             >
+              <RefreshCw size={12} className={checkingOllama ? 'animate-spin' : ''} aria-hidden="true" />
               Refresh
             </Button>
           </div>
@@ -230,7 +225,7 @@ function GeneralSettings() {
             <p className="text-[12px] text-[var(--destructive)]">{ollamaStatus.error}</p>
           )}
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 mt-3">
             <label className="text-[12px] text-[var(--muted-foreground)]">Endpoint:</label>
             <input
               type="text"
@@ -241,54 +236,51 @@ function GeneralSettings() {
               placeholder="http://localhost:11434"
             />
           </div>
-        </div>
+        </Card>
       </section>
 
       {/* Appearance */}
       <section className="space-y-2">
-        <h3 className="text-[11px] font-medium text-[var(--muted-foreground)] uppercase tracking-wide px-1">
-          Appearance
-        </h3>
-        <div className="p-3 rounded-lg border border-[var(--border)] bg-[var(--card)]">
+        <h3 className="section-header">Appearance</h3>
+        <Card>
           <div className="flex items-center justify-between">
             <label className="text-[13px] font-medium">Theme</label>
-            <div className="inline-flex p-0.5 rounded-md bg-[var(--secondary)]">
-              {(['light', 'dark', 'system'] as const).map((t) => (
+            <div className="segmented-control">
+              {([
+                { value: 'light', icon: Sun, label: 'Light' },
+                { value: 'dark', icon: Moon, label: 'Dark' },
+                { value: 'system', icon: Monitor, label: 'System' },
+              ] as const).map(({ value, icon: Icon, label }) => (
                 <button
-                  key={t}
-                  onClick={() => handleThemeChange(t)}
-                  className={`px-2.5 py-1 text-[12px] font-medium rounded transition-all ${
-                    theme === t
-                      ? 'bg-[var(--card)] text-[var(--foreground)] shadow-sm'
-                      : 'text-[var(--muted-foreground)]'
-                  }`}
+                  key={value}
+                  onClick={() => handleThemeChange(value)}
+                  data-active={theme === value}
+                  className="flex items-center gap-1.5"
+                  aria-label={`${label} theme`}
+                  aria-pressed={theme === value}
                 >
-                  {t.charAt(0).toUpperCase() + t.slice(1)}
+                  <Icon size={12} aria-hidden="true" />
+                  {label}
                 </button>
               ))}
             </div>
           </div>
-        </div>
+        </Card>
       </section>
 
       {/* Export Settings */}
       <section className="space-y-2">
-        <h3 className="text-[11px] font-medium text-[var(--muted-foreground)] uppercase tracking-wide px-1">
-          Export
-        </h3>
-        <div className="p-3 rounded-lg border border-[var(--border)] bg-[var(--card)] space-y-3">
+        <h3 className="section-header">Export</h3>
+        <Card className="space-y-3">
           <div className="flex items-center justify-between">
             <label className="text-[13px] font-medium">Default Format</label>
-            <div className="inline-flex p-0.5 rounded-md bg-[var(--secondary)]">
+            <div className="segmented-control">
               {(['markdown', 'pdf', 'docx'] as const).map((format) => (
                 <button
                   key={format}
                   onClick={() => handleDefaultFormatChange(format)}
-                  className={`px-2.5 py-1 text-[12px] font-medium rounded transition-all ${
-                    defaultExportFormat === format
-                      ? 'bg-[var(--card)] text-[var(--foreground)] shadow-sm'
-                      : 'text-[var(--muted-foreground)]'
-                  }`}
+                  data-active={defaultExportFormat === format}
+                  aria-pressed={defaultExportFormat === format}
                 >
                   {format.toUpperCase()}
                 </button>
@@ -298,36 +290,29 @@ function GeneralSettings() {
 
           <div className="flex items-center justify-between">
             <div>
-              <label className="text-[13px] font-medium">Auto-open exported files</label>
+              <label htmlFor="auto-open" className="text-[13px] font-medium">Auto-open exported files</label>
               <p className="text-[11px] text-[var(--muted-foreground)]">
                 Open in default application after export
               </p>
             </div>
-            <button
-              onClick={() => handleAutoOpenChange(!autoOpenExports)}
-              className={`w-9 h-5 rounded-full transition-colors ${
-                autoOpenExports ? 'bg-[var(--primary)]' : 'bg-[var(--border)]'
-              }`}
-            >
-              <div
-                className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${
-                  autoOpenExports ? 'translate-x-4' : 'translate-x-0.5'
-                }`}
-              />
-            </button>
+            <Switch
+              id="auto-open"
+              checked={autoOpenExports}
+              onChange={handleAutoOpenChange}
+              aria-label="Auto-open exported files"
+            />
           </div>
-        </div>
+        </Card>
       </section>
 
       {/* Obsidian Integration */}
       <section className="space-y-2">
-        <h3 className="text-[11px] font-medium text-[var(--muted-foreground)] uppercase tracking-wide px-1">
-          Obsidian
-        </h3>
-        <div className="p-3 rounded-lg border border-[var(--border)] bg-[var(--card)] space-y-3">
+        <h3 className="section-header">Obsidian</h3>
+        <Card className="space-y-3">
           <div>
-            <label className="text-[13px] font-medium mb-1 block">Vault Path</label>
+            <label htmlFor="vault-path" className="text-[13px] font-medium mb-1 block">Vault Path</label>
             <input
+              id="vault-path"
               type="text"
               value={obsidianVaultPath}
               onChange={(e) => handleObsidianVaultChange(e.target.value)}
@@ -338,8 +323,9 @@ function GeneralSettings() {
           </div>
 
           <div>
-            <label className="text-[13px] font-medium mb-1 block">Default Tags</label>
+            <label htmlFor="default-tags" className="text-[13px] font-medium mb-1 block">Default Tags</label>
             <input
+              id="default-tags"
               type="text"
               value={obsidianTags}
               onChange={(e) => handleObsidianTagsChange(e.target.value)}
@@ -351,46 +337,35 @@ function GeneralSettings() {
 
           {obsidianVaultPath && (
             <div className="flex items-center gap-1.5 text-[11px] text-[var(--success)]">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path d="M20 6L9 17l-5-5" />
-              </svg>
+              <Check size={12} strokeWidth={2.5} aria-hidden="true" />
               <span>Export enabled</span>
             </div>
           )}
-        </div>
+        </Card>
       </section>
 
       {/* Debug Settings */}
       <section className="space-y-2">
-        <h3 className="text-[11px] font-medium text-[var(--muted-foreground)] uppercase tracking-wide px-1">
-          Developer
-        </h3>
-        <div className="p-3 rounded-lg border border-[var(--border)] bg-[var(--card)]">
+        <h3 className="section-header">Developer</h3>
+        <Card>
           <div className="flex items-center justify-between">
             <div>
-              <label className="text-[13px] font-medium">Debug Logging</label>
+              <label htmlFor="debug-logging" className="text-[13px] font-medium">Debug Logging</label>
               <p className="text-[11px] text-[var(--muted-foreground)]">
                 Show detailed logs in console
               </p>
             </div>
-            <button
-              onClick={() => {
-                const current = localStorage.getItem('DEBUG') === 'true';
-                localStorage.setItem('DEBUG', String(!current));
+            <Switch
+              id="debug-logging"
+              checked={localStorage.getItem('DEBUG') === 'true'}
+              onChange={(checked) => {
+                localStorage.setItem('DEBUG', String(checked));
                 window.location.reload();
               }}
-              className={`w-9 h-5 rounded-full transition-colors ${
-                localStorage.getItem('DEBUG') === 'true' ? 'bg-[var(--primary)]' : 'bg-[var(--border)]'
-              }`}
-            >
-              <div
-                className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${
-                  localStorage.getItem('DEBUG') === 'true' ? 'translate-x-4' : 'translate-x-0.5'
-                }`}
-              />
-            </button>
+              aria-label="Enable debug logging"
+            />
           </div>
-        </div>
+        </Card>
       </section>
     </div>
   );

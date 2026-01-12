@@ -7,6 +7,10 @@ import { ChatPanel } from './components/chat';
 import { KeyboardShortcutsModal, useKeyboardShortcuts } from './components/ui/KeyboardShortcutsModal';
 import { useAppStore } from './stores/appStore';
 import { logger } from './lib/logger';
+import { initializeTheme } from './hooks/useTheme';
+
+// Initialize theme early to prevent flash
+initializeTheme();
 
 function App() {
   const { initialized, initialize, onboardingComplete } = useAppStore();

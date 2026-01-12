@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { Button } from './Button';
 
 interface Shortcut {
   keys: string[];

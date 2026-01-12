@@ -8,7 +8,7 @@ function TestComponent({ type = 'info' as ToastType, duration = 5000 }) {
 
   return (
     <div>
-      <button onClick={() => addToast('Test message', type, duration)}>Add Toast</button>
+      <button onClick={() => addToast('Test message', type, { duration })}>Add Toast</button>
       <button onClick={() => addToast('Success!', 'success')}>Add Success</button>
       <button onClick={() => addToast('Error!', 'error')}>Add Error</button>
       <button onClick={() => addToast('Warning!', 'warning')}>Add Warning</button>

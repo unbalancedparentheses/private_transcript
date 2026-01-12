@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { Sidebar } from './Sidebar';
+import type { Workspace, Folder } from '../../types';
 
 // Mock logger
 vi.mock('../../lib/logger', () => ({
@@ -25,12 +26,24 @@ const mockCreateFolder = vi.fn();
 const mockDeleteFolder = vi.fn();
 const mockSetView = vi.fn();
 
-const defaultMockState = {
+interface MockState {
+  workspaces: Workspace[];
+  currentWorkspace: Workspace | null;
+  folders: Folder[];
+  currentFolder: Folder | null;
+  selectWorkspace: typeof mockSelectWorkspace;
+  selectFolder: typeof mockSelectFolder;
+  createFolder: typeof mockCreateFolder;
+  deleteFolder: typeof mockDeleteFolder;
+  setView: typeof mockSetView;
+}
+
+const defaultMockState: MockState = {
   workspaces: [
-    { id: 'ws1', name: 'Personal', workspaceType: 'personal' },
-    { id: 'ws2', name: 'Work', workspaceType: 'personal' },
+    { id: 'ws1', name: 'Personal', workspaceType: 'general', createdAt: Date.now(), updatedAt: Date.now() },
+    { id: 'ws2', name: 'Work', workspaceType: 'general', createdAt: Date.now(), updatedAt: Date.now() },
   ],
-  currentWorkspace: { id: 'ws1', name: 'Personal', workspaceType: 'personal' },
+  currentWorkspace: { id: 'ws1', name: 'Personal', workspaceType: 'general', createdAt: Date.now(), updatedAt: Date.now() },
   folders: [],
   currentFolder: null,
   selectWorkspace: mockSelectWorkspace,
@@ -40,7 +53,15 @@ const defaultMockState = {
   setView: mockSetView,
 };
 
-let mockState = { ...defaultMockState };
+let mockState: MockState = { ...defaultMockState };
+
+// Helper to create properly typed mock folders
+const createMockFolder = (overrides: Partial<Folder> & { id: string; name: string; sessionCount: number }): Folder => ({
+  workspaceId: 'ws1',
+  createdAt: Date.now(),
+  updatedAt: Date.now(),
+  ...overrides,
+});
 
 vi.mock('../../stores/appStore', () => ({
   useAppStore: () => mockState,
@@ -101,8 +122,8 @@ describe('Sidebar', () => {
       mockState = {
         ...defaultMockState,
         folders: [
-          { id: 'f1', name: 'Meetings', sessionCount: 5 },
-          { id: 'f2', name: 'Notes', sessionCount: 3 },
+          createMockFolder({ id: 'f1', name: 'Meetings', sessionCount: 5 }),
+          createMockFolder({ id: 'f2', name: 'Notes', sessionCount: 3 }),
         ],
       };
       render(<Sidebar />);
@@ -115,7 +136,7 @@ describe('Sidebar', () => {
       mockState = {
         ...defaultMockState,
         folders: [
-          { id: 'f1', name: 'Meetings', sessionCount: 5 },
+          createMockFolder({ id: 'f1', name: 'Meetings', sessionCount: 5 }),
         ],
       };
       render(<Sidebar />);
@@ -127,7 +148,7 @@ describe('Sidebar', () => {
       mockState = {
         ...defaultMockState,
         folders: [
-          { id: 'f1', name: 'Empty', sessionCount: 0 },
+          createMockFolder({ id: 'f1', name: 'Empty', sessionCount: 0 }),
         ],
       };
       render(<Sidebar />);
@@ -136,7 +157,7 @@ describe('Sidebar', () => {
     });
 
     it('should highlight current folder', () => {
-      const folder = { id: 'f1', name: 'Meetings', sessionCount: 5 };
+      const folder = createMockFolder({ id: 'f1', name: 'Meetings', sessionCount: 5 });
       mockState = {
         ...defaultMockState,
         folders: [folder],
@@ -150,7 +171,7 @@ describe('Sidebar', () => {
     });
 
     it('should select folder on click', () => {
-      const folder = { id: 'f1', name: 'Meetings', sessionCount: 5 };
+      const folder = createMockFolder({ id: 'f1', name: 'Meetings', sessionCount: 5 });
       mockState = {
         ...defaultMockState,
         folders: [folder],
@@ -226,12 +247,12 @@ describe('Sidebar', () => {
       mockState = {
         ...defaultMockState,
         folders: [
-          { id: 'f1', name: 'Test Folder', sessionCount: 2 },
+          createMockFolder({ id: 'f1', name: 'Test Folder', sessionCount: 2 }),
         ],
       };
       render(<Sidebar />);
 
-      const deleteButton = screen.getByTitle('Delete folder');
+      const deleteButton = screen.getByLabelText(/Delete folder/);
       fireEvent.click(deleteButton);
 
       expect(screen.getByText('Delete Folder')).toBeInTheDocument();
@@ -242,12 +263,12 @@ describe('Sidebar', () => {
       mockState = {
         ...defaultMockState,
         folders: [
-          { id: 'f1', name: 'Test Folder', sessionCount: 2 },
+          createMockFolder({ id: 'f1', name: 'Test Folder', sessionCount: 2 }),
         ],
       };
       render(<Sidebar />);
 
-      const deleteButton = screen.getByTitle('Delete folder');
+      const deleteButton = screen.getByLabelText(/Delete folder/);
       fireEvent.click(deleteButton);
 
       const confirmButton = screen.getAllByText('Delete').find(btn =>
@@ -267,12 +288,12 @@ describe('Sidebar', () => {
       mockState = {
         ...defaultMockState,
         folders: [
-          { id: 'f1', name: 'Test Folder', sessionCount: 2 },
+          createMockFolder({ id: 'f1', name: 'Test Folder', sessionCount: 2 }),
         ],
       };
       render(<Sidebar />);
 
-      const deleteButton = screen.getByTitle('Delete folder');
+      const deleteButton = screen.getByLabelText(/Delete folder/);
       fireEvent.click(deleteButton);
 
       // Find cancel in the dialog
@@ -288,12 +309,12 @@ describe('Sidebar', () => {
       mockState = {
         ...defaultMockState,
         folders: [
-          { id: 'f1', name: 'Test Folder', sessionCount: 0 },
+          createMockFolder({ id: 'f1', name: 'Test Folder', sessionCount: 0 }),
         ],
       };
       render(<Sidebar />);
 
-      fireEvent.click(screen.getByTitle('Delete folder'));
+      fireEvent.click(screen.getByLabelText(/Delete folder/));
 
       const buttons = screen.getAllByRole('button');
       const deleteConfirm = buttons.find(btn =>
@@ -313,12 +334,12 @@ describe('Sidebar', () => {
       mockState = {
         ...defaultMockState,
         folders: [
-          { id: 'f1', name: 'Test Folder', sessionCount: 0 },
+          createMockFolder({ id: 'f1', name: 'Test Folder', sessionCount: 0 }),
         ],
       };
       render(<Sidebar />);
 
-      fireEvent.click(screen.getByTitle('Delete folder'));
+      fireEvent.click(screen.getByLabelText(/Delete folder/));
 
       const buttons = screen.getAllByRole('button');
       const deleteConfirm = buttons.find(btn =>
@@ -354,7 +375,7 @@ describe('Sidebar', () => {
         ...defaultMockState,
         workspaces: [],
         currentWorkspace: null,
-      };
+      } as MockState;
 
       // Should not throw
       expect(() => render(<Sidebar />)).not.toThrow();

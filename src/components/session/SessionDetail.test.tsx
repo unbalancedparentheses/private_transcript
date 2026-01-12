@@ -6,6 +6,15 @@ import { ToastProvider } from '../ui/Toast';
 // Mock scrollIntoView since jsdom doesn't support it
 Element.prototype.scrollIntoView = vi.fn();
 
+// Mock ResizeObserver for react-resizable-panels
+class ResizeObserverMock {
+  observe = vi.fn();
+  unobserve = vi.fn();
+  disconnect = vi.fn();
+}
+
+window.ResizeObserver = ResizeObserverMock as unknown as typeof ResizeObserver;
+
 // Mock session data
 const mockSession = {
   id: 'session-1',
@@ -65,12 +74,12 @@ describe('SessionDetail', () => {
 
     it('should render the back button', () => {
       renderWithToast(<SessionDetail />);
-      expect(screen.getByText('Back')).toBeInTheDocument();
+      expect(screen.getByLabelText('Go back to session list')).toBeInTheDocument();
     });
 
     it('should navigate back when back button is clicked', () => {
       renderWithToast(<SessionDetail />);
-      fireEvent.click(screen.getByText('Back'));
+      fireEvent.click(screen.getByLabelText('Go back to session list'));
       expect(mockSetView).toHaveBeenCalledWith('list');
     });
 
@@ -98,13 +107,13 @@ describe('SessionDetail', () => {
   describe('Search Functionality', () => {
     it('should show search button initially', () => {
       renderWithToast(<SessionDetail />);
-      const searchButton = screen.getByTitle('Search (Cmd+F)');
+      const searchButton = screen.getByLabelText('Search (Cmd+F)');
       expect(searchButton).toBeInTheDocument();
     });
 
     it('should open search input when search button is clicked', async () => {
       renderWithToast(<SessionDetail />);
-      const searchButton = screen.getByTitle('Search (Cmd+F)');
+      const searchButton = screen.getByLabelText('Search (Cmd+F)');
       fireEvent.click(searchButton);
 
       await waitFor(() => {
@@ -140,7 +149,7 @@ describe('SessionDetail', () => {
       renderWithToast(<SessionDetail />);
 
       // Open search
-      const searchButton = screen.getByTitle('Search (Cmd+F)');
+      const searchButton = screen.getByLabelText('Search (Cmd+F)');
       fireEvent.click(searchButton);
 
       await waitFor(() => {
@@ -161,7 +170,7 @@ describe('SessionDetail', () => {
       renderWithToast(<SessionDetail />);
 
       // Open search
-      fireEvent.click(screen.getByTitle('Search (Cmd+F)'));
+      fireEvent.click(screen.getByLabelText('Search (Cmd+F)'));
 
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Search...')).toBeInTheDocument();
@@ -181,7 +190,7 @@ describe('SessionDetail', () => {
       renderWithToast(<SessionDetail />);
 
       // Open search
-      fireEvent.click(screen.getByTitle('Search (Cmd+F)'));
+      fireEvent.click(screen.getByLabelText('Search (Cmd+F)'));
 
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Search...')).toBeInTheDocument();
@@ -200,7 +209,7 @@ describe('SessionDetail', () => {
       renderWithToast(<SessionDetail />);
 
       // Open search
-      fireEvent.click(screen.getByTitle('Search (Cmd+F)'));
+      fireEvent.click(screen.getByLabelText('Search (Cmd+F)'));
 
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Search...')).toBeInTheDocument();
@@ -219,11 +228,11 @@ describe('SessionDetail', () => {
       renderWithToast(<SessionDetail />);
 
       // Switch to plain text mode (speaker view is on by default)
-      const speakerToggle = screen.getByTitle(/plain text/i);
+      const speakerToggle = screen.getByLabelText(/plain text|speaker labels/i);
       fireEvent.click(speakerToggle);
 
       // Open search and type query
-      fireEvent.click(screen.getByTitle('Search (Cmd+F)'));
+      fireEvent.click(screen.getByLabelText('Search (Cmd+F)'));
       const searchInput = await screen.findByPlaceholderText('Search...');
       fireEvent.change(searchInput, { target: { value: 'test' } });
 
@@ -237,11 +246,11 @@ describe('SessionDetail', () => {
       renderWithToast(<SessionDetail />);
 
       // Switch to plain text mode (speaker view is on by default)
-      const speakerToggle = screen.getByTitle(/plain text/i);
+      const speakerToggle = screen.getByLabelText(/plain text|speaker labels/i);
       fireEvent.click(speakerToggle);
 
       // Open search and type query
-      fireEvent.click(screen.getByTitle('Search (Cmd+F)'));
+      fireEvent.click(screen.getByLabelText('Search (Cmd+F)'));
       const searchInput = await screen.findByPlaceholderText('Search...');
       fireEvent.change(searchInput, { target: { value: 'test' } });
 
@@ -256,7 +265,7 @@ describe('SessionDetail', () => {
       renderWithToast(<SessionDetail />);
 
       // Open search and type query
-      fireEvent.click(screen.getByTitle('Search (Cmd+F)'));
+      fireEvent.click(screen.getByLabelText('Search (Cmd+F)'));
       const searchInput = await screen.findByPlaceholderText('Search...');
       fireEvent.change(searchInput, { target: { value: 'test' } });
 
@@ -265,7 +274,7 @@ describe('SessionDetail', () => {
       });
 
       // Click next button
-      const nextButton = screen.getByTitle('Next match (Enter)');
+      const nextButton = screen.getByLabelText('Next match (Enter)');
       fireEvent.click(nextButton);
 
       await waitFor(() => {
@@ -277,7 +286,7 @@ describe('SessionDetail', () => {
       renderWithToast(<SessionDetail />);
 
       // Open search and type query
-      fireEvent.click(screen.getByTitle('Search (Cmd+F)'));
+      fireEvent.click(screen.getByLabelText('Search (Cmd+F)'));
       const searchInput = await screen.findByPlaceholderText('Search...');
       fireEvent.change(searchInput, { target: { value: 'test' } });
 
@@ -286,7 +295,7 @@ describe('SessionDetail', () => {
       });
 
       // Click previous button (should wrap to last)
-      const prevButton = screen.getByTitle('Previous match (Shift+Enter)');
+      const prevButton = screen.getByLabelText('Previous match (Shift+Enter)');
       fireEvent.click(prevButton);
 
       await waitFor(() => {
@@ -298,7 +307,7 @@ describe('SessionDetail', () => {
       renderWithToast(<SessionDetail />);
 
       // Open search and type query
-      fireEvent.click(screen.getByTitle('Search (Cmd+F)'));
+      fireEvent.click(screen.getByLabelText('Search (Cmd+F)'));
       const searchInput = await screen.findByPlaceholderText('Search...');
       fireEvent.change(searchInput, { target: { value: 'test' } });
 
@@ -320,7 +329,7 @@ describe('SessionDetail', () => {
       renderWithToast(<SessionDetail />);
 
       // Open search and type query
-      fireEvent.click(screen.getByTitle('Search (Cmd+F)'));
+      fireEvent.click(screen.getByLabelText('Search (Cmd+F)'));
       const searchInput = await screen.findByPlaceholderText('Search...');
       fireEvent.change(searchInput, { target: { value: 'test' } });
 
@@ -342,7 +351,7 @@ describe('SessionDetail', () => {
       renderWithToast(<SessionDetail />);
 
       // Open search and type query
-      fireEvent.click(screen.getByTitle('Search (Cmd+F)'));
+      fireEvent.click(screen.getByLabelText('Search (Cmd+F)'));
       const searchInput = await screen.findByPlaceholderText('Search...');
       fireEvent.change(searchInput, { target: { value: 'test' } });
 
@@ -350,7 +359,7 @@ describe('SessionDetail', () => {
         expect(screen.getByText('1/3')).toBeInTheDocument();
       });
 
-      const nextButton = screen.getByTitle('Next match (Enter)');
+      const nextButton = screen.getByLabelText('Next match (Enter)');
 
       // Navigate to 2/3
       fireEvent.click(nextButton);
@@ -375,7 +384,7 @@ describe('SessionDetail', () => {
       renderWithToast(<SessionDetail />);
 
       // Open search and type query
-      fireEvent.click(screen.getByTitle('Search (Cmd+F)'));
+      fireEvent.click(screen.getByLabelText('Search (Cmd+F)'));
       const searchInput = await screen.findByPlaceholderText('Search...');
       fireEvent.change(searchInput, { target: { value: 'test' } });
 
@@ -389,7 +398,7 @@ describe('SessionDetail', () => {
       });
 
       // Reopen search
-      fireEvent.click(screen.getByTitle('Search (Cmd+F)'));
+      fireEvent.click(screen.getByLabelText('Search (Cmd+F)'));
 
       await waitFor(() => {
         const newSearchInput = screen.getByPlaceholderText('Search...');
@@ -401,12 +410,12 @@ describe('SessionDetail', () => {
       renderWithToast(<SessionDetail />);
 
       // Open search and type query
-      fireEvent.click(screen.getByTitle('Search (Cmd+F)'));
+      fireEvent.click(screen.getByLabelText('Search (Cmd+F)'));
       const searchInput = await screen.findByPlaceholderText('Search...');
       fireEvent.change(searchInput, { target: { value: 'test' } });
 
       // Navigate to 2nd match
-      const nextButton = await screen.findByTitle('Next match (Enter)');
+      const nextButton = await screen.findByLabelText('Next match (Enter)');
       fireEvent.click(nextButton);
 
       await waitFor(() => {
@@ -426,15 +435,15 @@ describe('SessionDetail', () => {
       renderWithToast(<SessionDetail />);
 
       // Open search
-      fireEvent.click(screen.getByTitle('Search (Cmd+F)'));
+      fireEvent.click(screen.getByLabelText('Search (Cmd+F)'));
       const searchInput = await screen.findByPlaceholderText('Search...');
 
       // Search for something that doesn't exist
       fireEvent.change(searchInput, { target: { value: 'xyz123notfound' } });
 
       await waitFor(() => {
-        expect(screen.queryByTitle('Next match (Enter)')).not.toBeInTheDocument();
-        expect(screen.queryByTitle('Previous match (Shift+Enter)')).not.toBeInTheDocument();
+        expect(screen.queryByLabelText('Next match (Enter)')).not.toBeInTheDocument();
+        expect(screen.queryByLabelText('Previous match (Shift+Enter)')).not.toBeInTheDocument();
       });
     });
 
@@ -442,7 +451,7 @@ describe('SessionDetail', () => {
       renderWithToast(<SessionDetail />);
 
       // Open search but leave empty
-      fireEvent.click(screen.getByTitle('Search (Cmd+F)'));
+      fireEvent.click(screen.getByLabelText('Search (Cmd+F)'));
       await screen.findByPlaceholderText('Search...');
 
       // No highlights should be present
@@ -530,13 +539,13 @@ describe('SessionDetail - Speaker Labels', () => {
   it('should show speaker toggle button', () => {
     renderWithToast(<SessionDetail />);
     // When speaker view is on (default), title is "Show plain text"
-    const speakerButton = screen.getByTitle(/plain text/i);
+    const speakerButton = screen.getByLabelText(/plain text|speaker labels/i);
     expect(speakerButton).toBeInTheDocument();
   });
 
   it('should show speaker view by default', () => {
     renderWithToast(<SessionDetail />);
-    const speakerButton = screen.getByTitle(/plain text/i);
+    const speakerButton = screen.getByLabelText(/plain text|speaker labels/i);
 
     // Speaker view button should be active by default
     expect(speakerButton.className).toContain('bg-[var(--primary)]');
@@ -544,7 +553,7 @@ describe('SessionDetail - Speaker Labels', () => {
 
   it('should toggle to plain text view when clicked', async () => {
     renderWithToast(<SessionDetail />);
-    const speakerButton = screen.getByTitle(/plain text/i);
+    const speakerButton = screen.getByLabelText(/plain text|speaker labels/i);
 
     // Initially active (speaker view on)
     expect(speakerButton.className).toContain('bg-[var(--primary)]');
@@ -560,7 +569,7 @@ describe('SessionDetail - Speaker Labels', () => {
 
   it('should toggle back to speaker view', async () => {
     renderWithToast(<SessionDetail />);
-    const speakerButton = screen.getByTitle(/plain text/i);
+    const speakerButton = screen.getByLabelText(/plain text|speaker labels/i);
 
     // Disable speaker view
     fireEvent.click(speakerButton);
@@ -599,13 +608,13 @@ describe('SessionDetail - Audio Player', () => {
 
   it('should have skip backward button', () => {
     renderWithToast(<SessionDetail />);
-    const skipBackButton = screen.getByTitle('Skip back 10s');
+    const skipBackButton = screen.getByLabelText('Skip back 10 seconds');
     expect(skipBackButton).toBeInTheDocument();
   });
 
   it('should have skip forward button', () => {
     renderWithToast(<SessionDetail />);
-    const skipForwardButton = screen.getByTitle('Skip forward 10s');
+    const skipForwardButton = screen.getByLabelText('Skip forward 10 seconds');
     expect(skipForwardButton).toBeInTheDocument();
   });
 
@@ -734,8 +743,8 @@ describe('SessionDetail - Header', () => {
 
   it('should have back button with arrow icon', () => {
     renderWithToast(<SessionDetail />);
-    const backButton = screen.getByText('Back');
-    expect(backButton.closest('button')).toBeInTheDocument();
+    const backButton = screen.getByLabelText('Go back to session list');
+    expect(backButton).toBeInTheDocument();
   });
 });
 
@@ -770,13 +779,13 @@ describe('SessionDetail - Filler Word Removal', () => {
 
   it('should have filler word removal toggle button', () => {
     renderWithToast(<SessionDetail />);
-    const fillerButton = screen.getByTitle(/filler words/i);
+    const fillerButton = screen.getByLabelText(/filler words/i);
     expect(fillerButton).toBeInTheDocument();
   });
 
   it('should toggle filler word removal on click', () => {
     renderWithToast(<SessionDetail />);
-    const fillerButton = screen.getByTitle(/filler words/i);
+    const fillerButton = screen.getByLabelText(/filler words/i);
 
     // Initially should not have the active state
     expect(fillerButton).not.toHaveClass('bg-[var(--primary)]');
@@ -835,13 +844,13 @@ describe('SessionDetail - Compact Mode', () => {
 
   it('should have compact mode toggle button', () => {
     renderWithToast(<SessionDetail />);
-    const compactButton = screen.getByTitle(/compact|timestamps/i);
+    const compactButton = screen.getByLabelText(/compact|timestamps/i);
     expect(compactButton).toBeInTheDocument();
   });
 
   it('should toggle compact mode on click', () => {
     renderWithToast(<SessionDetail />);
-    const compactButton = screen.getByTitle(/compact|timestamps/i);
+    const compactButton = screen.getByLabelText(/compact|timestamps/i);
 
     // Click to enable compact mode
     fireEvent.click(compactButton);
@@ -862,7 +871,9 @@ describe('SessionDetail - Playback Speed', () => {
 
   it('should have playback speed button', () => {
     renderWithToast(<SessionDetail />);
-    expect(screen.getByTitle('Playback speed')).toBeInTheDocument();
+    // The speed button shows "1x" by default
+    const speedButtons = screen.getAllByText(/^\d\.?\d?x$/);
+    expect(speedButtons.length).toBeGreaterThan(0);
   });
 
   it('should have multiple speed options in dropdown', () => {

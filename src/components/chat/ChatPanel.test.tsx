@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ChatPanel } from './ChatPanel';
+import type { ChatMessage, ChatConversation, RetrievedChunk } from '../../stores/useChatStore';
 
 // Mock scrollIntoView
 Element.prototype.scrollIntoView = vi.fn();
@@ -13,7 +14,46 @@ const mockSelectConversation = vi.fn();
 const mockDeleteConversation = vi.fn();
 const mockSendMessage = vi.fn();
 
-const defaultMockState = {
+interface MockState {
+  isOpen: boolean;
+  toggle: typeof mockToggle;
+  messages: ChatMessage[];
+  isLoading: boolean;
+  streamingContent: string;
+  error: string | null;
+  conversations: ChatConversation[];
+  currentConversationId: string | null;
+  lastRetrievedChunks: RetrievedChunk[];
+  loadConversations: typeof mockLoadConversations;
+  createConversation: typeof mockCreateConversation;
+  selectConversation: typeof mockSelectConversation;
+  deleteConversation: typeof mockDeleteConversation;
+  sendMessage: typeof mockSendMessage;
+}
+
+const createMockMessage = (overrides: Partial<ChatMessage> & { id: string; content: string }): ChatMessage => ({
+  conversationId: 'conv1',
+  role: 'user',
+  createdAt: Date.now(),
+  ...overrides,
+});
+
+const createMockConversation = (overrides: Partial<ChatConversation> & { id: string }): ChatConversation => ({
+  title: null,
+  createdAt: Date.now(),
+  updatedAt: Date.now(),
+  ...overrides,
+});
+
+const createMockChunk = (overrides: Partial<RetrievedChunk> & { chunkId: string; sessionId: string }): RetrievedChunk => ({
+  sessionTitle: null,
+  text: 'content',
+  speaker: null,
+  similarity: 0.9,
+  ...overrides,
+});
+
+const defaultMockState: MockState = {
   isOpen: true,
   toggle: mockToggle,
   messages: [],
@@ -30,7 +70,7 @@ const defaultMockState = {
   sendMessage: mockSendMessage,
 };
 
-let mockState = { ...defaultMockState };
+let mockState: MockState = { ...defaultMockState };
 
 vi.mock('../../stores/useChatStore', () => ({
   useChatStore: () => mockState,
@@ -109,7 +149,7 @@ describe('ChatPanel', () => {
       mockState = {
         ...defaultMockState,
         messages: [
-          { id: '1', role: 'user', content: 'Hello!', conversationId: 'conv1', createdAt: 1000 },
+          createMockMessage({ id: '1', role: 'user', content: 'Hello!', createdAt: 1000 }),
         ],
       };
       render(<ChatPanel />);
@@ -121,7 +161,7 @@ describe('ChatPanel', () => {
       mockState = {
         ...defaultMockState,
         messages: [
-          { id: '1', role: 'assistant', content: 'Hi there!', conversationId: 'conv1', createdAt: 1000 },
+          createMockMessage({ id: '1', role: 'assistant', content: 'Hi there!', createdAt: 1000 }),
         ],
       };
       render(<ChatPanel />);
@@ -133,9 +173,9 @@ describe('ChatPanel', () => {
       mockState = {
         ...defaultMockState,
         messages: [
-          { id: '1', role: 'user', content: 'Question 1', conversationId: 'conv1', createdAt: 1000 },
-          { id: '2', role: 'assistant', content: 'Answer 1', conversationId: 'conv1', createdAt: 1001 },
-          { id: '3', role: 'user', content: 'Question 2', conversationId: 'conv1', createdAt: 1002 },
+          createMockMessage({ id: '1', role: 'user', content: 'Question 1', createdAt: 1000 }),
+          createMockMessage({ id: '2', role: 'assistant', content: 'Answer 1', createdAt: 1001 }),
+          createMockMessage({ id: '3', role: 'user', content: 'Question 2', createdAt: 1002 }),
         ],
       };
       render(<ChatPanel />);
@@ -149,14 +189,13 @@ describe('ChatPanel', () => {
       mockState = {
         ...defaultMockState,
         messages: [
-          {
+          createMockMessage({
             id: '1',
             role: 'assistant',
             content: 'Here is the answer',
-            conversationId: 'conv1',
             createdAt: 1000,
             sourceChunks: ['chunk1', 'chunk2', 'chunk3'],
-          },
+          }),
         ],
       };
       render(<ChatPanel />);
@@ -359,8 +398,8 @@ describe('ChatPanel', () => {
       mockState = {
         ...defaultMockState,
         conversations: [
-          { id: 'conv1', title: 'First Chat', createdAt: 1000, updatedAt: 1000 },
-          { id: 'conv2', title: 'Second Chat', createdAt: 2000, updatedAt: 2000 },
+          createMockConversation({ id: 'conv1', title: 'First Chat', createdAt: 1000, updatedAt: 1000 }),
+          createMockConversation({ id: 'conv2', title: 'Second Chat', createdAt: 2000, updatedAt: 2000 }),
         ],
       };
       render(<ChatPanel />);
@@ -414,7 +453,7 @@ describe('ChatPanel', () => {
       mockState = {
         ...defaultMockState,
         conversations: [
-          { id: 'conv1', title: 'Test Chat', createdAt: 1000, updatedAt: 1000 },
+          createMockConversation({ id: 'conv1', title: 'Test Chat', createdAt: 1000, updatedAt: 1000 }),
         ],
       };
       render(<ChatPanel />);
@@ -439,7 +478,7 @@ describe('ChatPanel', () => {
       mockState = {
         ...defaultMockState,
         conversations: [
-          { id: 'conv1', title: '', createdAt: 1000, updatedAt: 1000 },
+          createMockConversation({ id: 'conv1', title: '', createdAt: 1000, updatedAt: 1000 }),
         ],
       };
       render(<ChatPanel />);
@@ -459,11 +498,11 @@ describe('ChatPanel', () => {
       mockState = {
         ...defaultMockState,
         messages: [
-          { id: '1', role: 'user', content: 'test', conversationId: 'conv1', createdAt: 1000 },
+          createMockMessage({ id: '1', role: 'user', content: 'test', createdAt: 1000 }),
         ],
         lastRetrievedChunks: [
-          { chunkId: '1', sessionId: 's1', sessionTitle: 'Meeting 1', text: 'content', speaker: null, similarity: 0.9 },
-          { chunkId: '2', sessionId: 's2', sessionTitle: 'Meeting 2', text: 'content', speaker: null, similarity: 0.8 },
+          createMockChunk({ chunkId: '1', sessionId: 's1', sessionTitle: 'Meeting 1', similarity: 0.9 }),
+          createMockChunk({ chunkId: '2', sessionId: 's2', sessionTitle: 'Meeting 2', similarity: 0.8 }),
         ],
       };
       render(<ChatPanel />);
@@ -477,10 +516,10 @@ describe('ChatPanel', () => {
       mockState = {
         ...defaultMockState,
         messages: [
-          { id: '1', role: 'user', content: 'test', conversationId: 'conv1', createdAt: 1000 },
+          createMockMessage({ id: '1', role: 'user', content: 'test', createdAt: 1000 }),
         ],
         lastRetrievedChunks: [
-          { chunkId: '1', sessionId: 's1', sessionTitle: null, text: 'content', speaker: null, similarity: 0.9 },
+          createMockChunk({ chunkId: '1', sessionId: 's1', sessionTitle: null, similarity: 0.9 }),
         ],
       };
       render(<ChatPanel />);
@@ -492,14 +531,14 @@ describe('ChatPanel', () => {
       mockState = {
         ...defaultMockState,
         messages: [
-          { id: '1', role: 'user', content: 'test', conversationId: 'conv1', createdAt: 1000 },
+          createMockMessage({ id: '1', role: 'user', content: 'test', createdAt: 1000 }),
         ],
         lastRetrievedChunks: [
-          { chunkId: '1', sessionId: 's1', sessionTitle: 'Meeting 1', text: 'content', speaker: null, similarity: 0.9 },
-          { chunkId: '2', sessionId: 's2', sessionTitle: 'Meeting 2', text: 'content', speaker: null, similarity: 0.8 },
-          { chunkId: '3', sessionId: 's3', sessionTitle: 'Meeting 3', text: 'content', speaker: null, similarity: 0.7 },
-          { chunkId: '4', sessionId: 's4', sessionTitle: 'Meeting 4', text: 'content', speaker: null, similarity: 0.6 },
-          { chunkId: '5', sessionId: 's5', sessionTitle: 'Meeting 5', text: 'content', speaker: null, similarity: 0.5 },
+          createMockChunk({ chunkId: '1', sessionId: 's1', sessionTitle: 'Meeting 1', similarity: 0.9 }),
+          createMockChunk({ chunkId: '2', sessionId: 's2', sessionTitle: 'Meeting 2', similarity: 0.8 }),
+          createMockChunk({ chunkId: '3', sessionId: 's3', sessionTitle: 'Meeting 3', similarity: 0.7 }),
+          createMockChunk({ chunkId: '4', sessionId: 's4', sessionTitle: 'Meeting 4', similarity: 0.6 }),
+          createMockChunk({ chunkId: '5', sessionId: 's5', sessionTitle: 'Meeting 5', similarity: 0.5 }),
         ],
       };
       render(<ChatPanel />);
@@ -517,7 +556,7 @@ describe('ChatPanel', () => {
         ...defaultMockState,
         messages: [],
         lastRetrievedChunks: [
-          { chunkId: '1', sessionId: 's1', sessionTitle: 'Meeting 1', text: 'content', speaker: null, similarity: 0.9 },
+          createMockChunk({ chunkId: '1', sessionId: 's1', sessionTitle: 'Meeting 1', similarity: 0.9 }),
         ],
       };
       render(<ChatPanel />);

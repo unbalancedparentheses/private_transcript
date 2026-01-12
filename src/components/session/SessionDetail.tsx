@@ -2,10 +2,33 @@ import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from 'react-resizable-panels';
 import { useAppStore } from '../../stores/appStore';
-import { Button } from '../ui/Button';
+import { Button, Dialog, DialogActions } from '../ui';
 import { useToast } from '../ui/Toast';
 import type { TranscriptSegment, LlmStreamEvent } from '../../types';
+import {
+  ArrowLeft,
+  ChevronRight,
+  ChevronDown,
+  ChevronUp,
+  Search,
+  Users,
+  List,
+  PenLine,
+  Star,
+  RefreshCw,
+  Copy,
+  Check,
+  Play,
+  Pause,
+  SkipBack,
+  SkipForward,
+  Trash2,
+  X,
+  Download,
+  Circle,
+} from 'lucide-react';
 import {
   parseTranscriptIntoSegments,
   parseInlineSpeakerLabels,
@@ -623,22 +646,18 @@ export function SessionDetail() {
           <button
             onClick={() => setView('list')}
             className="flex items-center gap-1 text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors group"
+            aria-label="Go back to session list"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-                 className="group-hover:-translate-x-0.5 transition-transform">
-              <path d="M19 12H5M12 19l-7-7 7-7" />
-            </svg>
+            <ArrowLeft size={16} strokeWidth={2} className="group-hover:-translate-x-0.5 transition-transform" aria-hidden="true" />
           </button>
           {/* Breadcrumb navigation */}
-          <nav className="flex items-center gap-1.5 text-xs">
+          <nav className="flex items-center gap-1.5 text-xs" aria-label="Breadcrumb">
             {currentWorkspace && (
               <>
                 <span className="text-[var(--muted-foreground)] truncate max-w-[100px]">
                   {currentWorkspace.name}
                 </span>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--muted-foreground)" strokeWidth="2">
-                  <path d="M9 18l6-6-6-6" />
-                </svg>
+                <ChevronRight size={12} className="text-[var(--muted-foreground)]" aria-hidden="true" />
               </>
             )}
             {currentFolder && (
@@ -649,9 +668,7 @@ export function SessionDetail() {
                 >
                   {currentFolder.name}
                 </button>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--muted-foreground)" strokeWidth="2">
-                  <path d="M9 18l6-6-6-6" />
-                </svg>
+                <ChevronRight size={12} className="text-[var(--muted-foreground)]" aria-hidden="true" />
               </>
             )}
             <span className="font-medium text-[var(--foreground)] truncate max-w-[150px]">
@@ -682,10 +699,9 @@ export function SessionDetail() {
           </Button>
           <div className="relative group">
             <Button variant="secondary" size="sm">
+              <Download size={12} aria-hidden="true" />
               Export
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M6 9l6 6 6-6" />
-              </svg>
+              <ChevronDown size={12} aria-hidden="true" />
             </Button>
             <div className="absolute right-0 top-full mt-1 py-1 w-32 bg-[var(--card)] border border-[var(--border)] rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
               <button
@@ -724,10 +740,7 @@ export function SessionDetail() {
                 onClick={() => handleExport('obsidian')}
                 className="w-full px-3 py-1.5 text-xs text-left hover:bg-[var(--muted)] transition-colors flex items-center gap-1.5"
               >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="12" cy="12" r="10" />
-                  <polygon points="10 8 16 12 10 16 10 8" />
-                </svg>
+                <Circle size={12} aria-hidden="true" />
                 Obsidian
               </button>
             </div>
@@ -737,11 +750,9 @@ export function SessionDetail() {
             size="sm"
             onClick={handleDeleteSession}
             className="text-[var(--destructive)] hover:bg-[var(--destructive)]/10"
-            title="Delete session"
+            aria-label="Delete session"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M3 6h18M8 6V4h8v2M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M10 11v6M14 11v6" />
-            </svg>
+            <Trash2 size={14} aria-hidden="true" />
           </Button>
         </div>
       </header>
@@ -777,35 +788,27 @@ export function SessionDetail() {
               <button
                 onClick={skipBackward}
                 className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-[var(--muted)] transition-colors"
-                title="Skip back 10s"
+                aria-label="Skip back 10 seconds"
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M1 4v6h6M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
-                </svg>
+                <SkipBack size={14} aria-hidden="true" />
               </button>
               <button
                 onClick={togglePlayPause}
                 className="w-9 h-9 flex items-center justify-center rounded-full bg-[var(--primary)] text-white hover:opacity-90 transition-opacity"
+                aria-label={isPlaying ? 'Pause' : 'Play'}
               >
                 {isPlaying ? (
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                    <rect x="6" y="4" width="4" height="16" rx="1" />
-                    <rect x="14" y="4" width="4" height="16" rx="1" />
-                  </svg>
+                  <Pause size={16} fill="currentColor" aria-hidden="true" />
                 ) : (
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M8 5v14l11-7z" />
-                  </svg>
+                  <Play size={16} fill="currentColor" className="ml-0.5" aria-hidden="true" />
                 )}
               </button>
               <button
                 onClick={skipForward}
                 className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-[var(--muted)] transition-colors"
-                title="Skip forward 10s"
+                aria-label="Skip forward 10 seconds"
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M23 4v6h-6M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
-                </svg>
+                <SkipForward size={14} aria-hidden="true" />
               </button>
             </div>
 
@@ -867,10 +870,10 @@ export function SessionDetail() {
         </div>
       ) : null}
 
-      {/* Two-column layout */}
-      <div className="flex-1 flex overflow-hidden">
+      {/* Two-column layout with resizable panels */}
+      <PanelGroup orientation="horizontal" className="flex-1">
         {/* Transcript Column */}
-        <div className="flex-1 flex flex-col border-r border-[var(--border)]">
+        <Panel defaultSize={50} minSize={30} className="flex flex-col">
           <div className="px-4 py-2.5 border-b border-[var(--border)] flex items-center justify-between gap-2">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-[var(--muted-foreground)]">
               Transcript
@@ -889,18 +892,7 @@ export function SessionDetail() {
                       className="h-7 w-40 pl-7 pr-2 text-xs rounded-md border border-[var(--border)] bg-[var(--background)]
                                  focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]"
                     />
-                    <svg
-                      width="12"
-                      height="12"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      className="absolute left-2 top-1/2 -translate-y-1/2 text-[var(--muted-foreground)]"
-                    >
-                      <circle cx="11" cy="11" r="8" />
-                      <path d="m21 21-4.35-4.35" />
-                    </svg>
+                    <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-[var(--muted-foreground)]" aria-hidden="true" />
                   </div>
                   {searchMatches.length > 0 && (
                     <>
@@ -910,20 +902,16 @@ export function SessionDetail() {
                       <button
                         onClick={goToPreviousMatch}
                         className="w-6 h-6 flex items-center justify-center rounded hover:bg-[var(--muted)] transition-colors"
-                        title="Previous match (Shift+Enter)"
+                        aria-label="Previous match (Shift+Enter)"
                       >
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M18 15l-6-6-6 6" />
-                        </svg>
+                        <ChevronUp size={12} aria-hidden="true" />
                       </button>
                       <button
                         onClick={goToNextMatch}
                         className="w-6 h-6 flex items-center justify-center rounded hover:bg-[var(--muted)] transition-colors"
-                        title="Next match (Enter)"
+                        aria-label="Next match (Enter)"
                       >
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M6 9l6 6 6-6" />
-                        </svg>
+                        <ChevronDown size={12} aria-hidden="true" />
                       </button>
                     </>
                   )}
@@ -933,10 +921,9 @@ export function SessionDetail() {
                       setSearchQuery('');
                     }}
                     className="w-6 h-6 flex items-center justify-center rounded hover:bg-[var(--muted)] transition-colors"
+                    aria-label="Close search"
                   >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M18 6L6 18M6 6l12 12" />
-                    </svg>
+                    <X size={12} aria-hidden="true" />
                   </button>
                 </div>
               ) : (
@@ -946,12 +933,9 @@ export function SessionDetail() {
                     setTimeout(() => searchInputRef.current?.focus(), 0);
                   }}
                   className="w-7 h-7 flex items-center justify-center rounded hover:bg-[var(--muted)] transition-colors"
-                  title="Search (Cmd+F)"
+                  aria-label="Search (Cmd+F)"
                 >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="11" cy="11" r="8" />
-                    <path d="m21 21-4.35-4.35" />
-                  </svg>
+                  <Search size={14} aria-hidden="true" />
                 </button>
               )}
               {/* Speaker View Toggle */}
@@ -962,14 +946,10 @@ export function SessionDetail() {
                     ? 'bg-[var(--primary)] text-white'
                     : 'hover:bg-[var(--muted)]'
                 }`}
-                title={showSpeakerView ? 'Show plain text' : 'Show speaker labels'}
+                aria-label={showSpeakerView ? 'Show plain text' : 'Show speaker labels'}
+                aria-pressed={showSpeakerView}
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                  <circle cx="9" cy="7" r="4" />
-                  <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                </svg>
+                <Users size={14} aria-hidden="true" />
               </button>
               {/* Compact Mode Toggle */}
               <button
@@ -979,11 +959,10 @@ export function SessionDetail() {
                     ? 'bg-[var(--primary)] text-white'
                     : 'hover:bg-[var(--muted)]'
                 }`}
-                title={compactMode ? 'Show timestamps' : 'Hide timestamps (compact)'}
+                aria-label={compactMode ? 'Show timestamps' : 'Hide timestamps (compact)'}
+                aria-pressed={compactMode}
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M4 6h16M4 12h10M4 18h16" />
-                </svg>
+                <List size={14} aria-hidden="true" />
               </button>
               {/* Filler Word Removal Toggle */}
               <button
@@ -993,11 +972,10 @@ export function SessionDetail() {
                     ? 'bg-[var(--primary)] text-white'
                     : 'hover:bg-[var(--muted)]'
                 }`}
-                title={removeFillers ? 'Show filler words' : 'Remove filler words (um, uh, like)'}
+                aria-label={removeFillers ? 'Show filler words' : 'Remove filler words (um, uh, like)'}
+                aria-pressed={removeFillers}
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
-                </svg>
+                <PenLine size={14} aria-hidden="true" />
               </button>
               {/* Favorites Filter Toggle */}
               <button
@@ -1007,11 +985,10 @@ export function SessionDetail() {
                     ? 'bg-[var(--primary)] text-white'
                     : 'hover:bg-[var(--muted)]'
                 }`}
-                title={showFavoritesOnly ? 'Show all segments' : 'Show favorites only'}
+                aria-label={showFavoritesOnly ? 'Show all segments' : 'Show favorites only'}
+                aria-pressed={showFavoritesOnly}
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill={showFavoritesOnly ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
-                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                </svg>
+                <Star size={14} fill={showFavoritesOnly ? 'currentColor' : 'none'} aria-hidden="true" />
               </button>
               {favoritedIndices.size > 0 && (
                 <span className="text-[10px] text-[var(--muted-foreground)] tabular-nums">
@@ -1023,12 +1000,9 @@ export function SessionDetail() {
                 <button
                   onClick={handleRegenerateTranscript}
                   className="w-7 h-7 flex items-center justify-center rounded hover:bg-[var(--muted)] transition-colors"
-                  title="Regenerate transcript"
+                  aria-label="Regenerate transcript"
                 >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M1 4v6h6M23 20v-6h-6" />
-                    <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" />
-                  </svg>
+                  <RefreshCw size={14} aria-hidden="true" />
                 </button>
               )}
               <Button
@@ -1039,13 +1013,14 @@ export function SessionDetail() {
               >
                 {copiedId === 'transcript' ? (
                   <span className="flex items-center gap-1 text-[var(--success)] animate-checkmark">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                      <path d="M20 6L9 17l-5-5" />
-                    </svg>
+                    <Check size={12} strokeWidth={2.5} aria-hidden="true" />
                     Copied
                   </span>
                 ) : (
-                  'Copy'
+                  <>
+                    <Copy size={12} aria-hidden="true" />
+                    Copy
+                  </>
                 )}
               </Button>
               {editingTranscript ? (
@@ -1053,9 +1028,7 @@ export function SessionDetail() {
                   <Button size="sm" onClick={handleSaveTranscript} className="h-7 px-2 text-xs">
                     {savedFeedback ? (
                       <span className="flex items-center gap-1 animate-checkmark">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                          <path d="M20 6L9 17l-5-5" />
-                        </svg>
+                        <Check size={12} strokeWidth={2.5} aria-hidden="true" />
                         Saved
                       </span>
                     ) : (
@@ -1264,10 +1237,12 @@ export function SessionDetail() {
               </div>
             )}
           </div>
-        </div>
+        </Panel>
+
+        <PanelResizeHandle className="w-px bg-[var(--border)] hover:bg-[var(--primary)] transition-colors cursor-col-resize" />
 
         {/* Notes Column */}
-        <div className="flex-1 flex flex-col">
+        <Panel defaultSize={50} minSize={30} className="flex flex-col">
           <div className="px-4 py-2.5 border-b border-[var(--border)] flex items-center justify-between">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-[var(--muted-foreground)]">
               Notes
@@ -1368,72 +1343,44 @@ export function SessionDetail() {
               </div>
             )}
           </div>
-        </div>
-      </div>
+        </Panel>
+      </PanelGroup>
 
       {/* Retranscribe Confirmation Dialog */}
-      {showRetranscribeConfirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-[var(--card)] rounded-lg shadow-xl p-4 max-w-sm w-full mx-4 border border-[var(--border)]">
-            <h3 className="text-[15px] font-semibold text-[var(--foreground)] mb-2">
-              Regenerate Transcript
-            </h3>
-            <p className="text-[13px] text-[var(--muted-foreground)] mb-4">
-              Are you sure you want to regenerate the transcript? This will replace the current transcript.
-            </p>
-            <div className="flex gap-2 justify-end">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowRetranscribeConfirm(false)}
-                className="text-[13px]"
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={confirmRetranscribe}
-                className="text-[13px]"
-              >
-                Regenerate
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Dialog
+        open={showRetranscribeConfirm}
+        onClose={() => setShowRetranscribeConfirm(false)}
+        title="Regenerate Transcript"
+        description="Are you sure you want to regenerate the transcript? This will replace the current transcript."
+        showClose={false}
+      >
+        <DialogActions>
+          <Button variant="ghost" size="sm" onClick={() => setShowRetranscribeConfirm(false)}>
+            Cancel
+          </Button>
+          <Button variant="primary" size="sm" onClick={confirmRetranscribe}>
+            Regenerate
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Delete Session Confirmation Dialog */}
-      {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-[var(--card)] rounded-lg shadow-xl p-4 max-w-sm w-full mx-4 border border-[var(--border)]">
-            <h3 className="text-[15px] font-semibold text-[var(--foreground)] mb-2">
-              Delete Session
-            </h3>
-            <p className="text-[13px] text-[var(--muted-foreground)] mb-4">
-              Are you sure you want to delete "{currentSession?.title || 'this session'}"? This will also delete the audio file. This action cannot be undone.
-            </p>
-            <div className="flex gap-2 justify-end">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowDeleteConfirm(false)}
-                className="text-[13px]"
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={confirmDeleteSession}
-                className="text-[13px]"
-              >
-                Delete
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Dialog
+        open={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        title="Delete Session"
+        description={`Are you sure you want to delete "${currentSession?.title || 'this session'}"? This will also delete the audio file. This action cannot be undone.`}
+        showClose={false}
+      >
+        <DialogActions>
+          <Button variant="ghost" size="sm" onClick={() => setShowDeleteConfirm(false)}>
+            Cancel
+          </Button>
+          <Button variant="destructive" size="sm" onClick={confirmDeleteSession}>
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
     </main>
   );
 }

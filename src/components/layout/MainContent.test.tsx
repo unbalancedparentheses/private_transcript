@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MainContent } from './MainContent';
+import type { Workspace, Folder, Session, SessionStatus } from '../../types';
+import type { ViewType } from '../../stores/useUIStore';
 
 // Mock child components
 vi.mock('../recording/RecordingView', () => ({
@@ -19,17 +21,43 @@ vi.mock('../settings/SettingsView', () => ({
 const mockSetView = vi.fn();
 const mockSelectSession = vi.fn();
 
-const defaultMockState = {
-  currentWorkspace: { id: 'ws1', name: 'Personal', workspaceType: 'personal' },
+interface MockState {
+  currentWorkspace: Workspace | null;
+  currentFolder: Folder | null;
+  sessions: Session[];
+  currentSession: Session | null;
+  view: ViewType;
+  setView: typeof mockSetView;
+  selectSession: typeof mockSelectSession;
+}
+
+const createMockFolder = (overrides: { id: string; name: string; sessionCount: number }): Folder => ({
+  workspaceId: 'ws1',
+  createdAt: Date.now(),
+  updatedAt: Date.now(),
+  ...overrides,
+});
+
+const createMockSession = (overrides: { id: string; title?: string; status?: SessionStatus; transcript?: string; createdAt?: number }): Session => ({
+  folderId: 'f1',
+  audioPath: '/path/to/audio.wav',
+  status: 'complete',
+  createdAt: Date.now(),
+  updatedAt: Date.now(),
+  ...overrides,
+});
+
+const defaultMockState: MockState = {
+  currentWorkspace: { id: 'ws1', name: 'Personal', workspaceType: 'general', createdAt: Date.now(), updatedAt: Date.now() },
   currentFolder: null,
   sessions: [],
   currentSession: null,
-  view: 'home',
+  view: 'list',
   setView: mockSetView,
   selectSession: mockSelectSession,
 };
 
-let mockState = { ...defaultMockState };
+let mockState: MockState = { ...defaultMockState };
 
 vi.mock('../../stores/appStore', () => ({
   useAppStore: () => mockState,
@@ -52,7 +80,7 @@ describe('MainContent', () => {
       mockState = {
         ...defaultMockState,
         view: 'session',
-        currentSession: { id: 's1', title: 'Test Session' },
+        currentSession: createMockSession({ id: 's1', title: 'Test Session' }),
       };
       render(<MainContent />);
       expect(screen.getByTestId('session-detail')).toBeInTheDocument();
@@ -94,7 +122,7 @@ describe('MainContent', () => {
     it('should show empty state when folder has no sessions', () => {
       mockState = {
         ...defaultMockState,
-        currentFolder: { id: 'f1', name: 'Test Folder', sessionCount: 0 },
+        currentFolder: createMockFolder({ id: 'f1', name: 'Test Folder', sessionCount: 0 }),
         sessions: [],
       };
       render(<MainContent />);
@@ -105,7 +133,7 @@ describe('MainContent', () => {
     it('should show Start Recording button in empty state', () => {
       mockState = {
         ...defaultMockState,
-        currentFolder: { id: 'f1', name: 'Test Folder', sessionCount: 0 },
+        currentFolder: createMockFolder({ id: 'f1', name: 'Test Folder', sessionCount: 0 }),
         sessions: [],
       };
       render(<MainContent />);
@@ -115,7 +143,7 @@ describe('MainContent', () => {
     it('should navigate to recording when Start Recording clicked', () => {
       mockState = {
         ...defaultMockState,
-        currentFolder: { id: 'f1', name: 'Test Folder', sessionCount: 0 },
+        currentFolder: createMockFolder({ id: 'f1', name: 'Test Folder', sessionCount: 0 }),
         sessions: [],
       };
       render(<MainContent />);
@@ -126,7 +154,7 @@ describe('MainContent', () => {
     it('should display folder name in header', () => {
       mockState = {
         ...defaultMockState,
-        currentFolder: { id: 'f1', name: 'Test Folder', sessionCount: 0 },
+        currentFolder: createMockFolder({ id: 'f1', name: 'Test Folder', sessionCount: 0 }),
         sessions: [],
       };
       render(<MainContent />);
@@ -138,7 +166,7 @@ describe('MainContent', () => {
     it('should show Record button when folder is selected', () => {
       mockState = {
         ...defaultMockState,
-        currentFolder: { id: 'f1', name: 'Test Folder', sessionCount: 0 },
+        currentFolder: createMockFolder({ id: 'f1', name: 'Test Folder', sessionCount: 0 }),
         sessions: [],
       };
       render(<MainContent />);
@@ -148,7 +176,7 @@ describe('MainContent', () => {
     it('should navigate to recording when Record button clicked', () => {
       mockState = {
         ...defaultMockState,
-        currentFolder: { id: 'f1', name: 'Test Folder', sessionCount: 0 },
+        currentFolder: createMockFolder({ id: 'f1', name: 'Test Folder', sessionCount: 0 }),
         sessions: [],
       };
       render(<MainContent />);
@@ -159,11 +187,11 @@ describe('MainContent', () => {
     it('should show session count in header when folder has sessions', () => {
       mockState = {
         ...defaultMockState,
-        currentFolder: { id: 'f1', name: 'Test Folder', sessionCount: 3 },
+        currentFolder: createMockFolder({ id: 'f1', name: 'Test Folder', sessionCount: 3 }),
         sessions: [
-          { id: 's1', title: 'Session 1', status: 'complete', createdAt: Date.now() / 1000 },
-          { id: 's2', title: 'Session 2', status: 'complete', createdAt: Date.now() / 1000 },
-          { id: 's3', title: 'Session 3', status: 'complete', createdAt: Date.now() / 1000 },
+          createMockSession({ id: 's1', title: 'Session 1', status: 'complete', createdAt: Date.now() / 1000 }),
+          createMockSession({ id: 's2', title: 'Session 2', status: 'complete', createdAt: Date.now() / 1000 }),
+          createMockSession({ id: 's3', title: 'Session 3', status: 'complete', createdAt: Date.now() / 1000 }),
         ],
       };
       render(<MainContent />);
@@ -175,10 +203,10 @@ describe('MainContent', () => {
     it('should display sessions', () => {
       mockState = {
         ...defaultMockState,
-        currentFolder: { id: 'f1', name: 'Test Folder', sessionCount: 2 },
+        currentFolder: createMockFolder({ id: 'f1', name: 'Test Folder', sessionCount: 2 }),
         sessions: [
-          { id: 's1', title: 'Meeting Notes', status: 'complete', transcript: 'Discussion about project', createdAt: Date.now() / 1000 },
-          { id: 's2', title: 'Interview', status: 'complete', transcript: 'Candidate evaluation', createdAt: Date.now() / 1000 },
+          createMockSession({ id: 's1', title: 'Meeting Notes', status: 'complete', transcript: 'Discussion about project', createdAt: Date.now() / 1000 }),
+          createMockSession({ id: 's2', title: 'Interview', status: 'complete', transcript: 'Candidate evaluation', createdAt: Date.now() / 1000 }),
         ],
       };
       render(<MainContent />);
@@ -189,9 +217,9 @@ describe('MainContent', () => {
     it('should show transcript preview', () => {
       mockState = {
         ...defaultMockState,
-        currentFolder: { id: 'f1', name: 'Test Folder', sessionCount: 1 },
+        currentFolder: createMockFolder({ id: 'f1', name: 'Test Folder', sessionCount: 1 }),
         sessions: [
-          { id: 's1', title: 'Session', status: 'complete', transcript: 'This is a preview of the transcript content', createdAt: Date.now() / 1000 },
+          createMockSession({ id: 's1', title: 'Session', status: 'complete', transcript: 'This is a preview of the transcript content', createdAt: Date.now() / 1000 }),
         ],
       };
       render(<MainContent />);
@@ -202,9 +230,9 @@ describe('MainContent', () => {
       const longTranscript = 'A'.repeat(100);
       mockState = {
         ...defaultMockState,
-        currentFolder: { id: 'f1', name: 'Test Folder', sessionCount: 1 },
+        currentFolder: createMockFolder({ id: 'f1', name: 'Test Folder', sessionCount: 1 }),
         sessions: [
-          { id: 's1', title: 'Session', status: 'complete', transcript: longTranscript, createdAt: Date.now() / 1000 },
+          createMockSession({ id: 's1', title: 'Session', status: 'complete', transcript: longTranscript, createdAt: Date.now() / 1000 }),
         ],
       };
       render(<MainContent />);
@@ -212,10 +240,10 @@ describe('MainContent', () => {
     });
 
     it('should select session on click', () => {
-      const session = { id: 's1', title: 'Session', status: 'complete', transcript: 'Content', createdAt: Date.now() / 1000 };
+      const session = createMockSession({ id: 's1', title: 'Session', status: 'complete', transcript: 'Content', createdAt: Date.now() / 1000 });
       mockState = {
         ...defaultMockState,
-        currentFolder: { id: 'f1', name: 'Test Folder', sessionCount: 1 },
+        currentFolder: createMockFolder({ id: 'f1', name: 'Test Folder', sessionCount: 1 }),
         sessions: [session],
       };
       render(<MainContent />);
@@ -228,9 +256,9 @@ describe('MainContent', () => {
     it('should show complete status icon', () => {
       mockState = {
         ...defaultMockState,
-        currentFolder: { id: 'f1', name: 'Test Folder', sessionCount: 1 },
+        currentFolder: createMockFolder({ id: 'f1', name: 'Test Folder', sessionCount: 1 }),
         sessions: [
-          { id: 's1', title: 'Complete Session', status: 'complete', transcript: 'Done', createdAt: Date.now() / 1000 },
+          createMockSession({ id: 's1', title: 'Complete Session', status: 'complete', transcript: 'Done', createdAt: Date.now() / 1000 }),
         ],
       };
       render(<MainContent />);
@@ -241,9 +269,9 @@ describe('MainContent', () => {
     it('should show transcribing status', () => {
       mockState = {
         ...defaultMockState,
-        currentFolder: { id: 'f1', name: 'Test Folder', sessionCount: 1 },
+        currentFolder: createMockFolder({ id: 'f1', name: 'Test Folder', sessionCount: 1 }),
         sessions: [
-          { id: 's1', title: 'Transcribing Session', status: 'transcribing', createdAt: Date.now() / 1000 },
+          createMockSession({ id: 's1', title: 'Transcribing Session', status: 'transcribing', createdAt: Date.now() / 1000 }),
         ],
       };
       render(<MainContent />);
@@ -254,9 +282,9 @@ describe('MainContent', () => {
     it('should show error status', () => {
       mockState = {
         ...defaultMockState,
-        currentFolder: { id: 'f1', name: 'Test Folder', sessionCount: 1 },
+        currentFolder: createMockFolder({ id: 'f1', name: 'Test Folder', sessionCount: 1 }),
         sessions: [
-          { id: 's1', title: 'Error Session', status: 'error', createdAt: Date.now() / 1000 },
+          createMockSession({ id: 's1', title: 'Error Session', status: 'error', createdAt: Date.now() / 1000 }),
         ],
       };
       render(<MainContent />);
@@ -267,9 +295,9 @@ describe('MainContent', () => {
     it('should show pending status', () => {
       mockState = {
         ...defaultMockState,
-        currentFolder: { id: 'f1', name: 'Test Folder', sessionCount: 1 },
+        currentFolder: createMockFolder({ id: 'f1', name: 'Test Folder', sessionCount: 1 }),
         sessions: [
-          { id: 's1', title: 'Pending Session', status: 'pending', createdAt: Date.now() / 1000 },
+          createMockSession({ id: 's1', title: 'Pending Session', status: 'pending', createdAt: Date.now() / 1000 }),
         ],
       };
       render(<MainContent />);
@@ -280,9 +308,9 @@ describe('MainContent', () => {
     it('should show generating status', () => {
       mockState = {
         ...defaultMockState,
-        currentFolder: { id: 'f1', name: 'Test Folder', sessionCount: 1 },
+        currentFolder: createMockFolder({ id: 'f1', name: 'Test Folder', sessionCount: 1 }),
         sessions: [
-          { id: 's1', title: 'Generating Session', status: 'generating', createdAt: Date.now() / 1000 },
+          createMockSession({ id: 's1', title: 'Generating Session', status: 'generating', createdAt: Date.now() / 1000 }),
         ],
       };
       render(<MainContent />);
@@ -295,9 +323,9 @@ describe('MainContent', () => {
       const timestamp = new Date('2024-06-15 14:30:00').getTime() / 1000;
       mockState = {
         ...defaultMockState,
-        currentFolder: { id: 'f1', name: 'Test Folder', sessionCount: 1 },
+        currentFolder: createMockFolder({ id: 'f1', name: 'Test Folder', sessionCount: 1 }),
         sessions: [
-          { id: 's1', title: '', status: 'complete', transcript: 'Content', createdAt: timestamp },
+          createMockSession({ id: 's1', title: '', status: 'complete', transcript: 'Content', createdAt: timestamp }),
         ],
       };
       render(<MainContent />);
@@ -311,9 +339,9 @@ describe('MainContent', () => {
       const recentTimestamp = (Date.now() - 1000 * 60 * 5) / 1000; // 5 minutes ago
       mockState = {
         ...defaultMockState,
-        currentFolder: { id: 'f1', name: 'Test Folder', sessionCount: 1 },
+        currentFolder: createMockFolder({ id: 'f1', name: 'Test Folder', sessionCount: 1 }),
         sessions: [
-          { id: 's1', title: 'Recent Session', status: 'complete', transcript: 'Content', createdAt: recentTimestamp },
+          createMockSession({ id: 's1', title: 'Recent Session', status: 'complete', transcript: 'Content', createdAt: recentTimestamp }),
         ],
       };
       render(<MainContent />);
@@ -326,7 +354,7 @@ describe('MainContent', () => {
       mockState = {
         ...defaultMockState,
         currentWorkspace: null,
-      };
+      } as MockState;
       expect(() => render(<MainContent />)).not.toThrow();
       expect(screen.getByText('Private Transcript')).toBeInTheDocument();
     });
