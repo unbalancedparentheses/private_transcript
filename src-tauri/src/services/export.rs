@@ -324,4 +324,66 @@ mod tests {
         assert!(transcript.is_empty());
         assert!(notes.is_empty());
     }
+
+    #[test]
+    fn test_parse_content_no_title() {
+        let content = "## Transcript\n\nSome text\n\n## Notes\n\nSome notes";
+        let (title, transcript, notes) = parse_content(content);
+
+        assert!(title.is_empty());
+        assert_eq!(transcript, "Some text");
+        assert_eq!(notes, "Some notes");
+    }
+
+    #[test]
+    fn test_parse_content_only_transcript() {
+        let content = "# Meeting\n\n## Transcript\n\nLine 1\nLine 2\nLine 3";
+        let (title, transcript, notes) = parse_content(content);
+
+        assert_eq!(title, "Meeting");
+        assert_eq!(transcript, "Line 1\nLine 2\nLine 3");
+        assert!(notes.is_empty());
+    }
+
+    #[test]
+    fn test_parse_content_only_notes() {
+        let content = "# Quick Notes\n\n## Notes\n\nImportant point\nAnother point";
+        let (title, transcript, notes) = parse_content(content);
+
+        assert_eq!(title, "Quick Notes");
+        assert!(transcript.is_empty());
+        assert_eq!(notes, "Important point\nAnother point");
+    }
+
+    #[test]
+    fn test_parse_content_multiline_transcript() {
+        let content = "# Interview\n\n## Transcript\n\nQuestion about experience?\nI have 5 years of experience.\nThat's great.\n\n## Notes\n\nGood candidate";
+        let (title, transcript, notes) = parse_content(content);
+
+        assert_eq!(title, "Interview");
+        assert!(transcript.contains("Question about experience?"));
+        assert!(transcript.contains("5 years"));
+        assert!(transcript.contains("That's great"));
+        assert_eq!(notes, "Good candidate");
+    }
+
+    #[test]
+    fn test_parse_content_empty_string() {
+        let content = "";
+        let (title, transcript, notes) = parse_content(content);
+
+        assert!(title.is_empty());
+        assert!(transcript.is_empty());
+        assert!(notes.is_empty());
+    }
+
+    #[test]
+    fn test_parse_content_whitespace_only_lines() {
+        let content = "# Test\n\n## Transcript\n\nLine 1\n\nLine 2";
+        let (title, transcript, notes) = parse_content(content);
+
+        assert_eq!(title, "Test");
+        // Empty lines are skipped
+        assert_eq!(transcript, "Line 1\nLine 2");
+    }
 }

@@ -520,4 +520,172 @@ mod tests {
         assert!(prompt.contains(question));
         assert!(prompt.contains("helpful assistant"));
     }
+
+    #[test]
+    fn test_format_rag_prompt_empty_context() {
+        let context = "";
+        let question = "What happened in the meeting?";
+
+        let prompt = format_rag_prompt(context, question);
+
+        assert!(prompt.contains("no relevant transcript excerpts were found"));
+        assert!(prompt.contains(question));
+        assert!(prompt.contains("rephrasing their question"));
+    }
+
+    #[test]
+    fn test_build_rag_context_without_speaker() {
+        let chunks = vec![RetrievedChunk {
+            chunk_id: "1".to_string(),
+            session_id: "s1".to_string(),
+            session_title: Some("Daily Standup".to_string()),
+            text: "Today we focused on bug fixes.".to_string(),
+            speaker: None,
+            similarity: 0.85,
+        }];
+
+        let context = build_rag_context(&chunks);
+
+        assert!(context.contains("Excerpt 1"));
+        assert!(context.contains("Daily Standup"));
+        assert!(context.contains("bug fixes"));
+        assert!(!context.contains("["));  // No speaker brackets
+    }
+
+    #[test]
+    fn test_build_rag_context_without_session_title() {
+        let chunks = vec![RetrievedChunk {
+            chunk_id: "1".to_string(),
+            session_id: "s1".to_string(),
+            session_title: None,
+            text: "Important discussion point.".to_string(),
+            speaker: Some("Alice".to_string()),
+            similarity: 0.9,
+        }];
+
+        let context = build_rag_context(&chunks);
+
+        assert!(context.contains("Excerpt 1"));
+        assert!(context.contains("[Alice]"));
+        assert!(context.contains("Important discussion"));
+        assert!(!context.contains("(from:"));  // No session title
+    }
+
+    #[test]
+    fn test_build_rag_context_multiple_chunks() {
+        let chunks = vec![
+            RetrievedChunk {
+                chunk_id: "1".to_string(),
+                session_id: "s1".to_string(),
+                session_title: Some("Planning".to_string()),
+                text: "First chunk content.".to_string(),
+                speaker: Some("Bob".to_string()),
+                similarity: 0.95,
+            },
+            RetrievedChunk {
+                chunk_id: "2".to_string(),
+                session_id: "s1".to_string(),
+                session_title: Some("Planning".to_string()),
+                text: "Second chunk content.".to_string(),
+                speaker: Some("Carol".to_string()),
+                similarity: 0.90,
+            },
+            RetrievedChunk {
+                chunk_id: "3".to_string(),
+                session_id: "s2".to_string(),
+                session_title: Some("Review".to_string()),
+                text: "Third chunk from different session.".to_string(),
+                speaker: None,
+                similarity: 0.85,
+            },
+        ];
+
+        let context = build_rag_context(&chunks);
+
+        assert!(context.contains("Excerpt 1"));
+        assert!(context.contains("Excerpt 2"));
+        assert!(context.contains("Excerpt 3"));
+        assert!(context.contains("[Bob]"));
+        assert!(context.contains("[Carol]"));
+        assert!(context.contains("Planning"));
+        assert!(context.contains("Review"));
+    }
+
+    #[test]
+    fn test_build_rag_context_preserves_text_content() {
+        let text = "The quarterly report shows 25% growth in revenue compared to last year.";
+        let chunks = vec![RetrievedChunk {
+            chunk_id: "1".to_string(),
+            session_id: "s1".to_string(),
+            session_title: Some("Financial Review".to_string()),
+            text: text.to_string(),
+            speaker: Some("CFO".to_string()),
+            similarity: 0.92,
+        }];
+
+        let context = build_rag_context(&chunks);
+
+        assert!(context.contains(text));
+    }
+
+    #[test]
+    fn test_retrieved_chunk_serialization() {
+        let chunk = RetrievedChunk {
+            chunk_id: "test-id".to_string(),
+            session_id: "session-1".to_string(),
+            session_title: Some("Test Session".to_string()),
+            text: "Sample text".to_string(),
+            speaker: Some("Speaker 1".to_string()),
+            similarity: 0.87,
+        };
+
+        let json = serde_json::to_string(&chunk).unwrap();
+        assert!(json.contains("chunkId"));
+        assert!(json.contains("sessionId"));
+        assert!(json.contains("sessionTitle"));
+        assert!(json.contains("similarity"));
+
+        let deserialized: RetrievedChunk = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.chunk_id, "test-id");
+        assert_eq!(deserialized.similarity, 0.87);
+    }
+
+    #[test]
+    fn test_chat_message_serialization() {
+        let msg = ChatMessage {
+            id: "msg-1".to_string(),
+            conversation_id: "conv-1".to_string(),
+            role: "user".to_string(),
+            content: "Hello".to_string(),
+            source_chunks: Some(vec!["chunk-1".to_string(), "chunk-2".to_string()]),
+            created_at: 1700000000,
+        };
+
+        let json = serde_json::to_string(&msg).unwrap();
+        assert!(json.contains("conversationId"));
+        assert!(json.contains("sourceChunks"));
+        assert!(json.contains("createdAt"));
+
+        let deserialized: ChatMessage = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.id, "msg-1");
+        assert_eq!(deserialized.source_chunks.unwrap().len(), 2);
+    }
+
+    #[test]
+    fn test_chat_conversation_serialization() {
+        let conv = ChatConversation {
+            id: "conv-1".to_string(),
+            title: Some("Test Chat".to_string()),
+            created_at: 1700000000,
+            updated_at: 1700000100,
+        };
+
+        let json = serde_json::to_string(&conv).unwrap();
+        assert!(json.contains("createdAt"));
+        assert!(json.contains("updatedAt"));
+
+        let deserialized: ChatConversation = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.id, "conv-1");
+        assert_eq!(deserialized.title, Some("Test Chat".to_string()));
+    }
 }
