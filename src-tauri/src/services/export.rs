@@ -386,4 +386,180 @@ mod tests {
         // Empty lines are skipped
         assert_eq!(transcript, "Line 1\nLine 2");
     }
+
+    // ============================================================================
+    // Additional Export Tests
+    // ============================================================================
+
+    #[test]
+    fn test_parse_content_special_characters_in_title() {
+        let content = "# Meeting: Q4 Review & Planning (2024)\n\n## Transcript\n\nContent here";
+        let (title, transcript, _) = parse_content(content);
+
+        assert_eq!(title, "Meeting: Q4 Review & Planning (2024)");
+        assert_eq!(transcript, "Content here");
+    }
+
+    #[test]
+    fn test_parse_content_unicode_content() {
+        let content = "# 会议记录\n\n## Transcript\n\n这是中文文本\n\n## Notes\n\nノート";
+        let (title, transcript, notes) = parse_content(content);
+
+        assert_eq!(title, "会议记录");
+        assert_eq!(transcript, "这是中文文本");
+        assert_eq!(notes, "ノート");
+    }
+
+    #[test]
+    fn test_parse_content_multiple_hash_in_content() {
+        let content = "# Main Title\n\n## Transcript\n\nLine with # symbol\nAnother #tag here\n\n## Notes\n\nNote with #hashtag";
+        let (title, transcript, notes) = parse_content(content);
+
+        assert_eq!(title, "Main Title");
+        assert!(transcript.contains("# symbol"));
+        assert!(transcript.contains("#tag"));
+        assert!(notes.contains("#hashtag"));
+    }
+
+    #[test]
+    fn test_parse_content_long_transcript() {
+        let mut content = String::from("# Long Meeting\n\n## Transcript\n\n");
+        for i in 0..100 {
+            content.push_str(&format!("This is line number {}.\n", i));
+        }
+        content.push_str("\n## Notes\n\nEnd notes");
+
+        let (title, transcript, notes) = parse_content(&content);
+
+        assert_eq!(title, "Long Meeting");
+        assert!(transcript.contains("line number 0"));
+        assert!(transcript.contains("line number 99"));
+        assert_eq!(notes, "End notes");
+    }
+
+    #[test]
+    fn test_parse_content_sections_in_wrong_order() {
+        // Notes before Transcript - should still parse correctly
+        let content = "# Title\n\n## Notes\n\nNote first\n\n## Transcript\n\nTranscript second";
+        let (title, transcript, notes) = parse_content(content);
+
+        assert_eq!(title, "Title");
+        assert_eq!(transcript, "Transcript second");
+        assert_eq!(notes, "Note first");
+    }
+
+    #[test]
+    fn test_parse_content_extra_sections_ignored() {
+        let content = "# Title\n\n## Summary\n\nIgnored\n\n## Transcript\n\nReal transcript\n\n## Other\n\nAlso ignored\n\n## Notes\n\nReal notes";
+        let (title, transcript, notes) = parse_content(content);
+
+        assert_eq!(title, "Title");
+        assert_eq!(transcript, "Real transcript");
+        assert_eq!(notes, "Real notes");
+    }
+
+    #[tokio::test]
+    async fn test_export_markdown_special_filename() {
+        let content = "# Test\n\n## Transcript\n\nContent";
+        let result = export_markdown(content, "test-with-dashes_and_underscores").await;
+        assert!(result.is_ok());
+
+        let path = result.unwrap();
+        assert!(path.ends_with(".md"));
+        let _ = fs::remove_file(&path);
+    }
+
+    #[tokio::test]
+    async fn test_export_pdf_basic() {
+        let content = "# PDF Test\n\n## Transcript\n\nHello world from PDF\n\n## Notes\n\nPDF notes";
+        let result = export_pdf(content, "test_pdf_export").await;
+        assert!(result.is_ok());
+
+        let path = result.unwrap();
+        assert!(path.ends_with(".pdf"));
+
+        // Verify file exists
+        assert!(std::path::Path::new(&path).exists());
+
+        let _ = fs::remove_file(&path);
+    }
+
+    #[tokio::test]
+    async fn test_export_docx_basic() {
+        let content = "# DOCX Test\n\n## Transcript\n\nHello world from DOCX\n\n## Notes\n\nDOCX notes";
+        let result = export_docx(content, "test_docx_export").await;
+        assert!(result.is_ok());
+
+        let path = result.unwrap();
+        assert!(path.ends_with(".docx"));
+
+        // Verify file exists
+        assert!(std::path::Path::new(&path).exists());
+
+        let _ = fs::remove_file(&path);
+    }
+
+    #[tokio::test]
+    async fn test_export_pdf_empty_sections() {
+        let content = "# Empty Sections Test\n\n## Transcript\n\n## Notes\n\n";
+        let result = export_pdf(content, "test_pdf_empty").await;
+        assert!(result.is_ok());
+        let _ = fs::remove_file(result.unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_export_docx_empty_sections() {
+        let content = "# Empty Sections Test\n\n## Transcript\n\n## Notes\n\n";
+        let result = export_docx(content, "test_docx_empty").await;
+        assert!(result.is_ok());
+        let _ = fs::remove_file(result.unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_export_pdf_long_content() {
+        let mut content = String::from("# Long Content Test\n\n## Transcript\n\n");
+        for i in 0..50 {
+            content.push_str(&format!("This is paragraph {}. It contains some text that simulates real transcript content.\n", i));
+        }
+        content.push_str("\n## Notes\n\nSome final notes.");
+
+        let result = export_pdf(&content, "test_pdf_long").await;
+        assert!(result.is_ok());
+        let _ = fs::remove_file(result.unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_export_docx_long_content() {
+        let mut content = String::from("# Long Content Test\n\n## Transcript\n\n");
+        for i in 0..50 {
+            content.push_str(&format!("This is paragraph {}. It contains some text that simulates real transcript content.\n", i));
+        }
+        content.push_str("\n## Notes\n\nSome final notes.");
+
+        let result = export_docx(&content, "test_docx_long").await;
+        assert!(result.is_ok());
+        let _ = fs::remove_file(result.unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_export_to_obsidian_invalid_path() {
+        let content = "# Test\n\n## Transcript\n\nContent";
+        let result = export_to_obsidian(
+            content,
+            "test_note",
+            "/nonexistent/path/to/vault",
+            vec!["tag1".to_string()],
+        ).await;
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("does not exist"));
+    }
+
+    #[test]
+    fn test_get_exports_dir() {
+        let result = get_exports_dir();
+        assert!(result.is_ok());
+        let path = result.unwrap();
+        assert!(path.exists());
+    }
 }

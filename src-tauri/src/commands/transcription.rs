@@ -144,24 +144,395 @@ pub async fn get_transcription_progress(
 mod tests {
     use super::*;
 
+    // Helper to generate unique session IDs for tests
+    fn unique_session_id(prefix: &str) -> String {
+        use std::time::{SystemTime, UNIX_EPOCH};
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        format!("{}-{}", prefix, nanos)
+    }
+
+    // ============================================================================
+    // Progress Tracking Tests
+    // ============================================================================
+
     #[test]
     fn test_update_progress() {
-        let session_id = "test-session-1";
-        update_progress(session_id, 50.0, "transcribing");
+        let session_id = unique_session_id("test-update");
+        update_progress(&session_id, 50.0, "transcribing");
 
         let map = TRANSCRIPTION_PROGRESS.lock();
-        let progress = map.get(session_id).unwrap();
+        let progress = map.get(&session_id).unwrap();
         assert_eq!(progress.progress, 50.0);
         assert_eq!(progress.status, "transcribing");
     }
 
     #[test]
     fn test_clear_progress() {
-        let session_id = "test-session-2";
-        update_progress(session_id, 100.0, "complete");
-        clear_progress(session_id);
+        let session_id = unique_session_id("test-clear");
+        update_progress(&session_id, 100.0, "complete");
+        clear_progress(&session_id);
 
         let map = TRANSCRIPTION_PROGRESS.lock();
-        assert!(map.get(session_id).is_none());
+        assert!(map.get(&session_id).is_none());
+    }
+
+    #[test]
+    fn test_progress_status_transitions() {
+        let session_id = unique_session_id("test-transitions");
+
+        // Starting state
+        update_progress(&session_id, 0.0, "starting");
+        {
+            let map = TRANSCRIPTION_PROGRESS.lock();
+            let progress = map.get(&session_id).unwrap();
+            assert_eq!(progress.status, "starting");
+            assert_eq!(progress.progress, 0.0);
+        }
+
+        // Transcribing state
+        update_progress(&session_id, 10.0, "transcribing");
+        {
+            let map = TRANSCRIPTION_PROGRESS.lock();
+            let progress = map.get(&session_id).unwrap();
+            assert_eq!(progress.status, "transcribing");
+            assert_eq!(progress.progress, 10.0);
+        }
+
+        // Progress update mid-transcription
+        update_progress(&session_id, 50.0, "transcribing");
+        {
+            let map = TRANSCRIPTION_PROGRESS.lock();
+            let progress = map.get(&session_id).unwrap();
+            assert_eq!(progress.progress, 50.0);
+        }
+
+        // Complete state
+        update_progress(&session_id, 100.0, "complete");
+        {
+            let map = TRANSCRIPTION_PROGRESS.lock();
+            let progress = map.get(&session_id).unwrap();
+            assert_eq!(progress.status, "complete");
+            assert_eq!(progress.progress, 100.0);
+        }
+
+        // Cleanup
+        clear_progress(&session_id);
+    }
+
+    #[test]
+    fn test_progress_error_state() {
+        let session_id = unique_session_id("test-error");
+
+        update_progress(&session_id, 25.0, "transcribing");
+        update_progress(&session_id, 0.0, "error");
+
+        let map = TRANSCRIPTION_PROGRESS.lock();
+        let progress = map.get(&session_id).unwrap();
+        assert_eq!(progress.status, "error");
+        assert_eq!(progress.progress, 0.0);
+    }
+
+    #[test]
+    fn test_multiple_concurrent_sessions() {
+        let session1 = unique_session_id("session1");
+        let session2 = unique_session_id("session2");
+        let session3 = unique_session_id("session3");
+
+        // Start all sessions
+        update_progress(&session1, 0.0, "starting");
+        update_progress(&session2, 0.0, "starting");
+        update_progress(&session3, 0.0, "starting");
+
+        // Progress each at different rates
+        update_progress(&session1, 75.0, "transcribing");
+        update_progress(&session2, 25.0, "transcribing");
+        update_progress(&session3, 50.0, "transcribing");
+
+        {
+            let map = TRANSCRIPTION_PROGRESS.lock();
+            assert_eq!(map.get(&session1).unwrap().progress, 75.0);
+            assert_eq!(map.get(&session2).unwrap().progress, 25.0);
+            assert_eq!(map.get(&session3).unwrap().progress, 50.0);
+        }
+
+        // Complete one, error one, keep one running
+        update_progress(&session1, 100.0, "complete");
+        update_progress(&session2, 0.0, "error");
+
+        {
+            let map = TRANSCRIPTION_PROGRESS.lock();
+            assert_eq!(map.get(&session1).unwrap().status, "complete");
+            assert_eq!(map.get(&session2).unwrap().status, "error");
+            assert_eq!(map.get(&session3).unwrap().status, "transcribing");
+        }
+
+        // Cleanup
+        clear_progress(&session1);
+        clear_progress(&session2);
+        clear_progress(&session3);
+    }
+
+    #[test]
+    fn test_clear_nonexistent_session() {
+        let session_id = unique_session_id("nonexistent");
+        // Should not panic when clearing a session that doesn't exist
+        clear_progress(&session_id);
+
+        let map = TRANSCRIPTION_PROGRESS.lock();
+        assert!(map.get(&session_id).is_none());
+    }
+
+    #[test]
+    fn test_progress_overwrites_existing() {
+        let session_id = unique_session_id("overwrite");
+
+        update_progress(&session_id, 50.0, "transcribing");
+        update_progress(&session_id, 75.0, "transcribing");
+
+        let map = TRANSCRIPTION_PROGRESS.lock();
+        let progress = map.get(&session_id).unwrap();
+        // Should have the latest values
+        assert_eq!(progress.progress, 75.0);
+    }
+
+    #[test]
+    fn test_session_id_preservation() {
+        let session_id = unique_session_id("preserve");
+
+        update_progress(&session_id, 50.0, "transcribing");
+
+        let map = TRANSCRIPTION_PROGRESS.lock();
+        let progress = map.get(&session_id).unwrap();
+        assert_eq!(progress.session_id, session_id);
+    }
+
+    // ============================================================================
+    // Progress Value Tests
+    // ============================================================================
+
+    #[test]
+    fn test_progress_boundary_values() {
+        let session_id = unique_session_id("boundary");
+
+        // Test 0%
+        update_progress(&session_id, 0.0, "starting");
+        {
+            let map = TRANSCRIPTION_PROGRESS.lock();
+            assert_eq!(map.get(&session_id).unwrap().progress, 0.0);
+        }
+
+        // Test 100%
+        update_progress(&session_id, 100.0, "complete");
+        {
+            let map = TRANSCRIPTION_PROGRESS.lock();
+            assert_eq!(map.get(&session_id).unwrap().progress, 100.0);
+        }
+
+        clear_progress(&session_id);
+    }
+
+    #[test]
+    fn test_progress_fractional_values() {
+        let session_id = unique_session_id("fractional");
+
+        update_progress(&session_id, 33.33, "transcribing");
+        {
+            let map = TRANSCRIPTION_PROGRESS.lock();
+            let progress = map.get(&session_id).unwrap().progress;
+            assert!((progress - 33.33).abs() < 0.001);
+        }
+
+        update_progress(&session_id, 66.67, "transcribing");
+        {
+            let map = TRANSCRIPTION_PROGRESS.lock();
+            let progress = map.get(&session_id).unwrap().progress;
+            assert!((progress - 66.67).abs() < 0.001);
+        }
+
+        clear_progress(&session_id);
+    }
+
+    // ============================================================================
+    // Status String Tests
+    // ============================================================================
+
+    #[test]
+    fn test_all_valid_status_strings() {
+        let session_id = unique_session_id("status");
+
+        let statuses = ["starting", "transcribing", "complete", "error", "pending"];
+
+        for status in statuses {
+            update_progress(&session_id, 50.0, status);
+            let map = TRANSCRIPTION_PROGRESS.lock();
+            assert_eq!(map.get(&session_id).unwrap().status, status);
+        }
+
+        clear_progress(&session_id);
+    }
+
+    #[test]
+    fn test_empty_status_string() {
+        let session_id = unique_session_id("empty-status");
+
+        update_progress(&session_id, 50.0, "");
+
+        let map = TRANSCRIPTION_PROGRESS.lock();
+        assert_eq!(map.get(&session_id).unwrap().status, "");
+
+        clear_progress(&session_id);
+    }
+
+    // ============================================================================
+    // TranscriptionProgress Struct Tests
+    // ============================================================================
+
+    #[test]
+    fn test_transcription_progress_clone() {
+        let progress = TranscriptionProgress {
+            session_id: "test".to_string(),
+            progress: 50.0,
+            status: "transcribing".to_string(),
+        };
+
+        let cloned = progress.clone();
+        assert_eq!(cloned.session_id, progress.session_id);
+        assert_eq!(cloned.progress, progress.progress);
+        assert_eq!(cloned.status, progress.status);
+    }
+
+    #[test]
+    fn test_transcription_progress_serialization() {
+        let progress = TranscriptionProgress {
+            session_id: "test-session".to_string(),
+            progress: 75.5,
+            status: "transcribing".to_string(),
+        };
+
+        let json = serde_json::to_string(&progress).unwrap();
+        assert!(json.contains("test-session"));
+        assert!(json.contains("75.5"));
+        assert!(json.contains("transcribing"));
+    }
+
+    #[test]
+    fn test_transcription_progress_deserialization() {
+        let json = r#"{"session_id":"test","progress":50.0,"status":"complete"}"#;
+        let progress: TranscriptionProgress = serde_json::from_str(json).unwrap();
+
+        assert_eq!(progress.session_id, "test");
+        assert_eq!(progress.progress, 50.0);
+        assert_eq!(progress.status, "complete");
+    }
+
+    // ============================================================================
+    // Map Size and Cleanup Tests
+    // ============================================================================
+
+    #[test]
+    fn test_map_grows_and_shrinks() {
+        let sessions: Vec<String> = (0..5)
+            .map(|i| unique_session_id(&format!("grow-{}", i)))
+            .collect();
+
+        // Add sessions
+        for (i, session_id) in sessions.iter().enumerate() {
+            update_progress(session_id, (i * 20) as f32, "transcribing");
+        }
+
+        {
+            let map = TRANSCRIPTION_PROGRESS.lock();
+            // At least our sessions should be there (might be more from other tests)
+            for session_id in &sessions {
+                assert!(map.contains_key(session_id));
+            }
+        }
+
+        // Remove sessions
+        for session_id in &sessions {
+            clear_progress(session_id);
+        }
+
+        {
+            let map = TRANSCRIPTION_PROGRESS.lock();
+            for session_id in &sessions {
+                assert!(!map.contains_key(session_id));
+            }
+        }
+    }
+
+    // ============================================================================
+    // Thread Safety Tests
+    // ============================================================================
+
+    #[test]
+    fn test_concurrent_updates_to_same_session() {
+        use std::thread;
+
+        let session_id = unique_session_id("concurrent");
+        let session_id_clone = session_id.clone();
+
+        // Spawn multiple threads updating the same session
+        let handles: Vec<_> = (0..10)
+            .map(|i| {
+                let sid = session_id_clone.clone();
+                thread::spawn(move || {
+                    update_progress(&sid, (i * 10) as f32, "transcribing");
+                })
+            })
+            .collect();
+
+        // Wait for all threads
+        for handle in handles {
+            handle.join().unwrap();
+        }
+
+        // Session should exist with some valid value
+        let map = TRANSCRIPTION_PROGRESS.lock();
+        let progress = map.get(&session_id).unwrap();
+        assert!(progress.progress >= 0.0 && progress.progress <= 100.0);
+
+        drop(map);
+        clear_progress(&session_id);
+    }
+
+    #[test]
+    fn test_concurrent_different_sessions() {
+        use std::thread;
+
+        let sessions: Vec<String> = (0..10)
+            .map(|i| unique_session_id(&format!("thread-{}", i)))
+            .collect();
+
+        let handles: Vec<_> = sessions
+            .iter()
+            .enumerate()
+            .map(|(i, session_id)| {
+                let sid = session_id.clone();
+                thread::spawn(move || {
+                    update_progress(&sid, (i * 10) as f32, "transcribing");
+                })
+            })
+            .collect();
+
+        for handle in handles {
+            handle.join().unwrap();
+        }
+
+        // All sessions should exist
+        {
+            let map = TRANSCRIPTION_PROGRESS.lock();
+            for session_id in &sessions {
+                assert!(map.contains_key(session_id));
+            }
+        }
+
+        // Cleanup
+        for session_id in &sessions {
+            clear_progress(session_id);
+        }
     }
 }

@@ -327,4 +327,193 @@ mod tests {
         // This test mainly verifies the function logic
         // without a real AppHandle
     }
+
+    // ============================================================================
+    // Additional Audio Tests
+    // ============================================================================
+
+    #[test]
+    fn test_resample_48khz_to_16khz() {
+        // Resample from 48000 to 16000 Hz (common browser audio rate)
+        let samples: Vec<f32> = vec![0.5; 48000]; // 1 second at 48kHz
+
+        let result = resample_audio(&samples, 48000, 16000).unwrap();
+        // Result should be approximately 16000 samples
+        assert!(result.len() > 15000 && result.len() < 17000,
+            "Expected ~16000 samples, got {}", result.len());
+    }
+
+    #[test]
+    fn test_resample_22050hz_to_16khz() {
+        // Resample from 22050 to 16000 Hz
+        let samples: Vec<f32> = vec![0.3; 22050]; // 1 second at 22050Hz
+
+        let result = resample_audio(&samples, 22050, 16000).unwrap();
+        // Result should be approximately 16000 samples
+        assert!(result.len() > 15000 && result.len() < 17000);
+    }
+
+    #[test]
+    fn test_resample_empty_input() {
+        let samples: Vec<f32> = vec![];
+        let result = resample_audio(&samples, 44100, 16000);
+        // Empty input should produce empty output or error gracefully
+        assert!(result.is_ok());
+        let output = result.unwrap();
+        assert!(output.is_empty() || output.len() < 100);
+    }
+
+    #[test]
+    fn test_resample_short_input() {
+        // Very short input (less than chunk size)
+        let samples: Vec<f32> = vec![0.1, 0.2, 0.3, 0.4, 0.5];
+        let result = resample_audio(&samples, 44100, 16000);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_resample_preserves_approximate_duration() {
+        // 2 seconds of audio at 44100 Hz
+        let input_duration_secs = 2.0;
+        let input_samples: Vec<f32> = vec![0.0; (44100.0 * input_duration_secs) as usize];
+
+        let result = resample_audio(&input_samples, 44100, 16000).unwrap();
+
+        // Output duration should be approximately the same
+        let output_duration_secs = result.len() as f32 / 16000.0;
+        assert!((output_duration_secs - input_duration_secs as f32).abs() < 0.1,
+            "Duration mismatch: input {}s, output {}s", input_duration_secs, output_duration_secs);
+    }
+
+    #[test]
+    fn test_resample_sine_wave() {
+        // Generate a simple sine wave at 440 Hz, 1 second at 44100 Hz
+        let sample_rate = 44100;
+        let freq = 440.0;
+        let duration_secs = 1.0;
+        let num_samples = (sample_rate as f32 * duration_secs) as usize;
+
+        let samples: Vec<f32> = (0..num_samples)
+            .map(|i| {
+                let t = i as f32 / sample_rate as f32;
+                (2.0 * std::f32::consts::PI * freq * t).sin()
+            })
+            .collect();
+
+        let result = resample_audio(&samples, 44100, 16000).unwrap();
+
+        // Verify output length is reasonable
+        assert!(result.len() > 15000 && result.len() < 17000);
+
+        // Verify signal is not all zeros (resampling preserved the signal)
+        let max_amplitude = result.iter().fold(0.0f32, |a, &b| a.max(b.abs()));
+        assert!(max_amplitude > 0.5, "Signal amplitude too low: {}", max_amplitude);
+    }
+
+    #[test]
+    fn test_decode_audio_invalid_format_file() {
+        // Create a temporary file with invalid audio data
+        let temp_path = std::env::temp_dir().join("invalid_audio_test.wav");
+        std::fs::write(&temp_path, b"not valid audio data").unwrap();
+
+        let result = decode_audio_to_whisper_format(temp_path.to_str().unwrap());
+        assert!(result.is_err());
+
+        // Cleanup
+        let _ = std::fs::remove_file(&temp_path);
+    }
+
+    #[test]
+    fn test_decode_audio_empty_file() {
+        let temp_path = std::env::temp_dir().join("empty_audio_test.wav");
+        std::fs::write(&temp_path, b"").unwrap();
+
+        let result = decode_audio_to_whisper_format(temp_path.to_str().unwrap());
+        assert!(result.is_err());
+
+        // Cleanup
+        let _ = std::fs::remove_file(&temp_path);
+    }
+
+    #[test]
+    fn test_resample_large_file() {
+        // Simulate 30 seconds of audio at 48kHz
+        let samples: Vec<f32> = vec![0.1; 48000 * 30];
+
+        let result = resample_audio(&samples, 48000, 16000).unwrap();
+
+        // Should produce approximately 30 seconds at 16kHz
+        let expected_samples = 16000 * 30;
+        assert!(result.len() > expected_samples - 1000 && result.len() < expected_samples + 1000,
+            "Expected ~{} samples, got {}", expected_samples, result.len());
+    }
+
+    #[test]
+    fn test_resample_with_varying_amplitude() {
+        // Create samples with varying amplitude
+        let samples: Vec<f32> = (0..44100)
+            .map(|i| {
+                let t = i as f32 / 44100.0;
+                // Linear ramp from 0 to 1
+                t
+            })
+            .collect();
+
+        let result = resample_audio(&samples, 44100, 16000).unwrap();
+
+        // Verify the ramp is preserved (first samples should be small, last should be large)
+        assert!(result.first().unwrap_or(&0.0).abs() < 0.1);
+        // Last samples should be close to 1.0
+        let last_few: Vec<_> = result.iter().rev().take(100).collect();
+        let avg_last: f32 = last_few.iter().map(|&&x| x).sum::<f32>() / last_few.len() as f32;
+        assert!(avg_last > 0.8, "Expected high amplitude at end, got {}", avg_last);
+    }
+
+    #[test]
+    fn test_audio_format_extensions() {
+        // Test that common audio formats are recognized
+        let formats = vec!["m4a", "ogg", "wav", "mp3", "flac", "aac", "webm"];
+        for format in formats {
+            let filename = format!("test.{}", format);
+            let path = std::path::Path::new(&filename);
+            let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
+            assert_eq!(ext, format);
+        }
+    }
+
+    #[test]
+    fn test_mono_conversion_logic() {
+        // Simulate stereo to mono conversion
+        let stereo_samples = vec![1.0f32, 0.0, 0.5, 0.5, 0.0, 1.0]; // 3 stereo samples
+        let channels = 2;
+
+        let mono_samples: Vec<f32> = stereo_samples
+            .chunks(channels)
+            .map(|chunk| chunk.iter().sum::<f32>() / channels as f32)
+            .collect();
+
+        assert_eq!(mono_samples.len(), 3);
+        assert!((mono_samples[0] - 0.5).abs() < 0.001); // (1.0 + 0.0) / 2
+        assert!((mono_samples[1] - 0.5).abs() < 0.001); // (0.5 + 0.5) / 2
+        assert!((mono_samples[2] - 0.5).abs() < 0.001); // (0.0 + 1.0) / 2
+    }
+
+    #[test]
+    fn test_multichannel_to_mono_conversion() {
+        // Simulate 5.1 surround to mono conversion
+        let surround_samples = vec![
+            0.2f32, 0.2, 0.2, 0.2, 0.2, 0.0, // 6 channels, sum = 1.0
+            0.1, 0.1, 0.1, 0.1, 0.1, 0.5,    // 6 channels, sum = 1.0
+        ];
+        let channels = 6;
+
+        let mono_samples: Vec<f32> = surround_samples
+            .chunks(channels)
+            .map(|chunk| chunk.iter().sum::<f32>() / channels as f32)
+            .collect();
+
+        assert_eq!(mono_samples.len(), 2);
+        assert!((mono_samples[0] - (1.0 / 6.0)).abs() < 0.001);
+        assert!((mono_samples[1] - (1.0 / 6.0)).abs() < 0.001);
+    }
 }
